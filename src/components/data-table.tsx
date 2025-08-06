@@ -33,10 +33,10 @@ interface ProcessedRow {
     isRecipeIngredient: boolean;
     siteNameRowSpan: number;
     enclosureRowSpan: number;
+    enclosureAnimalCount: number;
     commonNameRowSpan: number;
     feedTypeRowSpan: number;
     recipeRowSpan: number;
-    enclosureAnimalCount: number;
 }
 
 export function DataTable({ data }: DataTableProps) {
@@ -84,30 +84,34 @@ export function DataTable({ data }: DataTableProps) {
           let enclosureRowSpan = 0;
           let commonNameRowSpan = 0;
           let feedTypeRowSpan = 0;
+          let enclosureAnimalCount = 0;
           
-          let nextGroupIndex = i + 1;
-          for (let j = i + 1; j < filteredData.length; j++) {
-            if (filteredData[j].site_name !== currentRow.site_name ||
-                filteredData[j].user_enclosure_name !== currentRow.user_enclosure_name ||
-                filteredData[j].common_name !== currentRow.common_name) {
-              nextGroupIndex = j;
-              break;
-            }
-            if (j === filteredData.length -1) nextGroupIndex = filteredData.length;
-          }
-
-          const groupSlice = filteredData.slice(i, nextGroupIndex);
-          const uniqueAnimalIdsInEnclosure = new Set(groupSlice.map(r => r.animal_id));
-          const enclosureAnimalCount = uniqueAnimalIdsInEnclosure.size;
-
-          if (i === 0 || 
-              currentRow.site_name !== filteredData[i - 1].site_name ||
-              currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name ||
-              currentRow.common_name !== filteredData[i-1].common_name
+          let nextEnclosureGroupIndex = i;
+          while (
+              nextEnclosureGroupIndex < filteredData.length &&
+              filteredData[nextEnclosureGroupIndex].site_name === currentRow.site_name &&
+              filteredData[nextEnclosureGroupIndex].user_enclosure_name === currentRow.user_enclosure_name
           ) {
-            siteNameRowSpan = enclosureRowSpan = commonNameRowSpan = groupSlice.length;
+              nextEnclosureGroupIndex++;
           }
           
+          const enclosureGroupSlice = filteredData.slice(i, nextEnclosureGroupIndex);
+          if (enclosureGroupSlice.length > 0) {
+              const uniqueAnimalIdsInEnclosure = new Set(enclosureGroupSlice.map(r => r.animal_id));
+              enclosureAnimalCount = uniqueAnimalIdsInEnclosure.size;
+              siteNameRowSpan = enclosureRowSpan = enclosureGroupSlice.length;
+          }
+
+          let nextCommonNameGroupIndex = i;
+          while (
+              nextCommonNameGroupIndex < nextEnclosureGroupIndex &&
+              filteredData[nextCommonNameGroupIndex].common_name === currentRow.common_name
+          ) {
+              nextCommonNameGroupIndex++;
+          }
+          commonNameRowSpan = nextCommonNameGroupIndex - i;
+
+
           if (i === 0 || 
             currentRow.site_name !== filteredData[i - 1].site_name ||
             currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name ||
@@ -115,7 +119,7 @@ export function DataTable({ data }: DataTableProps) {
             currentRow['Feed type name'] !== filteredData[i - 1]['Feed type name']
           ) {
               let span = 1;
-              for (let j = i + 1; j < nextGroupIndex; j++) {
+              for (let j = i + 1; j < nextCommonNameGroupIndex; j++) {
                   if (filteredData[j]['Feed type name'] === currentRow['Feed type name']) {
                       span++;
                   } else {
@@ -133,10 +137,10 @@ export function DataTable({ data }: DataTableProps) {
                   isRecipeIngredient: false,
                   siteNameRowSpan,
                   enclosureRowSpan,
+                  enclosureAnimalCount,
                   commonNameRowSpan,
                   feedTypeRowSpan,
                   recipeRowSpan: 1,
-                  enclosureAnimalCount,
               });
               i++; 
           } else {
@@ -146,10 +150,10 @@ export function DataTable({ data }: DataTableProps) {
                   isRecipeIngredient: currentRow.type_name ? currentRow.type?.toLowerCase() !== 'recipe' : false,
                   siteNameRowSpan,
                   enclosureRowSpan,
+                  enclosureAnimalCount,
                   commonNameRowSpan,
                   feedTypeRowSpan,
                   recipeRowSpan: 1,
-                  enclosureAnimalCount,
               });
               i++;
           }
@@ -237,10 +241,11 @@ export function DataTable({ data }: DataTableProps) {
                             <TableHead>Enclosure</TableHead>
                             <TableHead>Common Name</TableHead>
                             <TableHead>Feed Type Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Type Name</TableHead>
                             <TableHead>Ingredient</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead>UOM</TableHead>
-                            <TableHead className="text-right">Quantity (grams)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -248,10 +253,13 @@ export function DataTable({ data }: DataTableProps) {
                         processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient, enclosureAnimalCount }, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
                                 {siteNameRowSpan > 0 && <TableCell className="font-medium align-top" rowSpan={siteNameRowSpan}>{row.site_name}</TableCell>}
-                                {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name}</TableCell>}
-                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({enclosureAnimalCount})</TableCell>}
+                                {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name} ({enclosureAnimalCount})</TableCell>}
+                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name}</TableCell>}
                                 {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
                                 
+                                <TableCell>{row.type}</TableCell>
+                                <TableCell>{row.type_name}</TableCell>
+
                                 <TableCell className={isRecipeIngredient ? "pl-8" : ""}>
                                   <div className="flex items-center gap-2">
                                     {isRecipe && <Blend className="h-4 w-4 text-accent" />}
@@ -261,7 +269,6 @@ export function DataTable({ data }: DataTableProps) {
                                 
                                 <TableCell className="text-right">{row.ingredient_qty.toLocaleString()}</TableCell>
                                 <TableCell>{row.base_uom_name}</TableCell>
-                                <TableCell className="text-right">{row.ingredient_qty_gram.toLocaleString()}</TableCell>
                             </TableRow>
                         ))
                         ) : (
