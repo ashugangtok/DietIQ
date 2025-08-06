@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { Download, FilterX } from "lucide-react";
+import { Download, FilterX, Blend } from "lucide-react";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -28,10 +28,14 @@ interface DataTableProps {
 }
 
 interface ProcessedRow {
-  row: SheetDataRow;
-  siteNameRowSpan: number;
-  enclosureRowSpan: number;
-  commonNameRowSpan: number;
+    row: SheetDataRow;
+    isRecipe: boolean;
+    isRecipeIngredient: boolean;
+    siteNameRowSpan: number;
+    enclosureRowSpan: number;
+    commonNameRowSpan: number;
+    feedTypeRowSpan: number;
+    recipeRowSpan: number;
 }
 
 export function DataTable({ data }: DataTableProps) {
@@ -84,37 +88,90 @@ export function DataTable({ data }: DataTableProps) {
   }, [data, filters]);
   
   const processedData = useMemo((): ProcessedRow[] => {
-    const result: ProcessedRow[] = [];
-    if (filteredData.length === 0) return result;
+      const result: ProcessedRow[] = [];
+      if (filteredData.length === 0) return result;
 
-    for (let i = 0; i < filteredData.length; i++) {
-        const currentRow = filteredData[i];
+      let i = 0;
+      while (i < filteredData.length) {
+          const currentRow = filteredData[i];
+          const isRecipe = currentRow.type?.toLowerCase() === 'recipe';
 
-        if (i > 0 && 
-            currentRow.site_name === filteredData[i - 1].site_name &&
-            currentRow.user_enclosure_name === filteredData[i - 1].user_enclosure_name &&
-            currentRow.common_name === filteredData[i - 1].common_name
-        ) {
-            result.push({ row: currentRow, siteNameRowSpan: 0, enclosureRowSpan: 0, commonNameRowSpan: 0 });
-            continue;
-        }
-
-        let rowSpan = 1;
-        for (let j = i + 1; j < filteredData.length; j++) {
-            if (
-                filteredData[j].site_name === currentRow.site_name &&
-                filteredData[j].user_enclosure_name === currentRow.user_enclosure_name &&
-                filteredData[j].common_name === currentRow.common_name
-            ) {
-                rowSpan++;
-            } else {
-                break;
+          let siteNameRowSpan = 0;
+          let enclosureRowSpan = 0;
+          let commonNameRowSpan = 0;
+          let feedTypeRowSpan = 0;
+          
+          let nextGroupIndex = i + 1;
+          for (let j = i + 1; j < filteredData.length; j++) {
+            if (filteredData[j].site_name !== currentRow.site_name ||
+                filteredData[j].user_enclosure_name !== currentRow.user_enclosure_name ||
+                filteredData[j].common_name !== currentRow.common_name) {
+              nextGroupIndex = j;
+              break;
             }
-        }
-        result.push({ row: currentRow, siteNameRowSpan: rowSpan, enclosureRowSpan: rowSpan, commonNameRowSpan: rowSpan });
-    }
+            if (j === filteredData.length -1) nextGroupIndex = filteredData.length;
+          }
 
-    return result;
+          if (i === 0 || 
+              currentRow.site_name !== filteredData[i - 1].site_name ||
+              currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name ||
+              currentRow.common_name !== filteredData[i-1].common_name
+          ) {
+            const groupSlice = filteredData.slice(i, nextGroupIndex);
+            siteNameRowSpan = enclosureRowSpan = commonNameRowSpan = groupSlice.length;
+          }
+          
+          if (i === 0 || 
+            currentRow.site_name !== filteredData[i - 1].site_name ||
+            currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name ||
+            currentRow.common_name !== filteredData[i - 1].common_name ||
+            currentRow['Feed type name'] !== filteredData[i - 1]['Feed type name']
+          ) {
+              let span = 1;
+              for (let j = i + 1; j < nextGroupIndex; j++) {
+                  if (filteredData[j]['Feed type name'] === currentRow['Feed type name']) {
+                      span++;
+                  } else {
+                      break;
+                  }
+              }
+              feedTypeRowSpan = span;
+          }
+
+
+          if (isRecipe) {
+              const recipeIngredients = filteredData.slice(i + 1).filter(
+                  (row) => row.type_name === currentRow.type_name && row.type !== 'Recipe'
+              );
+
+              result.push({
+                  row: currentRow,
+                  isRecipe: true,
+                  isRecipeIngredient: false,
+                  siteNameRowSpan,
+                  enclosureRowSpan,
+                  commonNameRowSpan,
+                  feedTypeRowSpan,
+                  recipeRowSpan: 1,
+              });
+
+              i++; 
+          } else {
+              result.push({
+                  row: currentRow,
+                  isRecipe: false,
+                  isRecipeIngredient: currentRow.type_name ? currentRow.type?.toLowerCase() !== 'recipe' : false,
+                  siteNameRowSpan,
+                  enclosureRowSpan,
+                  commonNameRowSpan,
+                  feedTypeRowSpan,
+                  recipeRowSpan: 1,
+              });
+              i++;
+          }
+      }
+
+      return result;
   }, [filteredData]);
 
   const handleDownload = () => {
@@ -192,8 +249,6 @@ export function DataTable({ data }: DataTableProps) {
                             <TableHead>Enclosure</TableHead>
                             <TableHead>Common Name</TableHead>
                             <TableHead>Feed Type Name</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Type Name</TableHead>
                             <TableHead>Ingredient</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead>UOM</TableHead>
@@ -202,15 +257,20 @@ export function DataTable({ data }: DataTableProps) {
                     </TableHeader>
                     <TableBody>
                         {processedData.length > 0 ? (
-                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan }, index) => (
+                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient }, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
                                 {siteNameRowSpan > 0 && <TableCell className="font-medium align-top" rowSpan={siteNameRowSpan}>{row.site_name}</TableCell>}
                                 {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name}</TableCell>}
                                 {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({animalCountsByCommonName[row.common_name] || 0})</TableCell>}
-                                <TableCell>{row['Feed type name']}</TableCell>
-                                <TableCell>{row.type}</TableCell>
-                                <TableCell>{row.type_name}</TableCell>
-                                <TableCell>{row.ingredient_name}</TableCell>
+                                {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
+                                
+                                <TableCell className={isRecipeIngredient ? "pl-8" : ""}>
+                                  <div className="flex items-center gap-2">
+                                    {isRecipe && <Blend className="h-4 w-4 text-accent" />}
+                                    <span>{isRecipe ? row.type_name : row.ingredient_name}</span>
+                                  </div>
+                                </TableCell>
+                                
                                 <TableCell className="text-right">{row.ingredient_qty.toLocaleString()}</TableCell>
                                 <TableCell>{row.base_uom_name}</TableCell>
                                 <TableCell className="text-right">{row.ingredient_qty_gram.toLocaleString()}</TableCell>
