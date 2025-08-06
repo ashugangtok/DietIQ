@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ const formatQuantity = (quantity: number, quantityGram: number, uom: string) => 
 export default function PackingDashboardPage() {
   const { data, packingList, setPackingList } = useContext(DataContext);
 
-  const aggregatedPackingList = useMemo(() => {
+  const aggregatedData = useMemo(() => {
     if (data.length === 0) return [];
     
     const summaryMap = new Map<string, { qty: number; qty_gram: number; uom: string; uom_gram: string }>();
@@ -47,7 +47,7 @@ export default function PackingDashboardPage() {
         summaryMap.set(key, current);
     });
     
-    const initialList = Array.from(summaryMap.entries()).map(([key, totals]) => {
+    return Array.from(summaryMap.entries()).map(([key, totals]) => {
         const [site, ingredient] = key.split('|');
         const formattedQuantity = formatQuantity(totals.qty, totals.qty_gram, totals.uom);
 
@@ -59,19 +59,27 @@ export default function PackingDashboardPage() {
             status: "Pending" as "Pending" | "Packed",
         };
     });
+  }, [data]);
 
-    if (packingList.length === 0 && initialList.length > 0) {
-        setPackingList(initialList);
-        return initialList;
+  useEffect(() => {
+    // When new data is uploaded, if the packing list is empty, initialize it.
+    // Or if the data has been cleared, clear the packing list.
+    if (data.length > 0) {
+        setPackingList(currentList => {
+            if (currentList.length === 0) {
+                return aggregatedData;
+            }
+            // If list already exists, update quantities but keep statuses
+            return currentList.map(item => {
+                const updatedItem = aggregatedData.find(i => i.id === item.id);
+                return updatedItem ? { ...item, quantity: updatedItem.quantity } : item;
+            }).filter(item => aggregatedData.some(i => i.id === item.id)); // Also remove items that no longer exist
+        });
+    } else {
+        setPackingList([]);
     }
+  }, [data, aggregatedData, setPackingList]);
 
-    return packingList.map(item => ({
-        ...item,
-        quantity: initialList.find(i => i.id === item.id)?.quantity || item.quantity
-    })).filter(item => item.quantity); // Filter out items that are no longer in the uploaded data
-
-  }, [data, packingList, setPackingList]);
-  
   const handleToggleStatus = (id: string) => {
     setPackingList((currentList: PackingItem[]) =>
       currentList.map((item) =>
@@ -123,7 +131,7 @@ export default function PackingDashboardPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {aggregatedPackingList.map((item) => (
+                        {packingList.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell>{item.site}</TableCell>
                                 <TableCell>{item.ingredient}</TableCell>
