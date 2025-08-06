@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2 } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2, ChefHat } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { type SheetDataRow } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SummaryTable } from "@/components/summary-table";
 import { LiveDashboard } from "@/components/live-dashboard";
+import Link from "next/link";
 
 
 export default function Home() {
@@ -148,7 +150,7 @@ export default function Home() {
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+              <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
                 <TabsTrigger value="live-dashboard">
                   <TrendingUp className="mr-2" />
                   Live Dashboard
@@ -160,6 +162,12 @@ export default function Home() {
                 <TabsTrigger value="summary">
                   <BarChart2 className="mr-2" />
                   Summary
+                </TabsTrigger>
+                <TabsTrigger value="kitchen" asChild>
+                  <Link href="/kitchen">
+                    <ChefHat className="mr-2" />
+                    Kitchen
+                  </Link>
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="live-dashboard" className="mt-6">
