@@ -12,4 +12,7 @@ export interface SheetDataRow {
   base_uom_name: string;
   ingredient_qty_gram: number;
   base_uom_name_gram: string;
+  preparation_type_name: string;
+  meal_start_time: string;
+  cut_size_name: string;
 }

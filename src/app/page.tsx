@@ -48,7 +48,8 @@ export default function Home() {
         const requiredColumns = [
           'site_name', 'animal_id', 'common_name', 'section_name', 'user_enclosure_name', 
           'Feed type name', 'ingredient_name', 'type', 'type_name', 
-          'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram'
+          'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram',
+          'preparation_type_name', 'meal_start_time', 'cut_size_name'
         ];
         
         const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];

@@ -23,6 +23,9 @@ type AggregatedRow = {
         total_qty: number;
         total_qty_gram: number;
         total_uom: string;
+        preparation_type_name: string;
+        meal_start_time: string;
+        cut_size_name: string;
     };
     rowSpans: {
         siteName: number;
@@ -97,6 +100,9 @@ export default function PackingDashboardPage() {
                         total_qty: 0,
                         total_qty_gram: 0,
                         total_uom: '',
+                        preparation_type_name: row.preparation_type_name,
+                        meal_start_time: row.meal_start_time,
+                        cut_size_name: row.cut_size_name,
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
@@ -159,6 +165,9 @@ export default function PackingDashboardPage() {
                         total_qty: 0,
                         total_qty_gram: 0,
                         total_uom: row.base_uom_name,
+                        preparation_type_name: row.preparation_type_name,
+                        meal_start_time: row.meal_start_time,
+                        cut_size_name: row.cut_size_name,
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
@@ -324,7 +333,14 @@ export default function PackingDashboardPage() {
                                             {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
                                             {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
                                             {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
-                                            <TableCell className="align-top font-bold">{rowData.ingredients}</TableCell>
+                                            <TableCell className="align-top">
+                                                <div className="font-bold">{rowData.ingredients}</div>
+                                                <div className="text-xs text-muted-foreground space-x-2">
+                                                    {rowData.preparation_type_name && <span>Prep: {rowData.preparation_type_name}</span>}
+                                                    {rowData.cut_size_name && <span>Cut: {rowData.cut_size_name}</span>}
+                                                    {rowData.meal_start_time && <span>Time: {rowData.meal_start_time}</span>}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-right align-top font-bold">{totalDisplay}</TableCell>
                                             <TableCell className="align-top">
                                                 <Badge variant={item.status === "Packed" ? "default" : "secondary"}>
