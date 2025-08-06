@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2, ChefHat } from "lucide-react";
 
@@ -14,10 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SummaryTable } from "@/components/summary-table";
 import { LiveDashboard } from "@/components/live-dashboard";
 import Link from "next/link";
+import { DataContext } from "@/context/data-context";
 
 
 export default function Home() {
-  const [data, setData] = useState<SheetDataRow[]>([]);
+  const { data, setData } = useContext(DataContext);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
