@@ -10,7 +10,8 @@ import { Sun, Sunrise, Moon, Check, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 type AggregatedRow = {
-    id: string;
+    id: string; // Composite key for the group
+    itemIds: string[]; // Original item IDs in this group
     groupData: {
         site_name: string;
         user_enclosure_name: string;
@@ -20,11 +21,9 @@ type AggregatedRow = {
         type: string;
         type_name: string;
         ingredients: IngredientDetail[];
-        total_qty: number;
-        total_qty_gram: number;
-        total_uom: string;
         meal_start_time: string;
     };
+    status: "Pending" | "Packed" | "Dispatched";
 };
 
 type IngredientDetail = {
@@ -32,20 +31,12 @@ type IngredientDetail = {
     qty: number;
     qty_gram: number;
     uom: string;
-    preparation: string;
-    cut_size: string;
-    percentage: number;
 };
-
-
-type ProcessedRow = AggregatedRow & {
-    status: "Pending" | "Packed" | "Dispatched";
-}
 
 
 type TimeFilter = 'all' | 'morning' | 'afternoon' | 'evening';
 
-const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+const formatIngredient = (quantity: number, quantityGram: number, uom: string) => {
     const uomLower = uom.toLowerCase();
     const isWeight = uomLower === 'kilogram' || uomLower === 'kg' || uomLower === 'gram';
 
@@ -80,101 +71,69 @@ export default function PackingDashboardPage() {
 
   const allAggregatedItems = useMemo(() => {
     if (data.length === 0) return [];
-
-    const sortedData = [...data].sort((a, b) => {
-      const siteCompare = a.site_name.localeCompare(b.site_name);
-      if (siteCompare !== 0) return siteCompare;
-      const enclosureCompare = a.user_enclosure_name.localeCompare(b.user_enclosure_name);
-      if (enclosureCompare !== 0) return enclosureCompare;
-      return a.common_name.localeCompare(b.common_name);
-    });
-
-    const animalCounts = new Map<string, number>();
-    sortedData.forEach(row => {
-      const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-      if (!animalCounts.has(groupKey)) {
-        const animalSet = new Set(data.filter(d =>
-          d.site_name === row.site_name &&
-          d.user_enclosure_name === row.user_enclosure_name &&
-          d.common_name === row.common_name
-        ).map(d => d.animal_id));
-        animalCounts.set(groupKey, animalSet.size);
-      }
-    });
-
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'rowSpans'>>();
     
-    sortedData.forEach(row => {
-        const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        
-        // Key for aggregation: site, enclosure, animal, meal time, and what is being prepared (recipe name or single ingredient)
-        const aggregationKey = `${commonGroupKey}|${row.meal_start_time}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+    // Create a map to hold the fully aggregated items.
+    // The key will be for the *entire preparation*, not individual ingredients.
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status'>>();
 
-        if (!aggregationMap.has(aggregationKey)) {
-             aggregationMap.set(aggregationKey, {
-                id: aggregationKey,
+    data.forEach(row => {
+        // This key groups all ingredients for a single prep task together.
+        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row.meal_start_time}|${row.type_name}`;
+        
+        // This is the unique ID for this specific ingredient row within the group.
+        const originalItemId = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row.meal_start_time}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+
+        let group = aggregationMap.get(groupKey);
+
+        if (!group) {
+            // First time seeing this group, create it.
+            const animalSet = new Set(data.filter(d => 
+                d.site_name === row.site_name && 
+                d.user_enclosure_name === row.user_enclosure_name && 
+                d.common_name === row.common_name
+            ).map(d => d.animal_id));
+
+            group = {
+                id: groupKey,
+                itemIds: [],
                 groupData: {
                     site_name: row.site_name,
                     user_enclosure_name: row.user_enclosure_name,
                     common_name: row.common_name,
-                    animalCount: animalCounts.get(commonGroupKey) || 0,
+                    animalCount: animalSet.size,
                     feed_type_name: row['Feed type name'],
                     type: row.type,
                     type_name: row.type_name,
                     ingredients: [],
-                    total_qty: 0,
-                    total_qty_gram: 0,
-                    total_uom: row.base_uom_name,
                     meal_start_time: row.meal_start_time,
                 }
+            };
+            aggregationMap.set(groupKey, group);
+        }
+
+        // Add the unique ID of the original row to the group
+        if (!group.itemIds.includes(originalItemId)) {
+            group.itemIds.push(originalItemId);
+        }
+
+        // Add or update the ingredient details for this group
+        let ingredientDetail = group.groupData.ingredients.find(i => i.name === row.ingredient_name);
+        if (ingredientDetail) {
+            ingredientDetail.qty += row.ingredient_qty;
+            ingredientDetail.qty_gram += row.ingredient_qty_gram;
+        } else {
+            group.groupData.ingredients.push({
+                name: row.ingredient_name,
+                qty: row.ingredient_qty,
+                qty_gram: row.ingredient_qty_gram,
+                uom: row.base_uom_name,
             });
         }
     });
 
-    aggregationMap.forEach(aggItem => {
-        const { site_name, user_enclosure_name, common_name, meal_start_time, type, type_name } = aggItem.groupData;
-
-        const relevantRows = sortedData.filter(r => 
-            r.site_name === site_name &&
-            r.user_enclosure_name === user_enclosure_name &&
-            r.common_name === common_name &&
-            r.meal_start_time === meal_start_time &&
-            ( (type === 'Recipe' || type === 'Combo') ? r.type_name === type_name : r.ingredient_name === aggItem.id.split('|').pop() )
-        );
-
-        const totalRecipeGrams = relevantRows.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
-
-        const ingredientsDetails = new Map<string, IngredientDetail>();
-        relevantRows.forEach(r => {
-            let detail = ingredientsDetails.get(r.ingredient_name);
-            if (!detail) {
-                detail = {
-                    name: r.ingredient_name,
-                    qty: 0,
-                    qty_gram: 0,
-                    uom: r.base_uom_name,
-                    preparation: r.preparation_type_name,
-                    cut_size: r.cut_size_name,
-                    percentage: 0
-                };
-                ingredientsDetails.set(r.ingredient_name, detail);
-            }
-            detail.qty += r.ingredient_qty;
-            detail.qty_gram += r.ingredient_qty_gram;
-        });
-
-        ingredientsDetails.forEach(detail => {
-            detail.percentage = totalRecipeGrams > 0 ? (detail.qty_gram / totalRecipeGrams) * 100 : 0;
-        });
-
-        aggItem.groupData.ingredients = Array.from(ingredientsDetails.values());
-        aggItem.groupData.total_qty = relevantRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-        aggItem.groupData.total_qty_gram = totalRecipeGrams;
-        aggItem.groupData.total_uom = relevantRows[0]?.base_uom_name || '';
-    });
-    
     return Array.from(aggregationMap.values());
   }, [data]);
+
 
   const packingListWithDetails = useMemo(() => {
     // 1. Filter by time
@@ -184,21 +143,22 @@ export default function PackingDashboardPage() {
 
     if (timeFilteredData.length === 0) return [];
     
-    // 2. Get packing statuses
+    // 2. Get packing statuses for each original item
     const packingStatusMap = new Map(packingList.map(item => [item.id, item.status]));
+    
+    // 3. Map to final display structure
+    return timeFilteredData.map(group => {
+        // Determine the overall status of the group. If any item is not Packed, the group is Pending.
+        const allItemsPacked = group.itemIds.every(id => packingStatusMap.get(id) === 'Packed');
+        const status = allItemsPacked ? 'Packed' : 'Pending';
 
-    // 3. Sort by site etc.
-    const sortedFilteredData = [...timeFilteredData].sort((a,b) => {
+        return { ...group, status };
+    }).sort((a,b) => { // Sort the final list of cards
          const siteCompare = a.groupData.site_name.localeCompare(b.groupData.site_name);
          if (siteCompare !== 0) return siteCompare;
          const enclosureCompare = a.groupData.user_enclosure_name.localeCompare(b.groupData.user_enclosure_name);
          if (enclosureCompare !== 0) return enclosureCompare;
          return a.groupData.common_name.localeCompare(b.groupData.common_name);
-    });
-    
-    return sortedFilteredData.map(row => {
-        const status = packingStatusMap.get(row.id) || 'Pending';
-        return { ...row, status };
     });
   }, [allAggregatedItems, timeFilter, packingList]);
 
@@ -207,11 +167,13 @@ export default function PackingDashboardPage() {
     if (data.length > 0 && allAggregatedItems.length > 0) {
         setPackingList(currentList => {
             const currentMap = new Map(currentList.map(item => [item.id, item]));
-            const allItemIds = new Set(allAggregatedItems.map(item => item.id));
+            
+            // Get all unique *original* item IDs from all aggregated groups
+            const allOriginalItemIds = new Set(allAggregatedItems.flatMap(group => group.itemIds));
 
             const updatedList: PackingItem[] = [];
 
-            allItemIds.forEach(id => {
+            allOriginalItemIds.forEach(id => {
                 if (currentMap.has(id)) {
                     updatedList.push(currentMap.get(id)!);
                 } else {
@@ -227,11 +189,12 @@ export default function PackingDashboardPage() {
   }, [data, allAggregatedItems, setPackingList]);
 
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleGroupStatus = (itemIds: string[], currentStatus: "Pending" | "Packed") => {
+    const newStatus = currentStatus === "Pending" ? "Packed" : "Pending";
     setPackingList((currentList: PackingItem[]) =>
       currentList.map((item) =>
-        item.id === id
-          ? { ...item, status: item.status === "Pending" ? "Packed" : "Pending" }
+        itemIds.includes(item.id)
+          ? { ...item, status: newStatus }
           : item
       )
     );
@@ -298,50 +261,40 @@ export default function PackingDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {packingListWithDetails.map((item) => {
               const rowData = item.groupData;
-              const totalDisplay = formatTotal(rowData.total_qty, rowData.total_qty_gram, rowData.total_uom);
               const isPacked = item.status === 'Packed';
+              const groupTitle = `${rowData.site_name} | ${rowData.user_enclosure_name} | ${rowData.common_name} (${rowData.animalCount})`;
+              
               return (
                 <Card key={item.id} className={`shadow-lg transition-all ${isPacked ? 'bg-green-50' : 'bg-card'}`}>
                     <CardHeader>
                         <div className="flex justify-between items-start">
-                            <div>
-                                <CardDescription>{rowData.site_name} | {rowData.user_enclosure_name} | {rowData.common_name} ({rowData.animalCount})</CardDescription>
+                            <div className="flex-1">
+                                <CardDescription>{groupTitle}</CardDescription>
                                 <CardTitle className="text-xl font-bold">{rowData.type_name}</CardTitle>
-                                <CardDescription className="font-semibold">{rowData.type}</CardDescription>
                             </div>
-                            <Badge variant={isPacked ? "default" : "secondary"} className={isPacked ? 'bg-green-600' : ''}>
+                            <Badge variant={isPacked ? "default" : "secondary"} className={`ml-4 flex-shrink-0 ${isPacked ? 'bg-green-600' : ''}`}>
                                 {item.status}
                             </Badge>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Separator />
-                        <div className="flex justify-between items-center">
-                             <div>
-                                <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Used</h4>
-                                <div className="space-y-1">
-                                    {rowData.ingredients.map(ing => (
-                                        <div key={ing.name} className="flex items-center text-sm p-1.5 rounded-md bg-muted/50">
-                                            <span className="font-semibold min-w-[100px]">{ing.name}</span>
-                                            <Separator orientation="vertical" className="h-4 mx-2" />
-                                            <span className="text-muted-foreground text-xs">{ing.preparation}</span>
-                                            <Separator orientation="vertical" className="h-4 mx-2" />
-                                            <span className="text-muted-foreground text-xs">{ing.cut_size}</span>
-                                            <Separator orientation="vertical" className="h-4 mx-2" />
-                                            <span className="font-bold">{ing.percentage.toFixed(0)}%</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="text-right flex-shrink-0 pl-4">
-                                <p className="text-2xl font-bold text-primary">{totalDisplay}</p>
+                        <div>
+                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Used</h4>
+                            <div className="space-y-2">
+                                {rowData.ingredients.map(ing => (
+                                    <div key={ing.name} className="flex justify-between items-center text-sm p-1.5 rounded-md bg-muted/50">
+                                        <span className="font-semibold">{ing.name}</span>
+                                        <span className="font-bold text-primary">{formatIngredient(ing.qty, ing.qty_gram, ing.uom)}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                         <Button
                           size="sm"
                           className="w-full"
                           variant={isPacked ? 'destructive' : 'default'}
-                          onClick={() => handleToggleStatus(item.id)}
+                          onClick={() => handleToggleGroupStatus(item.itemIds, item.status)}
                         >
                           {isPacked ? <X className="mr-2" /> : <Check className="mr-2" />}
                           {isPacked ? 'Mark as Pending' : 'Mark as Packed'}
@@ -363,5 +316,3 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
-
-    
