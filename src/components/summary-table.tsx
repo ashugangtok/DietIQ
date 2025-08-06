@@ -106,14 +106,32 @@ export function SummaryTable({ data }: SummaryTableProps) {
           group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + row.total_qty_gram;
           grandTotalGram += row.total_qty_gram;
       } else {
-          group.siteTotals[row.uom] = (group.siteTotals[row.uom] || 0) + row.total_qty;
-          grandTotals[row.uom] = (grandTotals[row.uom] || 0) + row.total_qty;
+          const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
+          group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + row.total_qty;
+          grandTotals[uomKey] = (grandTotals[uomKey] || 0) + row.total_qty;
       }
     });
     
     grandTotals['weight'] = grandTotalGram;
 
     return { groups, grandTotals };
+  }, [summaryData]);
+
+  const overallTotals = useMemo(() => {
+    const totals = new Map<string, { [uom: string]: number }>();
+    summaryData.forEach(row => {
+      if (!totals.has(row.ingredient_name)) {
+        totals.set(row.ingredient_name, {});
+      }
+      const ingredientTotals = totals.get(row.ingredient_name)!;
+      if (isWeightUnit(row.uom)) {
+        ingredientTotals['weight'] = (ingredientTotals['weight'] || 0) + row.total_qty_gram;
+      } else {
+        const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
+        ingredientTotals[uomKey] = (ingredientTotals[uomKey] || 0) + row.total_qty;
+      }
+    });
+    return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
   
   const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
@@ -139,81 +157,122 @@ export function SummaryTable({ data }: SummaryTableProps) {
         const kg = total / 1000;
         return `${kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kilogram`;
       }
-      return `${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`;
+      const unitLabel = total === 1 ? unit : `${unit}s`;
+      return `${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unitLabel}`;
     }).join(', ');
   };
 
 
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-xl">Ingredient Summary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-          <Select value={feedTypeFilter} onValueChange={(value) => setFeedTypeFilter(value === 'all' ? '' : value)}>
-            <SelectTrigger className="w-full sm:w-[240px] bg-background">
-              <SelectValue placeholder="Filter by Feed Type Name" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Feed Types</SelectItem>
-              {feedTypeOptions.map((option, index) => (
-                <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <MultiSelect
-            options={ingredientOptions.map(name => ({ label: name, value: name }))}
-            selectedValues={ingredientFilter}
-            onChange={setIngredientFilter}
-            placeholder="Filter by ingredients..."
-            className="w-full sm:w-[240px] bg-background"
-          />
-        </div>
-
-        <div className="relative overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Site Name</TableHead>
-                <TableHead>Ingredient Name</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {groupedData.groups.size > 0 ? (
-                <>
-                  {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotals }]) => (
-                    <React.Fragment key={siteName}>
-                      {ingredients.map((ing, index) => (
-                        <TableRow key={`${siteName}-${ing.name}`}>
-                          <TableCell className="align-top">{index === 0 ? siteName : ''}</TableCell>
-                          <TableCell className="align-top">{ing.name}</TableCell>
-                          <TableCell className="text-right align-top">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
+    <div>
+      <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+        <Select value={feedTypeFilter} onValueChange={(value) => setFeedTypeFilter(value === 'all' ? '' : value)}>
+          <SelectTrigger className="w-full sm:w-[240px] bg-background">
+            <SelectValue placeholder="Filter by Feed Type Name" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Feed Types</SelectItem>
+            {feedTypeOptions.map((option, index) => (
+              <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <MultiSelect
+          options={ingredientOptions.map(name => ({ label: name, value: name }))}
+          selectedValues={ingredientFilter}
+          onChange={setIngredientFilter}
+          placeholder="Filter by ingredients..."
+          className="w-full sm:w-[240px] bg-background"
+        />
+      </div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        <div className="lg:w-2/3">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="font-headline text-xl">Ingredient Summary by Site</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Site Name</TableHead>
+                      <TableHead>Ingredient Name</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupedData.groups.size > 0 ? (
+                      <>
+                        {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotals }]) => (
+                          <React.Fragment key={siteName}>
+                            {ingredients.map((ing, index) => (
+                              <TableRow key={`${siteName}-${ing.name}`}>
+                                <TableCell className="align-top font-medium">{index === 0 ? siteName : ''}</TableCell>
+                                <TableCell className="align-top">{ing.name}</TableCell>
+                                <TableCell className="text-right align-top">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/30 font-bold">
+                              <TableCell colSpan={2}>{siteName} Total</TableCell>
+                              <TableCell className="text-right">{formatCombinedTotal(siteTotals)}</TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        ))}
+                        <TableRow className="bg-primary/80 text-primary-foreground font-bold text-base">
+                          <TableCell colSpan={2}>Grand Total</TableCell>
+                          <TableCell className="text-right">{formatCombinedTotal(groupedData.grandTotals)}</TableCell>
                         </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/30 font-bold">
-                        <TableCell colSpan={2}>{siteName} Total</TableCell>
-                        <TableCell className="text-right">{formatCombinedTotal(siteTotals)}</TableCell>
+                      </>
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                          No results found. Try adjusting your filter.
+                        </TableCell>
                       </TableRow>
-                    </React.Fragment>
-                  ))}
-                  <TableRow className="bg-primary/80 text-primary-foreground font-bold text-base">
-                    <TableCell colSpan={2}>Grand Total</TableCell>
-                    <TableCell className="text-right">{formatCombinedTotal(groupedData.grandTotals)}</TableCell>
-                  </TableRow>
-                </>
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                    No results found. Try adjusting your filter.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </CardContent>
-    </Card>
+        <div className="lg:w-1/3">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="font-headline text-xl">Overall Ingredient Totals</CardTitle>
+            </CardHeader>
+            <CardContent>
+               <div className="relative overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Ingredient</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {overallTotals.length > 0 ? (
+                      overallTotals.map(([name, totals]) => (
+                        <TableRow key={name}>
+                          <TableCell className="font-medium">{name}</TableCell>
+                          <TableCell className="text-right">{formatCombinedTotal(totals)}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                          No results found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
