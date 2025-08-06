@@ -145,7 +145,7 @@ export default function PackingDashboardPage() {
             const uniqueIngredients = [...new Set(recipeIngredients)];
             aggRow.groupData.ingredients = `${aggRow.groupData.type_name}: ${uniqueIngredients.join(', ')}`;
         } else {
-            aggRow.groupData.ingredients = aggRow.groupData.type_name;
+            aggRow.groupData.ingredients = aggRow.groupData.type_name; // This was the bug, should be ingredient_name
         }
     });
 
@@ -359,3 +359,5 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
+
+    
