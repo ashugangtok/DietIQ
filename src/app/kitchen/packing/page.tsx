@@ -162,6 +162,17 @@ export default function PackingDashboardPage() {
     });
   }, [allAggregatedItems, timeFilter, packingList]);
 
+  const groupedBySite = useMemo(() => {
+    return packingListWithDetails.reduce((acc, item) => {
+      const siteName = item.groupData.site_name;
+      if (!acc[siteName]) {
+        acc[siteName] = [];
+      }
+      acc[siteName].push(item);
+      return acc;
+    }, {} as Record<string, AggregatedRow[]>);
+  }, [packingListWithDetails]);
+
 
   useEffect(() => {
     if (data.length > 0 && allAggregatedItems.length > 0) {
@@ -257,57 +268,64 @@ export default function PackingDashboardPage() {
             </CardHeader>
         </Card>
         
-        {packingListWithDetails.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packingListWithDetails.map((item) => {
-              const rowData = item.groupData;
-              const isPacked = item.status === 'Packed';
-              
-              return (
-                <Card key={item.id} className={`shadow-lg transition-all ${isPacked ? 'bg-green-50' : 'bg-card'}`}>
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div className="flex-1 space-y-2">
-                                <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-                                    <span className="font-semibold text-primary">{rowData.site_name}</span>
-                                    <Separator orientation="vertical" className="h-4 bg-border" />
-                                    <span>{rowData.user_enclosure_name}</span>
-                                    <Separator orientation="vertical" className="h-4 bg-border" />
-                                    <span>{rowData.common_name} ({rowData.animalCount})</span>
-                                </div>
-                                <CardTitle className="text-xl font-bold">{rowData.type_name}</CardTitle>
-                            </div>
-                            <Badge variant={isPacked ? "default" : "secondary"} className={`ml-4 flex-shrink-0 ${isPacked ? 'bg-green-600' : ''}`}>
-                                {item.status}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Separator />
-                        <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Used</h4>
-                            <div className="space-y-2">
-                                {rowData.ingredients.map(ing => (
-                                    <div key={ing.name} className="flex justify-between items-center text-sm p-1.5 rounded-md bg-muted/50">
-                                        <span className="font-semibold">{ing.name}</span>
-                                        <span className="font-bold text-primary">{formatIngredient(ing.qty, ing.qty_gram, ing.uom)}</span>
+        {Object.keys(groupedBySite).length > 0 ? (
+          <div className="space-y-8">
+            {Object.entries(groupedBySite).map(([siteName, items]) => (
+                <div key={siteName} className="p-4 border rounded-lg shadow-md">
+                    <h2 className="text-2xl font-bold text-center mb-4 text-primary">{siteName}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {items.map((item) => {
+                          const rowData = item.groupData;
+                          const isPacked = item.status === 'Packed';
+                          
+                          return (
+                            <Card key={item.id} className={`shadow-lg transition-all ${isPacked ? 'bg-green-50' : 'bg-card'}`}>
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                                                <span className="font-semibold text-primary">{rowData.site_name}</span>
+                                                <Separator orientation="vertical" className="h-4 bg-border" />
+                                                <span>{rowData.user_enclosure_name}</span>
+                                                <Separator orientation="vertical" className="h-4 bg-border" />
+                                                <span>{rowData.common_name} ({rowData.animalCount})</span>
+                                            </div>
+                                            <CardTitle className="text-xl font-bold">{rowData.type_name}</CardTitle>
+                                        </div>
+                                        <Badge variant={isPacked ? "default" : "secondary"} className={`ml-4 flex-shrink-0 ${isPacked ? 'bg-green-600' : ''}`}>
+                                            {item.status}
+                                        </Badge>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          variant={isPacked ? 'destructive' : 'default'}
-                          onClick={() => handleToggleGroupStatus(item.itemIds, item.status)}
-                        >
-                          {isPacked ? <X className="mr-2" /> : <Check className="mr-2" />}
-                          {isPacked ? 'Mark as Pending' : 'Mark as Packed'}
-                        </Button>
-                    </CardContent>
-                </Card>
-              )
-            })}
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <Separator />
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Used</h4>
+                                        <div className="space-y-2">
+                                            {rowData.ingredients.map(ing => (
+                                                <div key={ing.name} className="flex justify-between items-center text-sm p-1.5 rounded-md bg-muted/50">
+                                                    <span className="font-semibold">{ing.name}</span>
+                                                    <span className="font-bold text-primary">{formatIngredient(ing.qty, ing.qty_gram, ing.uom)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      className="w-full"
+                                      variant={isPacked ? 'destructive' : 'default'}
+                                      onClick={() => handleToggleGroupStatus(item.itemIds, item.status)}
+                                    >
+                                      {isPacked ? <X className="mr-2" /> : <Check className="mr-2" />}
+                                      {isPacked ? 'Mark as Pending' : 'Mark as Packed'}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                          )
+                        })}
+                    </div>
+                </div>
+            ))}
           </div>
         ) : (
           <Card>
