@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, PawPrint } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function Home() {
         const worksheet = workbook.Sheets[sheetName];
         
         const requiredColumns = [
-          'site_name', 'common_name', 'section_name', 'user_enclosure_name', 
+          'site_name', 'animal_id', 'common_name', 'section_name', 'user_enclosure_name', 
           'Feed type name', 'ingredient_name', 'type', 'type_name', 
           'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram'
         ];
@@ -74,6 +74,12 @@ export default function Home() {
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
+
+  const animalCount = useMemo(() => {
+    if (data.length === 0) return 0;
+    const uniqueAnimalIds = new Set(data.map(row => row.animal_id));
+    return uniqueAnimalIds.size;
+  }, [data]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -125,18 +131,36 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {data.length > 0 && !isLoading ? (
-          <div className="w-full max-w-7xl mt-8">
-            <DataTable data={data} />
-          </div>
-        ) : (
-          !isLoading && !error && (
+        {data.length > 0 && !isLoading && (
+          <>
+            <Card className="w-full max-w-5xl shadow-lg mt-8">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="space-y-1">
+                      <CardTitle className="font-headline text-xl">Animal Count</CardTitle>
+                      <CardDescription>
+                          Total number of unique animals in the dataset.
+                      </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <PawPrint className="w-8 h-8 text-accent" />
+                    <p className="text-4xl font-bold text-primary">{animalCount}</p>
+                  </div>
+              </CardHeader>
+            </Card>
+
+            <div className="w-full max-w-7xl mt-8">
+              <DataTable data={data} />
+            </div>
+          </>
+        )}
+        
+        {data.length === 0 && !isLoading && !error && (
             <div className="text-center p-12 text-muted-foreground mt-8">
               <FileSpreadsheet className="mx-auto h-12 w-12" />
               <p className="mt-4 text-lg">Your data will appear here</p>
             </div>
           )
-        )}
+        }
       </main>
       <footer className="text-center p-4 text-sm text-muted-foreground border-t">
           Built for Firebase Studio

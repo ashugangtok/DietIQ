@@ -1,5 +1,6 @@
 export interface SheetDataRow {
   site_name: string;
+  animal_id: string;
   common_name: string;
   section_name: string;
   user_enclosure_name: string;
