@@ -47,7 +47,7 @@ export default function PackingDashboardPage() {
         summaryMap.set(key, current);
     });
     
-    return Array.from(summaryMap.entries()).map(([key, totals]) => {
+    const aggregatedList = Array.from(summaryMap.entries()).map(([key, totals]) => {
         const [site, ingredient] = key.split('|');
         const formattedQuantity = formatQuantity(totals.qty, totals.qty_gram, totals.uom);
 
@@ -59,6 +59,15 @@ export default function PackingDashboardPage() {
             status: "Pending" as "Pending" | "Packed",
         };
     });
+
+    return aggregatedList.sort((a, b) => {
+        const siteCompare = a.site.localeCompare(b.site);
+        if (siteCompare !== 0) {
+            return siteCompare;
+        }
+        return a.ingredient.localeCompare(b.ingredient);
+    });
+
   }, [data]);
 
   useEffect(() => {
