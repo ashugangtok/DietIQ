@@ -72,19 +72,6 @@ export function DataTable({ data }: DataTableProps) {
     });
   }, [data, filters]);
   
-  const animalCountByCommonName = useMemo(() => {
-    const counts: Record<string, Set<string>> = {};
-    filteredData.forEach(row => {
-      const name = row.common_name;
-      const id = row.animal_id;
-      if (!counts[name]) {
-        counts[name] = new Set();
-      }
-      counts[name].add(id);
-    });
-    return counts;
-  }, [filteredData]);
-
   const processedData = useMemo((): ProcessedRow[] => {
       const result: ProcessedRow[] = [];
       if (filteredData.length === 0) return result;
@@ -133,7 +120,10 @@ export function DataTable({ data }: DataTableProps) {
               endIndex++;
             }
             commonNameRowSpan = endIndex - i;
-            commonNameAnimalCount = animalCountByCommonName[currentRow.common_name]?.size || 0;
+
+            const relevantRows = filteredData.slice(i, endIndex);
+            const uniqueAnimalIds = new Set(relevantRows.map(r => r.animal_id));
+            commonNameAnimalCount = uniqueAnimalIds.size;
           }
           
           if(showFeedType) {
@@ -180,7 +170,7 @@ export function DataTable({ data }: DataTableProps) {
       }
 
       return result;
-  }, [filteredData, animalCountByCommonName]);
+  }, [filteredData]);
 
   const handleDownload = () => {
     if (filteredData.length === 0) return;
