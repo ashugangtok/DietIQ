@@ -27,13 +27,17 @@ type AggregatedRow = {
         meal_start_time: string;
         cut_size_name: string;
     };
+};
+
+type ProcessedRow = AggregatedRow & {
     rowSpans: {
         siteName: number;
         enclosure: number;
         commonName: number;
     };
     status: "Pending" | "Packed" | "Dispatched";
-};
+}
+
 
 type TimeFilter = 'all' | 'morning' | 'afternoon' | 'evening';
 
@@ -70,8 +74,7 @@ export default function PackingDashboardPage() {
   const { data, packingList, setPackingList } = useContext(DataContext);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
-  // This logic is adapted directly from the working data-table.tsx component
-  const allProcessedItems = useMemo(() => {
+  const allAggregatedItems = useMemo(() => {
     if (data.length === 0) return [];
 
     const sortedData = [...data].sort((a, b) => {
@@ -95,54 +98,47 @@ export default function PackingDashboardPage() {
       }
     });
     
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans'>>();
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'rowSpans'>>();
     
-    // Use a Set to avoid processing the same recipe/combo multiple times
-    const processedRecipeOrCombo = new Set<string>();
-
     sortedData.forEach(row => {
         const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
         
         if (row.type === 'Recipe' || row.type === 'Combo') {
             const recipeKey = `${commonGroupKey}|${row.meal_start_time}|${row.type_name}`;
-            if (processedRecipeOrCombo.has(recipeKey)) {
-                return; // Already processed this recipe for this group/time
+            
+            if (!aggregationMap.has(recipeKey)) {
+                 const recipeIngredients = sortedData.filter(r =>
+                    r.site_name === row.site_name &&
+                    r.user_enclosure_name === row.user_enclosure_name &&
+                    r.common_name === row.common_name &&
+                    r.meal_start_time === row.meal_start_time &&
+                    r.type_name === row.type_name
+                );
+
+                const totalQty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
+                const totalQtyGram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
+                const ingredientsDisplay = `${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
+
+                aggregationMap.set(recipeKey, {
+                    id: recipeKey,
+                    groupData: {
+                        site_name: row.site_name,
+                        user_enclosure_name: row.user_enclosure_name,
+                        common_name: row.common_name,
+                        animalCount: animalCounts.get(commonGroupKey) || 0,
+                        feed_type_name: row['Feed type name'],
+                        type: row.type,
+                        type_name: row.type_name,
+                        ingredients: ingredientsDisplay,
+                        total_qty: totalQty,
+                        total_qty_gram: totalQtyGram,
+                        total_uom: row.base_uom_name,
+                        preparation_type_name: row.preparation_type_name,
+                        meal_start_time: row.meal_start_time,
+                        cut_size_name: row.cut_size_name,
+                    }
+                });
             }
-            processedRecipeOrCombo.add(recipeKey);
-
-            const recipeIngredients = sortedData.filter(r =>
-                r.site_name === row.site_name &&
-                r.user_enclosure_name === row.user_enclosure_name &&
-                r.common_name === row.common_name &&
-                r.meal_start_time === row.meal_start_time &&
-                r.type_name === row.type_name
-            );
-
-            const totalQty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
-            const totalQtyGram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
-
-            const ingredientsDisplay = `${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
-
-            aggregationMap.set(recipeKey, {
-                id: recipeKey,
-                groupData: {
-                    site_name: row.site_name,
-                    user_enclosure_name: row.user_enclosure_name,
-                    common_name: row.common_name,
-                    animalCount: animalCounts.get(commonGroupKey) || 0,
-                    feed_type_name: row['Feed type name'],
-                    type: row.type,
-                    type_name: row.type_name,
-                    ingredients: ingredientsDisplay,
-                    total_qty: totalQty,
-                    total_qty_gram: totalQtyGram,
-                    total_uom: row.base_uom_name,
-                    preparation_type_name: row.preparation_type_name,
-                    meal_start_time: row.meal_start_time,
-                    cut_size_name: row.cut_size_name,
-                }
-            });
-
         } else { // Handle single ingredients
             const ingredientKey = `${commonGroupKey}|${row.meal_start_time}|${row.ingredient_name}`;
             let existing = aggregationMap.get(ingredientKey);
@@ -172,27 +168,35 @@ export default function PackingDashboardPage() {
             existing.groupData.total_qty_gram += row.ingredient_qty_gram;
         }
     });
-
+    
     return Array.from(aggregationMap.values());
   }, [data]);
 
   const packingListWithDetails = useMemo(() => {
     // 1. Filter by time
     const timeFilteredData = timeFilter === 'all'
-      ? allProcessedItems
-      : allProcessedItems.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
+      ? allAggregatedItems
+      : allAggregatedItems.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
 
     if (timeFilteredData.length === 0) return [];
     
     // 2. Get packing statuses
     const packingStatusMap = new Map(packingList.map(item => [item.id, item.status]));
 
-    // 3. Calculate row spans based on the *filtered* data
+    // 3. Calculate row spans based on the *filtered* and *sorted* data
+    const sortedFilteredData = [...timeFilteredData].sort((a,b) => {
+         const siteCompare = a.groupData.site_name.localeCompare(b.groupData.site_name);
+         if (siteCompare !== 0) return siteCompare;
+         const enclosureCompare = a.groupData.user_enclosure_name.localeCompare(b.groupData.user_enclosure_name);
+         if (enclosureCompare !== 0) return enclosureCompare;
+         return a.groupData.common_name.localeCompare(b.groupData.common_name);
+    });
+
     const siteNameCache: { [key: string]: number } = {};
     const enclosureCache: { [key: string]: number } = {};
     const commonNameCache: { [key: string]: number } = {};
 
-    timeFilteredData.forEach(row => {
+    sortedFilteredData.forEach(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
@@ -206,8 +210,8 @@ export default function PackingDashboardPage() {
     const processedSiteNames = new Set();
     const processedEnclosures = new Set();
     const processedCommonNames = new Set();
-
-    return timeFilteredData.map(row => {
+    
+    return sortedFilteredData.map(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
@@ -231,14 +235,14 @@ export default function PackingDashboardPage() {
 
         return { ...row, rowSpans, status };
     });
-  }, [allProcessedItems, timeFilter, packingList]);
+  }, [allAggregatedItems, timeFilter, packingList]);
 
 
   useEffect(() => {
-    if (data.length > 0 && allProcessedItems.length > 0) {
+    if (data.length > 0 && allAggregatedItems.length > 0) {
         setPackingList(currentList => {
             const currentMap = new Map(currentList.map(item => [item.id, item]));
-            const allItemIds = new Set(allProcessedItems.map(item => item.id));
+            const allItemIds = new Set(allAggregatedItems.map(item => item.id));
 
             const updatedList: PackingItem[] = [];
 
@@ -255,7 +259,7 @@ export default function PackingDashboardPage() {
     } else if (data.length === 0) {
         setPackingList([]);
     }
-  }, [data, allProcessedItems, setPackingList]);
+  }, [data, allAggregatedItems, setPackingList]);
 
 
   const handleToggleStatus = (id: string) => {
