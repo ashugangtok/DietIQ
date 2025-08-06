@@ -36,6 +36,7 @@ interface ProcessedRow {
     commonNameRowSpan: number;
     feedTypeRowSpan: number;
     recipeRowSpan: number;
+    enclosureAnimalCount: number;
 }
 
 export function DataTable({ data }: DataTableProps) {
@@ -48,23 +49,6 @@ export function DataTable({ data }: DataTableProps) {
   const siteNameOptions = useMemo(() => [...new Set(data.map(item => item.site_name))].sort(), [data]);
   const commonNameOptions = useMemo(() => [...new Set(data.map(item => item.common_name))].sort(), [data]);
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
-
-  const animalCountsByCommonName = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const animalSets: Record<string, Set<string>> = {};
-
-    data.forEach(row => {
-      if (!animalSets[row.common_name]) {
-        animalSets[row.common_name] = new Set();
-      }
-      animalSets[row.common_name].add(row.animal_id);
-    });
-
-    for (const commonName in animalSets) {
-      counts[commonName] = animalSets[commonName].size;
-    }
-    return counts;
-  }, [data]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -112,12 +96,15 @@ export function DataTable({ data }: DataTableProps) {
             if (j === filteredData.length -1) nextGroupIndex = filteredData.length;
           }
 
+          const groupSlice = filteredData.slice(i, nextGroupIndex);
+          const uniqueAnimalIdsInEnclosure = new Set(groupSlice.map(r => r.animal_id));
+          const enclosureAnimalCount = uniqueAnimalIdsInEnclosure.size;
+
           if (i === 0 || 
               currentRow.site_name !== filteredData[i - 1].site_name ||
               currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name ||
               currentRow.common_name !== filteredData[i-1].common_name
           ) {
-            const groupSlice = filteredData.slice(i, nextGroupIndex);
             siteNameRowSpan = enclosureRowSpan = commonNameRowSpan = groupSlice.length;
           }
           
@@ -140,10 +127,6 @@ export function DataTable({ data }: DataTableProps) {
 
 
           if (isRecipe) {
-              const recipeIngredients = filteredData.slice(i + 1).filter(
-                  (row) => row.type_name === currentRow.type_name && row.type !== 'Recipe'
-              );
-
               result.push({
                   row: currentRow,
                   isRecipe: true,
@@ -153,8 +136,8 @@ export function DataTable({ data }: DataTableProps) {
                   commonNameRowSpan,
                   feedTypeRowSpan,
                   recipeRowSpan: 1,
+                  enclosureAnimalCount,
               });
-
               i++; 
           } else {
               result.push({
@@ -166,6 +149,7 @@ export function DataTable({ data }: DataTableProps) {
                   commonNameRowSpan,
                   feedTypeRowSpan,
                   recipeRowSpan: 1,
+                  enclosureAnimalCount,
               });
               i++;
           }
@@ -176,9 +160,13 @@ export function DataTable({ data }: DataTableProps) {
 
   const handleDownload = () => {
     if (filteredData.length === 0) return;
+
+    // To prevent duplicate count display in CSV, we need a different calculation here.
+    const animalCountsByCommonName = [...new Set(data.map(item => item.animal_id))].length;
+    
     const dataToDownload = filteredData.map(row => ({
       ...row,
-      common_name: `${row.common_name} (${animalCountsByCommonName[row.common_name] || 0})`
+      common_name: `${row.common_name} (${animalCountsByCommonName || 0})`
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataToDownload);
     const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
@@ -257,11 +245,11 @@ export function DataTable({ data }: DataTableProps) {
                     </TableHeader>
                     <TableBody>
                         {processedData.length > 0 ? (
-                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient }, index) => (
+                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient, enclosureAnimalCount }, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
                                 {siteNameRowSpan > 0 && <TableCell className="font-medium align-top" rowSpan={siteNameRowSpan}>{row.site_name}</TableCell>}
                                 {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name}</TableCell>}
-                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({animalCountsByCommonName[row.common_name] || 0})</TableCell>}
+                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({enclosureAnimalCount})</TableCell>}
                                 {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
                                 
                                 <TableCell className={isRecipeIngredient ? "pl-8" : ""}>
