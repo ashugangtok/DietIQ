@@ -6,9 +6,11 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type SheetDataRow } from "@/types";
 import { PawPrint, Sprout, Building, PieChart as PieChartIcon } from "lucide-react";
+import { type Filters } from "./data-table";
 
 interface LiveDashboardProps {
   data: SheetDataRow[];
+  onCardClick: (filters?: Partial<Filters>) => void;
 }
 
 const COLORS = ['#5B8DAE', '#9163A4', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
@@ -30,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export function LiveDashboard({ data }: LiveDashboardProps) {
+export function LiveDashboard({ data, onCardClick }: LiveDashboardProps) {
 
   const stats = useMemo(() => {
     if (data.length === 0) return {
@@ -90,12 +92,19 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
         animalDistribution
     };
   }, [data]);
+
+  const handleBarClick = (payload: any) => {
+    if (payload && payload.activePayload && payload.activePayload.length > 0) {
+      const { name } = payload.activePayload[0].payload;
+      onCardClick({ common_name: name });
+    }
+  };
   
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Total Animals</CardTitle>
                 <PawPrint className="w-5 h-5 text-accent" />
@@ -106,7 +115,7 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
             </CardContent>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Total Sites</CardTitle>
                 <Building className="w-5 h-5 text-accent" />
@@ -117,7 +126,7 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
             </CardContent>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Unique Ingredients</CardTitle>
                 <Sprout className="w-5 h-5 text-accent" />
@@ -128,7 +137,7 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
             </CardContent>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Feed Types</CardTitle>
                 <PieChartIcon className="w-5 h-5 text-accent" />
@@ -168,12 +177,17 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
             </CardHeader>
             <CardContent>
                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={stats.animalDistribution} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart 
+                        data={stats.animalDistribution} 
+                        layout="vertical" 
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        onClick={handleBarClick}
+                    >
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={100} />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
-                        <Bar dataKey="count" name="Count" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} barSize={25} />
+                        <Bar dataKey="count" name="Count" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} barSize={25} className="cursor-pointer" />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -200,6 +214,8 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
                             dataKey="value"
                             stroke="hsl(var(--background))"
                             strokeWidth={2}
+                            onClick={(data) => onCardClick({ 'Feed type name': data.name })}
+                            className="cursor-pointer"
                         >
                             {stats.feedTypeDistribution.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="focus:outline-none focus:ring-2 focus:ring-ring" />

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DataTable } from "@/components/data-table";
+import { DataTable, type Filters } from "@/components/data-table";
 import { type SheetDataRow } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SummaryTable } from "@/components/summary-table";
@@ -19,6 +19,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState("live-dashboard");
+  const [filters, setFilters] = useState<Filters>({
+    site_name: "",
+    common_name: "",
+    'Feed type name': "",
+  });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -79,6 +85,16 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
+  const handleCardClick = (newFilters: Partial<Filters> = {}) => {
+    setFilters(prev => ({
+        site_name: "",
+        common_name: "",
+        'Feed type name': "",
+        ...newFilters
+    }));
+    setActiveTab("data-table");
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="py-4 px-6 border-b bg-card">
@@ -131,7 +147,7 @@ export default function Home() {
 
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
-            <Tabs defaultValue="live-dashboard">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                 <TabsTrigger value="live-dashboard">
                   <TrendingUp className="mr-2" />
@@ -147,10 +163,10 @@ export default function Home() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="live-dashboard" className="mt-6">
-                 <LiveDashboard data={data} />
+                 <LiveDashboard data={data} onCardClick={handleCardClick} />
               </TabsContent>
               <TabsContent value="data-table" className="mt-6">
-                <DataTable data={data} />
+                <DataTable data={data} initialFilters={filters} onFiltersChange={setFilters} />
               </TabsContent>
               <TabsContent value="summary" className="mt-6">
                 <SummaryTable data={data} />

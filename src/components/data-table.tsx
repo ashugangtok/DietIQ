@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Download, FilterX } from "lucide-react";
 import { type SheetDataRow } from "@/types";
@@ -24,8 +24,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 
+export interface Filters {
+  site_name: string;
+  common_name: string;
+  'Feed type name': string;
+}
 interface DataTableProps {
   data: SheetDataRow[];
+  initialFilters?: Filters;
+  onFiltersChange?: (filters: Filters) => void;
 }
 
 type AggregatedRow = {
@@ -50,27 +57,37 @@ type AggregatedRow = {
 };
 
 
-export function DataTable({ data }: DataTableProps) {
-  const [filters, setFilters] = useState({
+export function DataTable({ data, initialFilters, onFiltersChange }: DataTableProps) {
+  const [filters, setFilters] = useState<Filters>(initialFilters || {
     site_name: "",
     common_name: "",
     'Feed type name': "",
   });
+
+  useEffect(() => {
+    if (initialFilters) {
+        setFilters(initialFilters);
+    }
+  }, [initialFilters]);
 
   const siteNameOptions = useMemo(() => [...new Set(data.map(item => item.site_name))].sort(), [data]);
   const commonNameOptions = useMemo(() => [...new Set(data.map(item => item.common_name))].sort(), [data]);
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
+    const newFilters = { ...filters, [filterName]: value };
+    setFilters(newFilters);
+    onFiltersChange?.(newFilters);
   };
   
   const clearFilters = () => {
-    setFilters({
+    const clearedFilters = {
       site_name: "",
       common_name: "",
       'Feed type name': "",
-    });
+    };
+    setFilters(clearedFilters);
+    onFiltersChange?.(clearedFilters);
   };
 
   const filteredData = useMemo(() => {
