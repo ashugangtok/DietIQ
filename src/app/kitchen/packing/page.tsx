@@ -117,7 +117,7 @@ export default function PackingDashboardPage() {
 
                 const totalQty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
                 const totalQtyGram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
-                const ingredientsDisplay = `${row.type}: ${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
+                const ingredientsDisplay = `${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
 
                 aggregationMap.set(recipeKey, {
                     id: recipeKey,
@@ -153,7 +153,7 @@ export default function PackingDashboardPage() {
                         feed_type_name: row['Feed type name'],
                         type: row.type,
                         type_name: row.type_name,
-                        ingredients: `${row.type}: ${row.ingredient_name}`,
+                        ingredients: row.ingredient_name,
                         total_qty: 0,
                         total_qty_gram: 0,
                         total_uom: row.base_uom_name,
@@ -335,6 +335,7 @@ export default function PackingDashboardPage() {
                                 <TableHead>Site Name</TableHead>
                                 <TableHead>Enclosure</TableHead>
                                 <TableHead>Common Name</TableHead>
+                                <TableHead>Type</TableHead>
                                 <TableHead>Ingredient</TableHead>
                                 <TableHead className="text-right">Total</TableHead>
                                 <TableHead>Status</TableHead>
@@ -353,6 +354,7 @@ export default function PackingDashboardPage() {
                                             {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
                                             {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
                                             {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
+                                            <TableCell className="align-top">{rowData.type}</TableCell>
                                             <TableCell className="align-top">
                                                 <div className="font-bold whitespace-pre-wrap">{rowData.ingredients}</div>
                                                 <div className="text-xs text-muted-foreground space-x-2">
@@ -377,7 +379,7 @@ export default function PackingDashboardPage() {
                                 })
                             ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                                 No results found for the selected time slot.
                                 </TableCell>
                             </TableRow>
@@ -390,3 +392,5 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
+
+    
