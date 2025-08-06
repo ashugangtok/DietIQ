@@ -173,14 +173,21 @@ export function DataTable({ data }: DataTableProps) {
 
   const handleDownload = () => {
     if (filteredData.length === 0) return;
-
-    // To prevent duplicate count display in CSV, we need a different calculation here.
-    const animalCountsByCommonName = [...new Set(data.map(item => item.animal_id))].length;
     
+    // Create a map to hold unique animal counts for each common name
+    const animalCountsByCommonName = filteredData.reduce((acc, row) => {
+      if (!acc[row.common_name]) {
+        acc[row.common_name] = new Set<string>();
+      }
+      acc[row.common_name].add(row.animal_id);
+      return acc;
+    }, {} as Record<string, Set<string>>);
+
     const dataToDownload = filteredData.map(row => ({
       ...row,
-      common_name: `${row.common_name} (${animalCountsByCommonName || 0})`
+      common_name: `${row.common_name} (${animalCountsByCommonName[row.common_name]?.size || 0})`
     }));
+
     const worksheet = XLSX.utils.json_to_sheet(dataToDownload);
     const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
     
