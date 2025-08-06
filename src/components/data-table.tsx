@@ -81,6 +81,7 @@ export function DataTable({ data }: DataTableProps) {
       if (a.common_name > b.common_name) return 1;
       if (a['Feed type name'] < b['Feed type name']) return -1;
       if (a['Feed type name'] > b['Feed type name']) return 1;
+      // Keep original order for ingredients within the same feed type
       return 0;
     });
   }, [data, filters]);
@@ -169,7 +170,7 @@ export function DataTable({ data }: DataTableProps) {
               result.push({
                   row: currentRow,
                   isRecipe: false,
-                  isRecipeIngredient: currentRow.type_name ? currentRow.type?.toLowerCase() !== 'recipe' : false,
+                  isRecipeIngredient: !!currentRow.type_name && currentRow.type?.toLowerCase() !== 'recipe',
                   siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
                   enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
                   commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
@@ -187,14 +188,18 @@ export function DataTable({ data }: DataTableProps) {
   const handleDownload = () => {
     if (filteredData.length === 0) return;
     
-    // Create a map to hold unique animal counts for each common name
-    const animalCountsByCommonName = filteredData.reduce((acc, row) => {
-      if (!acc[row.common_name]) {
-        acc[row.common_name] = new Set<string>();
+    const animalCountsByCommonName: Record<string, Set<string>> = {};
+
+    data.forEach(row => {
+      const name = row.common_name;
+      const id = row.animal_id;
+    
+      if (!animalCountsByCommonName[name]) {
+        animalCountsByCommonName[name] = new Set();
       }
-      acc[row.common_name].add(row.animal_id);
-      return acc;
-    }, {} as Record<string, Set<string>>);
+    
+      animalCountsByCommonName[name].add(id);
+    });
 
     const dataToDownload = filteredData.map(row => ({
       ...row,
