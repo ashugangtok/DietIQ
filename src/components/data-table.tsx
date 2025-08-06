@@ -39,6 +39,7 @@ type AggregatedRow = {
         type_name: string;
         ingredients: string;
         total_qty: number;
+        total_qty_gram: number;
         total_uom: string;
     };
     rowSpans: {
@@ -109,7 +110,7 @@ export function DataTable({ data }: DataTableProps) {
         const animalCount = animalSet.size;
 
         if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
-            const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type}|${row.type_name}`;
+            const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
             let existing = aggregationMap.get(recipeKey);
 
             if (!existing) {
@@ -124,6 +125,7 @@ export function DataTable({ data }: DataTableProps) {
                         type_name: row.type_name,
                         ingredients: '', 
                         total_qty: 0,
+                        total_qty_gram: 0,
                         total_uom: '',
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
@@ -138,10 +140,10 @@ export function DataTable({ data }: DataTableProps) {
                 (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
             );
 
-            const ingredientSums: { [key: string]: { qty: number, uom: string, qty_gram: number, uom_gram: string } } = {};
+            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string } } = {};
             allRecipeIngredients.forEach(ing => {
                 if (!ingredientSums[ing.ingredient_name]) {
-                    ingredientSums[ing.ingredient_name] = { qty: 0, uom: ing.base_uom_name, qty_gram: 0, uom_gram: ing.base_uom_name_gram };
+                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name };
                 }
                 ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
                 ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
@@ -155,12 +157,14 @@ export function DataTable({ data }: DataTableProps) {
                 .join(', ');
             
             const totalQty = Object.values(ingredientSums).reduce((sum, data) => sum + data.qty, 0);
+            const totalQtyGram = Object.values(ingredientSums).reduce((sum, data) => sum + data.qty_gram, 0);
             existing.groupData.total_qty = totalQty;
+            existing.groupData.total_qty_gram = totalQtyGram;
             existing.groupData.total_uom = allRecipeIngredients[0]?.base_uom_name || '';
 
 
         } else { // Handle single ingredients
-            const ingredientKey = `${groupKey}|${row['Feed type name']}|${row.ingredient_name}`;
+            const ingredientKey = `${groupKey}|${row.ingredient_name}`;
             let existing = aggregationMap.get(ingredientKey);
 
             if (!existing) {
@@ -175,6 +179,7 @@ export function DataTable({ data }: DataTableProps) {
                         type_name: row.type_name,
                         ingredients: row.ingredient_name,
                         total_qty: 0,
+                        total_qty_gram: 0,
                         total_uom: row.base_uom_name,
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
@@ -182,6 +187,7 @@ export function DataTable({ data }: DataTableProps) {
                 aggregationMap.set(ingredientKey, existing);
             }
             existing.groupData.total_qty += row.ingredient_qty;
+            existing.groupData.total_qty_gram += row.ingredient_qty_gram;
         }
     });
 
@@ -267,12 +273,16 @@ export function DataTable({ data }: DataTableProps) {
     document.body.removeChild(link);
   };
 
-  const formatTotal = (quantity: number, uom: string) => {
-    if (uom.toLowerCase() === 'kilogram' || uom.toLowerCase() === 'kg') {
+  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    const uomLower = uom.toLowerCase();
+    if (uomLower === 'kilogram' || uomLower === 'kg') {
       if (quantity < 1) {
-        return `${(quantity * 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
+        return `${quantityGram.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
       }
       return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+    if (quantity === 1) {
+      return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
     }
     return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   };
@@ -343,7 +353,7 @@ export function DataTable({ data }: DataTableProps) {
                             processedData.map(({ groupData, rowSpans }, index) => {
                                 const { siteName, enclosure, commonName } = rowSpans;
                                 const rowData = groupData;
-                                const totalDisplay = formatTotal(rowData.total_qty, rowData.total_uom);
+                                const totalDisplay = formatTotal(rowData.total_qty, rowData.total_qty_gram, rowData.total_uom);
                                 return (
                                     <TableRow key={index}>
                                         {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
