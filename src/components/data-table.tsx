@@ -38,6 +38,23 @@ export function DataTable({ data }: DataTableProps) {
   const commonNameOptions = useMemo(() => [...new Set(data.map(item => item.common_name))].sort(), [data]);
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
 
+  const animalCountsByCommonName = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const animalSets: Record<string, Set<string>> = {};
+
+    data.forEach(row => {
+      if (!animalSets[row.common_name]) {
+        animalSets[row.common_name] = new Set();
+      }
+      animalSets[row.common_name].add(row.animal_id);
+    });
+
+    for (const commonName in animalSets) {
+      counts[commonName] = animalSets[commonName].size;
+    }
+    return counts;
+  }, [data]);
+
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
@@ -61,7 +78,11 @@ export function DataTable({ data }: DataTableProps) {
   
   const handleDownload = () => {
     if (filteredData.length === 0) return;
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const dataToDownload = filteredData.map(row => ({
+      ...row,
+      common_name: `${row.common_name} (${animalCountsByCommonName[row.common_name] || 0})`
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToDownload);
     const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
     
     const blob = new Blob([`\uFEFF${csvOutput}`], { type: 'text/csv;charset=utf-8;' });
@@ -144,7 +165,7 @@ export function DataTable({ data }: DataTableProps) {
                             <TableRow key={index} className="transition-colors duration-300">
                                 <TableCell className="font-medium">{row.site_name}</TableCell>
                                 <TableCell>{row.user_enclosure_name}</TableCell>
-                                <TableCell>{row.common_name}</TableCell>
+                                <TableCell>{row.common_name} ({animalCountsByCommonName[row.common_name] || 0})</TableCell>
                                 <TableCell>{row['Feed type name']}</TableCell>
                                 <TableCell>{row.type}</TableCell>
                                 <TableCell>{row.type_name}</TableCell>
