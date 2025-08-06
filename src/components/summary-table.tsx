@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -28,6 +29,8 @@ interface SummaryRow {
   site_name: string;
   ingredient_name: string;
   total_qty_gram: number;
+  total_qty: number;
+  uom: string;
 }
 
 export function SummaryTable({ data }: SummaryTableProps) {
@@ -44,17 +47,27 @@ export function SummaryTable({ data }: SummaryTableProps) {
   const summaryData = useMemo(() => {
     if (filteredData.length === 0) return [];
 
-    const summaryMap = new Map<string, number>();
+    const summaryMap = new Map<string, { qty: number; qty_gram: number; uom: string }>();
 
     filteredData.forEach(row => {
       const key = `${row.site_name}|${row.ingredient_name}`;
-      const currentQty = summaryMap.get(key) || 0;
-      summaryMap.set(key, currentQty + row.ingredient_qty_gram);
+      const current = summaryMap.get(key) || { qty: 0, qty_gram: 0, uom: row.base_uom_name };
+      
+      current.qty += row.ingredient_qty;
+      current.qty_gram += row.ingredient_qty_gram;
+      
+      summaryMap.set(key, current);
     });
 
-    const summary: SummaryRow[] = Array.from(summaryMap.entries()).map(([key, total_qty_gram]) => {
+    const summary: SummaryRow[] = Array.from(summaryMap.entries()).map(([key, totals]) => {
       const [site_name, ingredient_name] = key.split('|');
-      return { site_name, ingredient_name, total_qty_gram };
+      return { 
+        site_name, 
+        ingredient_name, 
+        total_qty: totals.qty,
+        total_qty_gram: totals.qty_gram,
+        uom: totals.uom
+      };
     });
 
     return summary.sort((a, b) => {
@@ -65,21 +78,44 @@ export function SummaryTable({ data }: SummaryTableProps) {
   }, [filteredData]);
 
   const groupedData = useMemo(() => {
-    const groups = new Map<string, { ingredients: { name: string; total: number }[], siteTotal: number }>();
-    let grandTotal = 0;
+    const groups = new Map<string, { ingredients: { name: string; total_qty: number; total_qty_gram: number; uom: string; }[], siteTotalGram: number }>();
+    let grandTotalGram = 0;
 
     summaryData.forEach(row => {
       if (!groups.has(row.site_name)) {
-        groups.set(row.site_name, { ingredients: [], siteTotal: 0 });
+        groups.set(row.site_name, { ingredients: [], siteTotalGram: 0 });
       }
       const group = groups.get(row.site_name)!;
-      group.ingredients.push({ name: row.ingredient_name, total: row.total_qty_gram });
-      group.siteTotal += row.total_qty_gram;
-      grandTotal += row.total_qty_gram;
+      group.ingredients.push({ name: row.ingredient_name, total_qty: row.total_qty, total_qty_gram: row.total_qty_gram, uom: row.uom });
+      group.siteTotalGram += row.total_qty_gram;
+      grandTotalGram += row.total_qty_gram;
     });
 
-    return { groups, grandTotal };
+    return { groups, grandTotalGram };
   }, [summaryData]);
+  
+  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    const uomLower = uom.toLowerCase();
+    if (uomLower === 'kilogram' || uomLower === 'kg') {
+        if (quantity < 1 && quantity > 0) { // If it's less than 1 kg but not 0
+            return `${quantityGram.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+        }
+        return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+     if (quantity === 1) {
+      return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+    }
+    return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  };
+
+  const formatGramTotal = (totalGrams: number) => {
+    if (totalGrams < 1000) {
+      return `${totalGrams.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gram`;
+    }
+    const kg = totalGrams / 1000;
+    return `${kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kilogram`;
+  }
+
 
   return (
     <Card className="shadow-lg">
@@ -107,30 +143,30 @@ export function SummaryTable({ data }: SummaryTableProps) {
               <TableRow>
                 <TableHead>Site Name</TableHead>
                 <TableHead>Ingredient Name</TableHead>
-                <TableHead className="text-right">Total (grams)</TableHead>
+                <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {groupedData.groups.size > 0 ? (
                 <>
-                  {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotal }]) => (
+                  {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotalGram }]) => (
                     <React.Fragment key={siteName}>
                       {ingredients.map((ing, index) => (
                         <TableRow key={`${siteName}-${ing.name}`}>
                           <TableCell>{index === 0 ? siteName : ''}</TableCell>
                           <TableCell>{ing.name}</TableCell>
-                          <TableCell className="text-right">{ing.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="bg-muted/30 font-bold">
                         <TableCell colSpan={2}>{siteName} Total</TableCell>
-                        <TableCell className="text-right">{siteTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{formatGramTotal(siteTotalGram)}</TableCell>
                       </TableRow>
                     </React.Fragment>
                   ))}
                   <TableRow className="bg-primary/80 text-primary-foreground font-bold text-base">
                     <TableCell colSpan={2}>Grand Total</TableCell>
-                    <TableCell className="text-right">{groupedData.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                    <TableCell className="text-right">{formatGramTotal(groupedData.grandTotalGram)}</TableCell>
                   </TableRow>
                 </>
               ) : (
