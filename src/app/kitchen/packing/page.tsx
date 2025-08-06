@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataContext, PackingItem } from "@/context/data-context";
-import { type SheetDataRow } from "@/types";
 import { Sun, Sunrise, Moon } from "lucide-react";
 
 type AggregatedRow = {
@@ -60,7 +59,7 @@ const getTimeSlot = (time: string): TimeFilter => {
         const hour = parseInt(time.split(':')[0], 10);
         if (hour >= 6 && hour < 12) return 'morning';
         if (hour >= 12 && hour < 18) return 'afternoon';
-        if (hour >= 18 || hour < 6) return 'evening'; // includes after 6pm and before 6am
+        if (hour >= 18 || hour < 6) return 'evening';
         return 'all'; 
     } catch {
         return 'all';
@@ -95,62 +94,71 @@ export default function PackingDashboardPage() {
       }
     });
 
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans' | 'id'> & { id: string }>();
-
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans'>>();
+    
     sortedData.forEach(row => {
-        const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        const aggregationKey = `${commonGroupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+      const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+      const aggregationKey = `${commonGroupKey}|${row.meal_start_time}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
 
-        let existing = aggregationMap.get(aggregationKey);
+      let existing = aggregationMap.get(aggregationKey);
 
-        if (!existing) {
-            const animalCount = animalCounts.get(commonGroupKey) || 0;
-            existing = {
-                id: aggregationKey,
-                groupData: {
-                    site_name: row.site_name,
-                    user_enclosure_name: row.user_enclosure_name,
-                    common_name: row.common_name,
-                    animalCount: animalCount,
-                    feed_type_name: row['Feed type name'],
-                    type: row.type,
-                    type_name: row.type_name,
-                    ingredients: '',
-                    total_qty: 0,
-                    total_qty_gram: 0,
-                    total_uom: row.base_uom_name,
-                    preparation_type_name: row.preparation_type_name,
-                    meal_start_time: row.meal_start_time,
-                    cut_size_name: row.cut_size_name,
-                },
-            };
-            aggregationMap.set(aggregationKey, existing);
-        }
-
-        existing.groupData.total_qty += row.ingredient_qty;
-        existing.groupData.total_qty_gram += row.ingredient_qty_gram;
-    });
-
-    aggregationMap.forEach(aggRow => {
-        if (aggRow.groupData.type === 'Recipe' || aggRow.groupData.type === 'Combo') {
+      if (!existing) {
+        const animalCount = animalCounts.get(commonGroupKey) || 0;
+        let ingredientsDisplay = row.ingredient_name;
+        if (row.type === 'Recipe' || row.type === 'Combo') {
             const recipeIngredients = sortedData
-                .filter(r => 
-                    r.site_name === aggRow.groupData.site_name &&
-                    r.user_enclosure_name === aggRow.groupData.user_enclosure_name &&
-                    r.common_name === aggRow.groupData.common_name &&
-                    r['Feed type name'] === aggRow.groupData.feed_type_name &&
-                    r.type_name === aggRow.groupData.type_name
+                .filter(r =>
+                    r.site_name === row.site_name &&
+                    r.user_enclosure_name === row.user_enclosure_name &&
+                    r.common_name === row.common_name &&
+                    r.meal_start_time === row.meal_start_time &&
+                    r.type_name === row.type_name
                 )
                 .map(r => r.ingredient_name);
             const uniqueIngredients = [...new Set(recipeIngredients)];
-            aggRow.groupData.ingredients = `${aggRow.groupData.type_name}: ${uniqueIngredients.join(', ')}`;
-        } else {
-            aggRow.groupData.ingredients = aggRow.groupData.type_name; // This was the bug, should be ingredient_name
+            ingredientsDisplay = `${row.type_name}: ${uniqueIngredients.join(', ')}`;
         }
+        
+        existing = {
+          id: aggregationKey,
+          groupData: {
+            site_name: row.site_name,
+            user_enclosure_name: row.user_enclosure_name,
+            common_name: row.common_name,
+            animalCount: animalCount,
+            feed_type_name: row['Feed type name'],
+            type: row.type,
+            type_name: row.type_name,
+            ingredients: ingredientsDisplay,
+            total_qty: 0,
+            total_qty_gram: 0,
+            total_uom: row.base_uom_name,
+            preparation_type_name: row.preparation_type_name,
+            meal_start_time: row.meal_start_time,
+            cut_size_name: row.cut_size_name,
+          },
+        };
+        aggregationMap.set(aggregationKey, existing);
+      }
+      
+      const relevantRows = (row.type === 'Recipe' || row.type === 'Combo')
+        ? sortedData.filter(r =>
+            r.site_name === row.site_name &&
+            r.user_enclosure_name === row.user_enclosure_name &&
+            r.common_name === row.common_name &&
+            r.meal_start_time === row.meal_start_time &&
+            r.type_name === row.type_name
+          )
+        : [row];
+
+      const totalQty = relevantRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
+      const totalQtyGram = relevantRows.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
+
+      existing.groupData.total_qty = totalQty;
+      existing.groupData.total_qty_gram = totalQtyGram;
     });
 
     return Array.from(aggregationMap.values());
-
   }, [data]);
 
   const packingListWithDetails = useMemo(() => {
@@ -211,25 +219,27 @@ export default function PackingDashboardPage() {
   }, [allProcessedItems]);
 
   useEffect(() => {
-    if (data.length > 0) {
+    if (data.length > 0 && allProcessedItems.length > 0) {
         setPackingList(currentList => {
             const currentMap = new Map(currentList.map(item => [item.id, item]));
             
-            const updatedList: PackingItem[] = currentList.filter(item => allItemIds.has(item.id));
-            const updatedMap = new Map(updatedList.map(item => [item.id, item]));
+            const updatedList: PackingItem[] = [];
 
             allItemIds.forEach(id => {
-                if (!updatedMap.has(id)) {
+                if (currentMap.has(id)) {
+                    updatedList.push(currentMap.get(id)!);
+                } else {
                     updatedList.push({ id, status: 'Pending' });
                 }
             });
             
             return updatedList;
         });
-    } else {
+    } else if (data.length === 0) {
         setPackingList([]);
     }
-  }, [data, allItemIds, setPackingList]);
+  }, [data, allProcessedItems, allItemIds, setPackingList]);
+
 
   const handleToggleStatus = (id: string) => {
     setPackingList((currentList: PackingItem[]) =>
