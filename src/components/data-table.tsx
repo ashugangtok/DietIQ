@@ -29,7 +29,6 @@ interface DataTableProps {
 }
 
 type AggregatedRow = {
-    isGroupHeader: boolean;
     groupData: {
         site_name: string;
         user_enclosure_name: string;
@@ -40,6 +39,7 @@ type AggregatedRow = {
         type_name: string;
         ingredients: string;
         total_qty: number;
+        total_uom: string;
     };
     rowSpans: {
         siteName: number;
@@ -114,7 +114,6 @@ export function DataTable({ data }: DataTableProps) {
 
             if (!existing) {
                 existing = {
-                    isGroupHeader: true,
                     groupData: {
                         site_name: row.site_name,
                         user_enclosure_name: row.user_enclosure_name,
@@ -123,15 +122,15 @@ export function DataTable({ data }: DataTableProps) {
                         feed_type_name: row['Feed type name'],
                         type: row.type,
                         type_name: row.type_name,
-                        ingredients: '', // Will be populated below
+                        ingredients: '', 
                         total_qty: 0,
+                        total_uom: '',
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
                 aggregationMap.set(recipeKey, existing);
             }
 
-            // This part is complex because we need to group ingredients for the recipe from the original filtered data
             const allRecipeIngredients = filteredData.filter(
               (r) =>
                 `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
@@ -139,16 +138,25 @@ export function DataTable({ data }: DataTableProps) {
                 (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
             );
 
-            const ingredientSums: { [key: string]: number } = {};
+            const ingredientSums: { [key: string]: { qty: number, uom: string } } = {};
             allRecipeIngredients.forEach(ing => {
-                ingredientSums[ing.ingredient_name] = (ingredientSums[ing.ingredient_name] || 0) + ing.ingredient_qty;
+                if (!ingredientSums[ing.ingredient_name]) {
+                    ingredientSums[ing.ingredient_name] = { qty: 0, uom: ing.base_uom_name };
+                }
+                ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
             });
-
+            
             existing.groupData.ingredients = Object.entries(ingredientSums)
-                .map(([name, qty]) => `${name} (${qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`)
+                .map(([name, data]) => {
+                    const qtyString = data.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return `${name} (${qtyString} ${data.uom})`;
+                })
                 .join(', ');
             
-            existing.groupData.total_qty = Object.values(ingredientSums).reduce((sum, qty) => sum + qty, 0);
+            const totalQty = Object.values(ingredientSums).reduce((sum, data) => sum + data.qty, 0);
+            existing.groupData.total_qty = totalQty;
+            existing.groupData.total_uom = allRecipeIngredients[0]?.base_uom_name || '';
+
 
         } else { // Handle single ingredients
             const ingredientKey = `${groupKey}|${row['Feed type name']}|${row.ingredient_name}`;
@@ -156,7 +164,6 @@ export function DataTable({ data }: DataTableProps) {
 
             if (!existing) {
                  existing = {
-                    isGroupHeader: false, // Treat as a "header" for a single row to reuse rendering logic
                     groupData: {
                         site_name: row.site_name,
                         user_enclosure_name: row.user_enclosure_name,
@@ -167,6 +174,7 @@ export function DataTable({ data }: DataTableProps) {
                         type_name: row.type_name,
                         ingredients: row.ingredient_name,
                         total_qty: 0,
+                        total_uom: row.base_uom_name,
                     },
                     rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
@@ -324,6 +332,10 @@ export function DataTable({ data }: DataTableProps) {
                             processedData.map(({ groupData, rowSpans }, index) => {
                                 const { siteName, enclosure, commonName } = rowSpans;
                                 const rowData = groupData;
+                                const totalQtyString = rowData.total_qty.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                });
                                 return (
                                     <TableRow key={index}>
                                         {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
@@ -333,7 +345,7 @@ export function DataTable({ data }: DataTableProps) {
                                         <TableCell className="align-top">{rowData.type}</TableCell>
                                         <TableCell className="align-top">{rowData.type_name}</TableCell>
                                         <TableCell className="align-top font-bold">{rowData.ingredients}</TableCell>
-                                        <TableCell className="text-right align-top font-bold">{rowData.total_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right align-top font-bold">{totalQtyString} {rowData.total_uom}</TableCell>
                                     </TableRow>
                                 );
                             })
