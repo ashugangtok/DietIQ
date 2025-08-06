@@ -74,43 +74,37 @@ export default function PackingDashboardPage() {
   const processedData = useMemo(() => {
     if (data.length === 0) return [];
 
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans'>>();
-
     const sortedData = [...data].sort((a, b) => {
-        const siteCompare = a.site_name.localeCompare(b.site_name);
-        if (siteCompare !== 0) return siteCompare;
-        const enclosureCompare = a.user_enclosure_name.localeCompare(b.user_enclosure_name);
-        if (enclosureCompare !== 0) return enclosureCompare;
-        const commonNameCompare = a.common_name.localeCompare(b.common_name);
-        if (commonNameCompare !== 0) return commonNameCompare;
-        const feedTypeCompare = (a['Feed type name'] || '').localeCompare(b['Feed type name'] || '');
-        if (feedTypeCompare !== 0) return feedTypeCompare;
-        return (a.type || '').localeCompare(b.type || '');
+      const siteCompare = a.site_name.localeCompare(b.site_name);
+      if (siteCompare !== 0) return siteCompare;
+      const enclosureCompare = a.user_enclosure_name.localeCompare(b.user_enclosure_name);
+      if (enclosureCompare !== 0) return enclosureCompare;
+      return a.common_name.localeCompare(b.common_name);
     });
 
     const animalCounts = new Map<string, number>();
     sortedData.forEach(row => {
-        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        if (!animalCounts.has(groupKey)) {
-            const animalSet = new Set(data.filter(d =>
-                d.site_name === row.site_name &&
-                d.user_enclosure_name === row.user_enclosure_name &&
-                d.common_name === row.common_name
-            ).map(d => d.animal_id));
-            animalCounts.set(groupKey, animalSet.size);
-        }
+      const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+      if (!animalCounts.has(groupKey)) {
+        const animalSet = new Set(data.filter(d =>
+          d.site_name === row.site_name &&
+          d.user_enclosure_name === row.user_enclosure_name &&
+          d.common_name === row.common_name
+        ).map(d => d.animal_id));
+        animalCounts.set(groupKey, animalSet.size);
+      }
     });
 
-    sortedData.forEach(row => {
-        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        const animalCount = animalCounts.get(groupKey) || 0;
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans' | 'id'> & { id: string }>();
 
-        // Unified key for aggregation, handles both recipes and single ingredients
-        const aggregationKey = `${groupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+    sortedData.forEach(row => {
+        const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+        const aggregationKey = `${commonGroupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
 
         let existing = aggregationMap.get(aggregationKey);
 
         if (!existing) {
+            const animalCount = animalCounts.get(commonGroupKey) || 0;
             existing = {
                 id: aggregationKey,
                 groupData: {
@@ -121,7 +115,7 @@ export default function PackingDashboardPage() {
                     feed_type_name: row['Feed type name'],
                     type: row.type,
                     type_name: row.type_name,
-                    ingredients: '', // Will be built later
+                    ingredients: '',
                     total_qty: 0,
                     total_qty_gram: 0,
                     total_uom: row.base_uom_name,
@@ -132,68 +126,34 @@ export default function PackingDashboardPage() {
             };
             aggregationMap.set(aggregationKey, existing);
         }
+
+        existing.groupData.total_qty += row.ingredient_qty;
+        existing.groupData.total_qty_gram += row.ingredient_qty_gram;
     });
 
-    // Populate ingredients and quantities after initial aggregation
     aggregationMap.forEach(aggRow => {
-        const { site_name, user_enclosure_name, common_name, feed_type_name, type, type_name } = aggRow.groupData;
-
-        if (type === 'Recipe' || type === 'Combo') {
-            const recipeIngredients = sortedData.filter(r => 
-                r.site_name === site_name &&
-                r.user_enclosure_name === user_enclosure_name &&
-                r.common_name === common_name &&
-                r['Feed type name'] === feed_type_name &&
-                r.type_name === type_name
-            );
-
-            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
-            recipeIngredients.forEach(ing => {
-                if (!ingredientSums[ing.ingredient_name]) {
-                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
-                }
-                ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
-                ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
-            });
-            
-            const ingredientsString = Object.entries(ingredientSums)
-                .map(([name, ingData]) => {
-                    const uomLower = ingData.uom.toLowerCase();
-                    let displayQty;
-                    if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1 && ingData.qty > 0) {
-                        displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
-                    } else {
-                        const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        displayQty = `${qtyString} ${ingData.uom}`;
-                    }
-                    return `${name} (${displayQty})`;
-                })
-                .join(', ');
-
-            aggRow.groupData.ingredients = type_name; // Recipe name
-            aggRow.groupData.total_qty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
-            aggRow.groupData.total_qty_gram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
-
-        } else { // Single ingredient
-            const singleIngredients = sortedData.filter(r => 
-                r.site_name === site_name &&
-                r.user_enclosure_name === user_enclosure_name &&
-                r.common_name === common_name &&
-                r['Feed type name'] === feed_type_name &&
-                r.ingredient_name === aggRow.groupData.type_name // for single, type_name is ingredient
-            );
-            
+        if (aggRow.groupData.type === 'Recipe' || aggRow.groupData.type === 'Combo') {
+            const recipeIngredients = sortedData
+                .filter(r => 
+                    r.site_name === aggRow.groupData.site_name &&
+                    r.user_enclosure_name === aggRow.groupData.user_enclosure_name &&
+                    r.common_name === aggRow.groupData.common_name &&
+                    r['Feed type name'] === aggRow.groupData.feed_type_name &&
+                    r.type_name === aggRow.groupData.type_name
+                )
+                .map(r => r.ingredient_name);
+            const uniqueIngredients = [...new Set(recipeIngredients)];
+            aggRow.groupData.ingredients = `${aggRow.groupData.type_name}: ${uniqueIngredients.join(', ')}`;
+        } else {
             aggRow.groupData.ingredients = aggRow.groupData.type_name;
-            aggRow.groupData.total_qty = singleIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
-            aggRow.groupData.total_qty_gram = singleIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
         }
     });
 
     const aggregatedResult = Array.from(aggregationMap.values());
-
+    
     const timeFilteredData = timeFilter === 'all'
-        ? aggregatedResult
-        : aggregatedResult.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
+      ? aggregatedResult
+      : aggregatedResult.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
 
     const siteNameCache: { [key: string]: number } = {};
     const enclosureCache: { [key: string]: number } = {};
@@ -208,7 +168,7 @@ export default function PackingDashboardPage() {
         enclosureCache[enclosureKey] = (enclosureCache[enclosureKey] || 0) + 1;
         commonNameCache[commonNameKey] = (commonNameCache[commonNameKey] || 0) + 1;
     });
-
+    
     const processedSiteNames = new Set();
     const processedEnclosures = new Set();
     const processedCommonNames = new Set();
@@ -232,21 +192,6 @@ export default function PackingDashboardPage() {
             enclosure: enclosureSpan,
             commonName: commonNameSpan,
         };
-
-        // For recipes, display the ingredients list under the name
-        if(row.groupData.type === 'Recipe' || row.groupData.type === 'Combo') {
-            const recipeIngredients = sortedData.filter(r => 
-                r.site_name === row.groupData.site_name &&
-                r.user_enclosure_name === row.groupData.user_enclosure_name &&
-                r.common_name === row.groupData.common_name &&
-                r['Feed type name'] === row.groupData.feed_type_name &&
-                r.type_name === row.groupData.type_name
-            );
-            const ingredientsString = [...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ');
-            row.groupData.ingredients = `${row.groupData.type_name}: ${ingredientsString}`;
-        } else {
-             row.groupData.ingredients = row.groupData.type_name;
-        }
 
         return { ...row, rowSpans, status: 'Pending' as const };
     });
@@ -310,7 +255,6 @@ export default function PackingDashboardPage() {
         })
         .filter((item): item is AggregatedRow => {
             if (!item) return false;
-            // Check if this item should be visible based on the time filter
             const itemTimeSlot = getTimeSlot(item.groupData.meal_start_time);
             return timeFilter === 'all' || itemTimeSlot === timeFilter;
         });
