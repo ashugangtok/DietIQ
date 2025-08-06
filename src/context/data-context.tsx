@@ -6,9 +6,6 @@ import { type SheetDataRow } from '@/types';
 
 export interface PackingItem {
     id: string;
-    site: string;
-    ingredient: string;
-    quantity: string;
     status: 'Pending' | 'Packed' | 'Dispatched';
 }
 
