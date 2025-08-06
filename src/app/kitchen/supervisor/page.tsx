@@ -7,34 +7,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { DataContext, PackingItem } from "@/context/data-context";
+import { DataContext } from "@/context/data-context";
 import { type SheetDataRow } from "@/types";
 
 type SupervisorItem = {
     id: string;
     site_name: string;
-    ingredient: string;
-    quantity: string;
+    user_enclosure_name: string;
+    common_name: string;
+    animalCount: number;
+    type_name: string;
     status: 'Packed' | 'Dispatched';
 }
-
-const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
-    const uomLower = uom.toLowerCase();
-    const isWeight = uomLower === 'kilogram' || uomLower === 'kg' || uomLower === 'gram';
-
-    if (isWeight) {
-      if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
-        return `${quantityGram.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
-      }
-      return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-    }
-    if (quantity === 1) {
-      return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
-    }
-    return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-};
-
 
 export default function SupervisorDashboardPage() {
     const { data, packingList, setPackingList } = useContext(DataContext);
@@ -48,54 +32,63 @@ export default function SupervisorDashboardPage() {
 
     const dispatchList = useMemo(() => {
         if (data.length === 0) return [];
-
+    
         const packedOrDispatchedItems = packingList.filter(item => item.status === 'Packed' || item.status === 'Dispatched');
-        const itemDetailsMap = new Map<string, SheetDataRow[]>();
-
-        // This is inefficient but necessary to reconstruct the details from the ID
-        data.forEach(row => {
-            const commonGroupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-            const aggregationKey = `${commonGroupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
-            
-            if (!itemDetailsMap.has(aggregationKey)) {
-                itemDetailsMap.set(aggregationKey, []);
-            }
-            itemDetailsMap.get(aggregationKey)!.push(row);
-        });
+    
+        const aggregationMap = new Map<string, {
+            id: string; // The ID of the original packing item
+            site_name: string;
+            user_enclosure_name: string;
+            common_name: string;
+            animalCount: number;
+            type_name: string;
+            status: 'Packed' | 'Dispatched';
+        }>();
         
-        const result: SupervisorItem[] = [];
+        // This is a simplified aggregation just to get the display data for the supervisor view.
+        // It relies on the packing list's aggregated IDs.
+        const itemDetailsMap = new Map<string, SheetDataRow>();
+        data.forEach(row => {
+            const originalItemId = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row.meal_start_time}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+            if (!itemDetailsMap.has(originalItemId)) {
+                itemDetailsMap.set(originalItemId, row);
+            }
+        });
+
+        // Get animal counts
+        const animalCounts = new Map<string, number>();
+        data.forEach(row => {
+            const key = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+            if (!animalCounts.has(key)) {
+                const animalSet = new Set(data.filter(d => 
+                    d.site_name === row.site_name && 
+                    d.user_enclosure_name === row.user_enclosure_name && 
+                    d.common_name === row.common_name
+                ).map(d => d.animal_id));
+                animalCounts.set(key, animalSet.size);
+            }
+        });
 
         packedOrDispatchedItems.forEach(item => {
-            const details = itemDetailsMap.get(item.id);
-            if (!details || details.length === 0) return;
+            const [site, enclosure, commonName, mealTime, typeName] = item.id.split('|');
+            const groupKey = `${site}|${enclosure}|${commonName}|${mealTime}|${typeName}`;
 
-            const firstDetail = details[0];
-            let ingredientName = "";
-            let totalQty = 0;
-            let totalQtyGram = 0;
+            if (aggregationMap.has(groupKey)) return;
 
-            if (firstDetail.type === 'Recipe' || firstDetail.type === 'Combo') {
-                const recipeIngredients = [...new Set(details.map(d => d.ingredient_name))];
-                ingredientName = `${firstDetail.type_name}: ${recipeIngredients.join(', ')}`;
-            } else {
-                ingredientName = firstDetail.ingredient_name;
-            }
-
-            details.forEach(d => {
-                totalQty += d.ingredient_qty;
-                totalQtyGram += d.ingredient_qty_gram;
-            });
+            const animalCountKey = `${site}|${enclosure}|${commonName}`;
             
-            result.push({
+            aggregationMap.set(groupKey, {
                 id: item.id,
-                site_name: firstDetail.site_name,
-                ingredient: ingredientName,
-                quantity: formatTotal(totalQty, totalQtyGram, firstDetail.base_uom_name),
-                status: item.status as 'Packed' | 'Dispatched',
+                site_name: site,
+                user_enclosure_name: enclosure,
+                common_name: commonName,
+                animalCount: animalCounts.get(animalCountKey) || 0,
+                type_name: typeName,
+                status: item.status,
             });
         });
         
-        return result;
+        return Array.from(aggregationMap.values());
 
     }, [data, packingList]);
 
@@ -104,37 +97,75 @@ export default function SupervisorDashboardPage() {
             const siteMatch = !siteFilter || item.site_name === siteFilter;
             const statusMatch = statusFilter === 'all' || item.status === statusFilter;
             return siteMatch && statusMatch;
-        }).sort((a,b) => a.site_name.localeCompare(b.site_name));
+        });
     }, [dispatchList, siteFilter, statusFilter]);
+    
+    const groupedBySite = useMemo(() => {
+        return filteredDispatchList.reduce((acc, item) => {
+          const siteName = item.site_name;
+          if (!acc[siteName]) {
+            acc[siteName] = [];
+          }
+          acc[siteName].push(item);
+          return acc;
+        }, {} as Record<string, SupervisorItem[]>);
+    }, [filteredDispatchList]);
 
-    const handleToggleStatus = (id: string, currentStatus: 'Packed' | 'Dispatched') => {
+    const handleToggleStatus = (id: string) => {
         setPackingList(currentList => currentList.map(item => {
             if (item.id === id) {
-                return { ...item, status: currentStatus === 'Packed' ? 'Dispatched' : 'Packed' };
+                return { ...item, status: item.status === 'Packed' ? 'Dispatched' : 'Packed' };
+            }
+            // Since supervisor actions might be on a group, we update all items of a group.
+            // This is a simplified approach. A more robust solution might need to check group membership.
+            const [site, enclosure, common, meal, type] = item.id.split('|');
+            const [idSite, idEnclosure, idCommon, idMeal, idType] = id.split('|');
+            if(site === idSite && enclosure === idEnclosure && common === idCommon && meal === idMeal && type === idType){
+                 return { ...item, status: item.status === 'Packed' ? 'Dispatched' : 'Packed' };
+            }
+
+            return item;
+        }));
+    };
+    
+    // This is a bit of a hack to update all items in a group
+    const handleToggleGroupStatus = (itemToUpdate: SupervisorItem) => {
+        const newStatus = itemToUpdate.status === 'Packed' ? 'Dispatched' : 'Packed';
+
+        setPackingList(currentList => currentList.map(item => {
+            const [itemSite, itemEnclosure, itemCommon, itemMeal, itemType] = item.id.split('|');
+            const match = 
+                itemSite === itemToUpdate.site_name &&
+                itemEnclosure === itemToUpdate.user_enclosure_name &&
+                itemCommon === itemToUpdate.common_name &&
+                itemType === itemToUpdate.type_name;
+            
+            if (match && item.status !== newStatus) {
+                return { ...item, status: newStatus };
             }
             return item;
         }));
     };
 
     if (data.length === 0) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Supervisor Dashboard</CardTitle>
-                <CardDescription>
-                    No data available. Please upload an Excel file on the Sheet Insights page first.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center p-12 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">
-                        Items ready for dispatch will appear here once they are marked as "Packed".
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-  }
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Supervisor Dashboard</CardTitle>
+                    <CardDescription>
+                        No data available. Please upload an Excel file on the Sheet Insights page first.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center p-12 border-2 border-dashed rounded-lg">
+                        <p className="text-muted-foreground">
+                            Items ready for dispatch will appear here once they are marked as "Packed".
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
   return (
     <div className="space-y-6">
@@ -167,46 +198,55 @@ export default function SupervisorDashboardPage() {
                         </SelectContent>
                     </Select>
                  </div>
-                 <div className="relative overflow-x-auto rounded-md border">
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Site</TableHead>
-                                <TableHead>Ingredient</TableHead>
-                                <TableHead>Quantity Packed</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredDispatchList.length > 0 ? (
-                                filteredDispatchList.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>{item.site_name}</TableCell>
-                                        <TableCell>{item.ingredient}</TableCell>
-                                        <TableCell>{item.quantity}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={item.status === "Dispatched" ? "default" : "secondary"} className={item.status === "Dispatched" ? "bg-accent" : ""}>
-                                                {item.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button size="sm" variant="outline" onClick={() => handleToggleStatus(item.id, item.status)}>
-                                                {item.status === 'Packed' ? 'Mark as Dispatched' : 'Mark as Packed'}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
-                                        No items are currently packed or dispatched.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                 
+                 <div className="space-y-8">
+                     {Object.keys(groupedBySite).length > 0 ? (
+                        Object.entries(groupedBySite).map(([siteName, items]) => (
+                            <div key={siteName} className="p-4 border rounded-lg shadow-md">
+                                <h2 className="text-2xl font-bold text-center mb-4 text-primary">{siteName}</h2>
+                                <div className="relative overflow-x-auto rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Enclosure</TableHead>
+                                                <TableHead>Common Name</TableHead>
+                                                <TableHead>Item</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Action</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {items.map((item) => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell>{item.user_enclosure_name}</TableCell>
+                                                    <TableCell>{item.common_name} ({item.animalCount})</TableCell>
+                                                    <TableCell>{item.type_name}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={item.status === "Dispatched" ? "default" : "secondary"} className={item.status === "Dispatched" ? "bg-accent" : ""}>
+                                                            {item.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button size="sm" variant="outline" onClick={() => handleToggleGroupStatus(item)}>
+                                                            {item.status === 'Packed' ? 'Mark as Dispatched' : 'Mark as Packed'}
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        ))
+                     ) : (
+                        <div className="text-center p-12 border-2 border-dashed rounded-lg">
+                            <p className="text-muted-foreground">
+                                No items match the current filters.
+                            </p>
+                        </div>
+                     )}
+                 </div>
+
             </CardContent>
         </Card>
     </div>
