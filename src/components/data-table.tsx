@@ -81,109 +81,155 @@ export function DataTable({ data }: DataTableProps) {
       if (a.common_name > b.common_name) return 1;
       if (a['Feed type name'] < b['Feed type name']) return -1;
       if (a['Feed type name'] > b['Feed type name']) return 1;
+      if (a.type < b.type) return -1;
+      if (a.type > b.type) return 1;
+      if (a.ingredient_name < b.ingredient_name) return -1;
+      if (a.ingredient_name > b.ingredient_name) return 1;
       // Keep original order for ingredients within the same feed type
       return 0;
     });
   }, [data, filters]);
   
-  const processedData = useMemo((): ProcessedRow[] => {
-      const result: ProcessedRow[] = [];
-      if (filteredData.length === 0) return result;
+    const processedData = useMemo((): ProcessedRow[] => {
+        const result: ProcessedRow[] = [];
+        if (filteredData.length === 0) return result;
 
-      let i = 0;
-      while (i < filteredData.length) {
-          const currentRow = filteredData[i];
-          const isRecipe = currentRow.type?.toLowerCase() === 'recipe';
-          
-          const isNewSiteName = i === 0 || currentRow.site_name !== filteredData[i - 1].site_name;
-          const isNewEnclosure = isNewSiteName || currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name;
-          const isNewCommonName = isNewEnclosure || currentRow.common_name !== filteredData[i - 1].common_name;
-          const isNewFeedType = isNewCommonName || currentRow['Feed type name'] !== filteredData[i - 1]['Feed type name'];
-          
-          let siteNameRowSpan = 0;
-          let enclosureRowSpan = 0;
-          let commonNameRowSpan = 0;
-          let feedTypeRowSpan = 0;
-          let commonNameAnimalCount = 0;
-          
-          if (isNewSiteName) {
-            let endIndex = i;
-            while (endIndex < filteredData.length && filteredData[endIndex].site_name === currentRow.site_name) {
-              endIndex++;
+        const flattenedData: SheetDataRow[] = [];
+        let i = 0;
+        while (i < filteredData.length) {
+            const currentRow = filteredData[i];
+            const isRecipeOrCombo = currentRow.type?.toLowerCase() === 'recipe' || currentRow.type?.toLowerCase() === 'combo';
+
+            if (isRecipeOrCombo) {
+                // Find all rows for this recipe
+                let recipeEndIndex = i;
+                while (
+                    recipeEndIndex < filteredData.length &&
+                    filteredData[recipeEndIndex].site_name === currentRow.site_name &&
+                    filteredData[recipeEndIndex].user_enclosure_name === currentRow.user_enclosure_name &&
+                    filteredData[recipeEndIndex].common_name === currentRow.common_name &&
+                    filteredData[recipeEndIndex]['Feed type name'] === currentRow['Feed type name'] &&
+                    (filteredData[recipeEndIndex].type?.toLowerCase() === 'recipe' || filteredData[recipeEndIndex].type?.toLowerCase() === 'combo') &&
+                    filteredData[recipeEndIndex].type_name === currentRow.type_name
+                ) {
+                    recipeEndIndex++;
+                }
+
+                const recipeRows = filteredData.slice(i, recipeEndIndex);
+                const aggregatedIngredients: Record<string, SheetDataRow> = {};
+
+                recipeRows.forEach(recipeRow => {
+                    if (aggregatedIngredients[recipeRow.ingredient_name]) {
+                        aggregatedIngredients[recipeRow.ingredient_name].ingredient_qty += recipeRow.ingredient_qty;
+                    } else {
+                        aggregatedIngredients[recipeRow.ingredient_name] = { ...recipeRow };
+                    }
+                });
+                
+                const recipeIngredientRows = Object.values(aggregatedIngredients);
+
+                // Add the main recipe row
+                flattenedData.push({ ...recipeIngredientRows[0], ingredient_name: '', ingredient_qty: 0, base_uom_name: '' }); 
+                // Add the aggregated ingredient rows
+                recipeIngredientRows.forEach((ingredientRow, index) => {
+                    flattenedData.push({
+                      ...ingredientRow,
+                      type: ``, // This is now an ingredient, not a recipe itself
+                      type_name: `${ingredientRow.type_name}`, // Keep reference to recipe
+                    });
+                });
+                
+                i = recipeEndIndex;
+            } else {
+                flattenedData.push(currentRow);
+                i++;
             }
-            siteNameRowSpan = endIndex - i;
-          }
+        }
+      
+        let j = 0;
+        while (j < flattenedData.length) {
+            const currentRow = flattenedData[j];
+            const isRecipe = currentRow.type?.toLowerCase() === 'recipe' || currentRow.type?.toLowerCase() === 'combo';
+            const isRecipeIngredient = !isRecipe && !!currentRow.type_name;
+            
+            const isNewSiteName = j === 0 || currentRow.site_name !== flattenedData[j - 1].site_name;
+            const isNewEnclosure = isNewSiteName || currentRow.user_enclosure_name !== flattenedData[j - 1].user_enclosure_name;
+            const isNewCommonName = isNewEnclosure || currentRow.common_name !== flattenedData[j - 1].common_name;
+            const isNewFeedType = isNewCommonName || currentRow['Feed type name'] !== flattenedData[j - 1]['Feed type name'];
 
-          if (isNewEnclosure) {
-            let endIndex = i;
-            while (endIndex < filteredData.length && 
-                   filteredData[endIndex].site_name === currentRow.site_name &&
-                   filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name) {
-              endIndex++;
+            let siteNameRowSpan = 0;
+            let enclosureRowSpan = 0;
+            let commonNameRowSpan = 0;
+            let feedTypeRowSpan = 0;
+            let commonNameAnimalCount = 0;
+            
+            if (isNewSiteName) {
+              let endIndex = j;
+              while (endIndex < flattenedData.length && flattenedData[endIndex].site_name === currentRow.site_name) {
+                endIndex++;
+              }
+              siteNameRowSpan = endIndex - j;
             }
-            enclosureRowSpan = endIndex - i;
-          }
-          
-          if (isNewCommonName) {
-            let endIndex = i;
-            while(endIndex < filteredData.length && 
-                  filteredData[endIndex].site_name === currentRow.site_name &&
-                  filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name &&
-                  filteredData[endIndex].common_name === currentRow.common_name
-            ) {
-              endIndex++;
+
+            if (isNewEnclosure) {
+              let endIndex = j;
+              while (endIndex < flattenedData.length && 
+                     flattenedData[endIndex].site_name === currentRow.site_name &&
+                     flattenedData[endIndex].user_enclosure_name === currentRow.user_enclosure_name) {
+                endIndex++;
+              }
+              enclosureRowSpan = endIndex - j;
             }
-            commonNameRowSpan = endIndex - i;
+            
+            if (isNewCommonName) {
+              let endIndex = j;
+              while(endIndex < flattenedData.length && 
+                    flattenedData[endIndex].site_name === currentRow.site_name &&
+                    flattenedData[endIndex].user_enclosure_name === currentRow.user_enclosure_name &&
+                    flattenedData[endIndex].common_name === currentRow.common_name
+              ) {
+                endIndex++;
+              }
+              commonNameRowSpan = endIndex - j;
 
-            const relevantRows = filteredData.slice(i, endIndex);
-            const uniqueAnimalIds = new Set(relevantRows.map(r => r.animal_id));
-            commonNameAnimalCount = uniqueAnimalIds.size;
-          }
-          
-          if (isNewFeedType) {
-             let endIndex = i;
-            while(endIndex < filteredData.length && 
-                  filteredData[endIndex].site_name === currentRow.site_name &&
-                  filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name &&
-                  filteredData[endIndex].common_name === currentRow.common_name &&
-                  filteredData[endIndex]['Feed type name'] === currentRow['Feed type name']
-            ) {
-              endIndex++;
+              const relevantRows = filteredData.filter(r => 
+                r.site_name === currentRow.site_name &&
+                r.user_enclosure_name === currentRow.user_enclosure_name &&
+                r.common_name === currentRow.common_name
+              );
+              const uniqueAnimalIds = new Set(relevantRows.map(r => r.animal_id));
+              commonNameAnimalCount = uniqueAnimalIds.size;
             }
-            feedTypeRowSpan = endIndex - i;
-          }
+            
+            if (isNewFeedType) {
+               let endIndex = j;
+              while(endIndex < flattenedData.length && 
+                    flattenedData[endIndex].site_name === currentRow.site_name &&
+                    flattenedData[endIndex].user_enclosure_name === currentRow.user_enclosure_name &&
+                    flattenedData[endIndex].common_name === currentRow.common_name &&
+                    flattenedData[endIndex]['Feed type name'] === currentRow['Feed type name']
+              ) {
+                endIndex++;
+              }
+              feedTypeRowSpan = endIndex - j;
+            }
+            
+            result.push({
+                row: currentRow,
+                isRecipe: isRecipe,
+                isRecipeIngredient: isRecipeIngredient,
+                siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
+                enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
+                commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
+                commonNameAnimalCount,
+                feedTypeRowSpan: isNewFeedType ? feedTypeRowSpan : 0,
+                recipeRowSpan: 1,
+            });
+            j++;
+        }
 
-          if (isRecipe) {
-              result.push({
-                  row: currentRow,
-                  isRecipe: true,
-                  isRecipeIngredient: false,
-                  siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
-                  enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
-                  commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
-                  commonNameAnimalCount,
-                  feedTypeRowSpan: isNewFeedType ? feedTypeRowSpan : 0,
-                  recipeRowSpan: 1,
-              });
-              i++; 
-          } else {
-              result.push({
-                  row: currentRow,
-                  isRecipe: false,
-                  isRecipeIngredient: !!currentRow.type_name && currentRow.type?.toLowerCase() !== 'recipe',
-                  siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
-                  enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
-                  commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
-                  commonNameAnimalCount,
-                  feedTypeRowSpan: isNewFeedType ? feedTypeRowSpan : 0,
-                  recipeRowSpan: 1,
-              });
-              i++;
-          }
-      }
-
-      return result;
-  }, [filteredData]);
+        return result;
+    }, [filteredData]);
 
   const handleDownload = () => {
     if (filteredData.length === 0) return;
@@ -291,8 +337,8 @@ export function DataTable({ data }: DataTableProps) {
                                 {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({commonNameAnimalCount})</TableCell>}
                                 {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
                                 
-                                <TableCell>{row.type}</TableCell>
-                                <TableCell>{row.type_name}</TableCell>
+                                <TableCell>{isRecipeIngredient ? '' : row.type}</TableCell>
+                                <TableCell>{isRecipe ? '' : row.type_name}</TableCell>
 
                                 <TableCell className={isRecipeIngredient ? "pl-8" : ""}>
                                   <div className="flex items-center gap-2">
@@ -301,7 +347,7 @@ export function DataTable({ data }: DataTableProps) {
                                   </div>
                                 </TableCell>
                                 
-                                <TableCell className="text-right">{row.ingredient_qty.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{row.ingredient_qty > 0 ? row.ingredient_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</TableCell>
                                 <TableCell>{row.base_uom_name}</TableCell>
                             </TableRow>
                         ))
