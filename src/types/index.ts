@@ -1,0 +1,14 @@
+export interface SheetDataRow {
+  site_name: string;
+  common_name: string;
+  section_name: string;
+  user_enclosure_name: string;
+  'Feed type name': string;
+  ingredient_name: string;
+  type: string;
+  type_name: string;
+  ingredient_qty: number;
+  base_uom_name: string;
+  ingredient_qty_gram: number;
+  base_uom_name_gram: string;
+}
