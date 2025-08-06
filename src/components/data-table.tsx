@@ -262,7 +262,7 @@ export function DataTable({ data }: DataTableProps) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Sites</SelectItem>
-                        {siteNameOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                        {siteNameOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
                     </SelectContent>
                 </Select>
 
@@ -279,7 +279,7 @@ export function DataTable({ data }: DataTableProps) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Feed Types</SelectItem>
-                        {feedTypeOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                        {feedTypeOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 
