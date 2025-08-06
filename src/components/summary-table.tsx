@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { MultiSelect } from "./ui/multi-select";
 
 interface SummaryTableProps {
   data: SheetDataRow[];
@@ -40,14 +41,18 @@ const isWeightUnit = (uom: string) => {
 
 export function SummaryTable({ data }: SummaryTableProps) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
+  const [ingredientFilter, setIngredientFilter] = useState<string[]>([]);
 
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
+  const ingredientOptions = useMemo(() => [...new Set(data.map(item => item.ingredient_name))].sort(), [data]);
 
   const filteredData = useMemo(() => {
     return data.filter(row => {
-      return feedTypeFilter ? row['Feed type name'] === feedTypeFilter : true;
+      const feedTypeMatch = feedTypeFilter ? row['Feed type name'] === feedTypeFilter : true;
+      const ingredientMatch = ingredientFilter.length > 0 ? ingredientFilter.includes(row.ingredient_name) : true;
+      return feedTypeMatch && ingredientMatch;
     });
-  }, [data, feedTypeFilter]);
+  }, [data, feedTypeFilter, ingredientFilter]);
 
   const summaryData = useMemo(() => {
     if (filteredData.length === 0) return [];
@@ -145,7 +150,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
         <CardTitle className="font-headline text-xl">Ingredient Summary</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
           <Select value={feedTypeFilter} onValueChange={(value) => setFeedTypeFilter(value === 'all' ? '' : value)}>
             <SelectTrigger className="w-full sm:w-[240px] bg-background">
               <SelectValue placeholder="Filter by Feed Type Name" />
@@ -157,6 +162,13 @@ export function SummaryTable({ data }: SummaryTableProps) {
               ))}
             </SelectContent>
           </Select>
+          <MultiSelect
+            options={ingredientOptions.map(name => ({ label: name, value: name }))}
+            selectedValues={ingredientFilter}
+            onChange={setIngredientFilter}
+            placeholder="Filter by ingredients..."
+            className="w-full sm:w-[240px] bg-background"
+          />
         </div>
 
         <div className="relative overflow-x-auto rounded-md border">
