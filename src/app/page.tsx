@@ -2,13 +2,15 @@
 
 import { useState, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, PawPrint } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, PawPrint, LayoutDashboard, Table } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DataTable } from "@/components/data-table";
 import { type SheetDataRow } from "@/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 export default function Home() {
   const [data, setData] = useState<SheetDataRow[]>([]);
@@ -132,26 +134,39 @@ export default function Home() {
         </Card>
 
         {data.length > 0 && !isLoading && (
-          <>
-            <Card className="w-full max-w-5xl shadow-lg mt-8">
-              <CardHeader className="flex flex-row items-center justify-between">
-                  <div className="space-y-1">
-                      <CardTitle className="font-headline text-xl">Animal Count</CardTitle>
-                      <CardDescription>
-                          Total number of unique animals in the dataset.
-                      </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <PawPrint className="w-8 h-8 text-accent" />
-                    <p className="text-4xl font-bold text-primary">{animalCount}</p>
-                  </div>
-              </CardHeader>
-            </Card>
-
-            <div className="w-full max-w-7xl mt-8">
-              <DataTable data={data} />
-            </div>
-          </>
+          <div className="w-full max-w-7xl mt-8">
+            <Tabs defaultValue="dashboard">
+              <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+                <TabsTrigger value="dashboard">
+                  <LayoutDashboard className="mr-2" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="data-table">
+                  <Table className="mr-2" />
+                  Data Table
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="dashboard" className="mt-6">
+                 <Card className="w-full max-w-5xl shadow-lg mx-auto">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div className="space-y-1">
+                            <CardTitle className="font-headline text-xl">Animal Count</CardTitle>
+                            <CardDescription>
+                                Total number of unique animals in the dataset.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <PawPrint className="w-8 h-8 text-accent" />
+                          <p className="text-4xl font-bold text-primary">{animalCount}</p>
+                        </div>
+                    </CardHeader>
+                  </Card>
+              </TabsContent>
+              <TabsContent value="data-table" className="mt-6">
+                <DataTable data={data} />
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
         
         {data.length === 0 && !isLoading && !error && (
