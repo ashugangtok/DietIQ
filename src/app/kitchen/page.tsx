@@ -105,93 +105,87 @@ export default function PackingDashboardPage() {
         const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
         const animalCount = animalCounts.get(groupKey) || 0;
 
-        if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
-            const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
-            let existing = aggregationMap.get(recipeKey);
+        // Unified key for aggregation, handles both recipes and single ingredients
+        const aggregationKey = `${groupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
 
-            if (!existing) {
-                const allRecipeIngredients = sortedData.filter(
-                    (r) =>
-                    `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
-                    `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` &&
-                    (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
-                );
+        let existing = aggregationMap.get(aggregationKey);
 
-                const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
-                allRecipeIngredients.forEach(ing => {
-                    if (!ingredientSums[ing.ingredient_name]) {
-                        ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
+        if (!existing) {
+            existing = {
+                id: aggregationKey,
+                groupData: {
+                    site_name: row.site_name,
+                    user_enclosure_name: row.user_enclosure_name,
+                    common_name: row.common_name,
+                    animalCount: animalCount,
+                    feed_type_name: row['Feed type name'],
+                    type: row.type,
+                    type_name: row.type_name,
+                    ingredients: '', // Will be built later
+                    total_qty: 0,
+                    total_qty_gram: 0,
+                    total_uom: row.base_uom_name,
+                    preparation_type_name: row.preparation_type_name,
+                    meal_start_time: row.meal_start_time,
+                    cut_size_name: row.cut_size_name,
+                },
+            };
+            aggregationMap.set(aggregationKey, existing);
+        }
+    });
+
+    // Populate ingredients and quantities after initial aggregation
+    aggregationMap.forEach(aggRow => {
+        const { site_name, user_enclosure_name, common_name, feed_type_name, type, type_name } = aggRow.groupData;
+
+        if (type === 'Recipe' || type === 'Combo') {
+            const recipeIngredients = sortedData.filter(r => 
+                r.site_name === site_name &&
+                r.user_enclosure_name === user_enclosure_name &&
+                r.common_name === common_name &&
+                r['Feed type name'] === feed_type_name &&
+                r.type_name === type_name
+            );
+
+            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
+            recipeIngredients.forEach(ing => {
+                if (!ingredientSums[ing.ingredient_name]) {
+                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
+                }
+                ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
+                ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
+            });
+            
+            const ingredientsString = Object.entries(ingredientSums)
+                .map(([name, ingData]) => {
+                    const uomLower = ingData.uom.toLowerCase();
+                    let displayQty;
+                    if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1 && ingData.qty > 0) {
+                        displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
+                    } else {
+                        const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        displayQty = `${qtyString} ${ingData.uom}`;
                     }
-                    ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
-                    ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
-                });
+                    return `${name} (${displayQty})`;
+                })
+                .join(', ');
 
-                const ingredientsString = Object.entries(ingredientSums)
-                    .map(([name, ingData]) => {
-                        const uomLower = ingData.uom.toLowerCase();
-                        let displayQty;
-                        if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1 && ingData.qty > 0) {
-                            displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
-                        } else {
-                            const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                            displayQty = `${qtyString} ${ingData.uom}`;
-                        }
-                        return `${name} (${displayQty})`;
-                    })
-                    .join(', ');
+            aggRow.groupData.ingredients = type_name; // Recipe name
+            aggRow.groupData.total_qty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
+            aggRow.groupData.total_qty_gram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
 
-                const totalQty = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty, 0);
-                const totalQtyGram = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty_gram, 0);
-
-                existing = {
-                    id: recipeKey,
-                    groupData: {
-                        site_name: row.site_name,
-                        user_enclosure_name: row.user_enclosure_name,
-                        common_name: row.common_name,
-                        animalCount: animalCount,
-                        feed_type_name: row['Feed type name'],
-                        type: row.type,
-                        type_name: row.type_name,
-                        ingredients: ingredientsString,
-                        total_qty: totalQty,
-                        total_qty_gram: totalQtyGram,
-                        total_uom: allRecipeIngredients[0]?.base_uom_name || '',
-                        preparation_type_name: row.preparation_type_name,
-                        meal_start_time: row.meal_start_time,
-                        cut_size_name: row.cut_size_name,
-                    },
-                };
-                aggregationMap.set(recipeKey, existing);
-            }
-        } else { // Handle single ingredients
-            const ingredientKey = `${groupKey}|${row.ingredient_name}|${row['Feed type name']}`;
-            let existing = aggregationMap.get(ingredientKey);
-
-            if (!existing) {
-                 existing = {
-                    id: ingredientKey,
-                    groupData: {
-                        site_name: row.site_name,
-                        user_enclosure_name: row.user_enclosure_name,
-                        common_name: row.common_name,
-                        animalCount: animalCount,
-                        feed_type_name: row['Feed type name'],
-                        type: row.type,
-                        type_name: row.type_name,
-                        ingredients: row.ingredient_name,
-                        total_qty: 0,
-                        total_qty_gram: 0,
-                        total_uom: row.base_uom_name,
-                        preparation_type_name: row.preparation_type_name,
-                        meal_start_time: row.meal_start_time,
-                        cut_size_name: row.cut_size_name,
-                    },
-                };
-                aggregationMap.set(ingredientKey, existing);
-            }
-            existing.groupData.total_qty += row.ingredient_qty;
-            existing.groupData.total_qty_gram += row.ingredient_qty_gram;
+        } else { // Single ingredient
+            const singleIngredients = sortedData.filter(r => 
+                r.site_name === site_name &&
+                r.user_enclosure_name === user_enclosure_name &&
+                r.common_name === common_name &&
+                r['Feed type name'] === feed_type_name &&
+                r.ingredient_name === aggRow.groupData.type_name // for single, type_name is ingredient
+            );
+            
+            aggRow.groupData.ingredients = aggRow.groupData.type_name;
+            aggRow.groupData.total_qty = singleIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
+            aggRow.groupData.total_qty_gram = singleIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
         }
     });
 
@@ -238,6 +232,22 @@ export default function PackingDashboardPage() {
             enclosure: enclosureSpan,
             commonName: commonNameSpan,
         };
+
+        // For recipes, display the ingredients list under the name
+        if(row.groupData.type === 'Recipe' || row.groupData.type === 'Combo') {
+            const recipeIngredients = sortedData.filter(r => 
+                r.site_name === row.groupData.site_name &&
+                r.user_enclosure_name === row.groupData.user_enclosure_name &&
+                r.common_name === row.groupData.common_name &&
+                r['Feed type name'] === row.groupData.feed_type_name &&
+                r.type_name === row.groupData.type_name
+            );
+            const ingredientsString = [...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ');
+            row.groupData.ingredients = `${row.groupData.type_name}: ${ingredientsString}`;
+        } else {
+             row.groupData.ingredients = row.groupData.type_name;
+        }
+
         return { ...row, rowSpans, status: 'Pending' as const };
     });
   }, [data, timeFilter]);
@@ -248,16 +258,9 @@ export default function PackingDashboardPage() {
     const aggregationMap = new Map<string, any>();
      data.forEach(row => {
         const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
-            const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
-            if (!aggregationMap.has(recipeKey)) {
-                aggregationMap.set(recipeKey, { id: recipeKey });
-            }
-        } else {
-            const ingredientKey = `${groupKey}|${row.ingredient_name}|${row['Feed type name']}`;
-             if (!aggregationMap.has(ingredientKey)) {
-                aggregationMap.set(ingredientKey, { id: ingredientKey });
-            }
+        const aggregationKey = `${groupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
+        if (!aggregationMap.has(aggregationKey)) {
+            aggregationMap.set(aggregationKey, { id: aggregationKey });
         }
     });
     return new Set(Array.from(aggregationMap.keys()));
@@ -395,7 +398,7 @@ export default function PackingDashboardPage() {
                                             {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
                                             {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
                                             <TableCell className="align-top">
-                                                <div className="font-bold">{rowData.ingredients}</div>
+                                                <div className="font-bold whitespace-pre-wrap">{rowData.ingredients}</div>
                                                 <div className="text-xs text-muted-foreground space-x-2">
                                                     {rowData.preparation_type_name && <span>Prep: {rowData.preparation_type_name}</span>}
                                                     {rowData.cut_size_name && <span>Cut: {rowData.cut_size_name}</span>}
@@ -431,3 +434,4 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
+
