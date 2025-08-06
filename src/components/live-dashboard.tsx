@@ -1,40 +1,60 @@
+
 "use client";
 
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type SheetDataRow } from "@/types";
-import { PawPrint } from "lucide-react";
+import { PawPrint, Sprout, Building, PieChart as PieChartIcon } from "lucide-react";
 
 interface LiveDashboardProps {
   data: SheetDataRow[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF4560'];
+const COLORS = ['#5B8DAE', '#9163A4', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
 
 const isWeightUnit = (uom: string) => {
     const lowerUom = uom.toLowerCase();
     return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
 }
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="p-2 bg-card border rounded-md shadow-lg">
+        <p className="font-bold">{label}</p>
+        <p className="text-sm text-primary">{`${payload[0].name}: ${payload[0].value.toLocaleString()}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function LiveDashboard({ data }: LiveDashboardProps) {
 
-  const animalCount = useMemo(() => {
-    if (data.length === 0) return 0;
+  const stats = useMemo(() => {
+    if (data.length === 0) return {
+        animalCount: 0,
+        siteCount: 0,
+        ingredientCount: 0,
+        feedTypeCount: 0,
+        feedTypeDistribution: [],
+        topIngredients: [],
+        animalDistribution: []
+    };
+    
     const uniqueAnimalIds = new Set(data.map(row => row.animal_id));
-    return uniqueAnimalIds.size;
-  }, [data]);
+    const uniqueSites = new Set(data.map(row => row.site_name));
+    const uniqueIngredients = new Set(data.map(row => row.ingredient_name));
+    const uniqueFeedTypes = new Set(data.map(row => row['Feed type name']));
 
-  const feedTypeDistribution = useMemo(() => {
     const feedTypes = new Map<string, number>();
     data.forEach(row => {
         const feedType = row['Feed type name'];
         feedTypes.set(feedType, (feedTypes.get(feedType) || 0) + 1);
     });
-    return Array.from(feedTypes.entries()).map(([name, value]) => ({ name, value }));
-  }, [data]);
-
-  const topIngredients = useMemo(() => {
+    const feedTypeDistribution = Array.from(feedTypes.entries()).map(([name, value]) => ({ name, value }));
+    
     const ingredients = new Map<string, number>();
     data.forEach(row => {
         if (isWeightUnit(row.base_uom_name)) {
@@ -43,81 +63,146 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
             ingredients.set(ingredientName, currentQty + row.ingredient_qty_gram);
         }
     });
+    const topIngredients = Array.from(ingredients.entries())
+        .map(([name, totalGrams]) => ({ name, totalKg: parseFloat((totalGrams / 1000).toFixed(2)) }))
+        .sort((a, b) => b.totalKg - a.totalKg)
+        .slice(0, 5);
+        
+    const animalsByCommonName = new Map<string, Set<string>>();
+    data.forEach(row => {
+        if (!animalsByCommonName.has(row.common_name)) {
+            animalsByCommonName.set(row.common_name, new Set());
+        }
+        animalsByCommonName.get(row.common_name)!.add(row.animal_id);
+    });
+    const animalDistribution = Array.from(animalsByCommonName.entries())
+        .map(([name, ids]) => ({ name, count: ids.size }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
 
-    return Array.from(ingredients.entries())
-        .map(([name, totalGrams]) => ({ name, totalGrams }))
-        .sort((a, b) => b.totalGrams - a.totalGrams)
-        .slice(0, 5)
-        .map(item => ({...item, totalKg: parseFloat((item.totalGrams / 1000).toFixed(2)) }));
-
+    return {
+        animalCount: uniqueAnimalIds.size,
+        siteCount: uniqueSites.size,
+        ingredientCount: uniqueIngredients.size,
+        feedTypeCount: uniqueFeedTypes.size,
+        feedTypeDistribution,
+        topIngredients,
+        animalDistribution
+    };
   }, [data]);
   
 
   return (
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-1 shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div className="space-y-1">
-                    <CardTitle className="font-headline text-xl">Animal Count</CardTitle>
-                    <CardDescription>
-                        Total unique animals
-                    </CardDescription>
-                </div>
-                <div className="flex items-center gap-4">
-                  <PawPrint className="w-8 h-8 text-accent" />
-                  <p className="text-4xl font-bold text-primary">{animalCount}</p>
-                </div>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Animals</CardTitle>
+                <PawPrint className="w-5 h-5 text-accent" />
             </CardHeader>
+            <CardContent>
+                <div className="text-3xl font-bold text-primary">{stats.animalCount.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Unique animals recorded</p>
+            </CardContent>
         </Card>
         
-        <Card className="lg:col-span-2 shadow-lg">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Total Sites</CardTitle>
+                <Building className="w-5 h-5 text-accent" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-3xl font-bold text-primary">{stats.siteCount.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Locations providing data</p>
+            </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Unique Ingredients</CardTitle>
+                <Sprout className="w-5 h-5 text-accent" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-3xl font-bold text-primary">{stats.ingredientCount.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Different ingredients used</p>
+            </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Feed Types</CardTitle>
+                <PieChartIcon className="w-5 h-5 text-accent" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-3xl font-bold text-primary">{stats.feedTypeCount.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Distinct feed categories</p>
+            </CardContent>
+        </Card>
+        
+        <Card className="md:col-span-2 lg:col-span-2 shadow-lg">
             <CardHeader>
                 <CardTitle className="font-headline text-xl">Top 5 Ingredients by Weight</CardTitle>
                  <CardDescription>
-                    Showing the total weight (kg) of the most used ingredients.
+                    Total weight (kg) of the most used ingredients.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={topIngredients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart data={stats.topIngredients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                        <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--background))',
-                            borderColor: 'hsl(var(--border))'
-                          }}
-                          labelStyle={{ color: 'hsl(var(--foreground))' }}
-                          formatter={(value) => [`${value} kg`, 'Total Weight']}
-                        />
-                        <Bar dataKey="totalKg" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                        <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={100} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                        <Bar dataKey="totalKg" name="Weight (kg)" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={25} />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3 shadow-lg">
+        <Card className="md:col-span-2 lg:col-span-2 shadow-lg">
+            <CardHeader>
+                <CardTitle className="font-headline text-xl">Top 5 Animal Populations</CardTitle>
+                <CardDescription>
+                    Count of unique animals by their common name.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={stats.animalDistribution} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={100} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                        <Bar dataKey="count" name="Count" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} barSize={25} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2 lg:col-span-4 shadow-lg">
             <CardHeader>
                 <CardTitle className="font-headline text-xl">Feed Type Distribution</CardTitle>
                 <CardDescription>
                     A breakdown of all feed types used across all sites.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
+            <CardContent className="flex justify-center">
+                <ResponsiveContainer width="100%" height={400}>
                     <PieChart>
                         <Pie
-                            data={feedTypeDistribution}
+                            data={stats.feedTypeDistribution}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
                             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            outerRadius={120}
+                            outerRadius={150}
                             fill="#8884d8"
                             dataKey="value"
+                            stroke="hsl(var(--background))"
+                            strokeWidth={2}
                         >
-                            {feedTypeDistribution.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            {stats.feedTypeDistribution.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="focus:outline-none focus:ring-2 focus:ring-ring" />
                             ))}
                         </Pie>
                         <Tooltip
@@ -126,7 +211,7 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
                             borderColor: 'hsl(var(--border))'
                           }}
                         />
-                        <Legend />
+                        <Legend wrapperStyle={{paddingTop: '20px'}}/>
                     </PieChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -134,3 +219,5 @@ export function LiveDashboard({ data }: LiveDashboardProps) {
     </div>
   );
 }
+
+    
