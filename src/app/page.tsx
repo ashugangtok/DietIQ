@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, PawPrint, LayoutDashboard, Table } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, PawPrint, LayoutDashboard, Table, BarChart2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DataTable } from "@/components/data-table";
 import { type SheetDataRow } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SummaryTable } from "@/components/summary-table";
 
 
 export default function Home() {
@@ -136,7 +137,7 @@ export default function Home() {
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
             <Tabs defaultValue="dashboard">
-              <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+              <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                 <TabsTrigger value="dashboard">
                   <LayoutDashboard className="mr-2" />
                   Dashboard
@@ -144,6 +145,10 @@ export default function Home() {
                 <TabsTrigger value="data-table">
                   <Table className="mr-2" />
                   Data Table
+                </TabsTrigger>
+                <TabsTrigger value="summary">
+                  <BarChart2 className="mr-2" />
+                  Summary
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="dashboard" className="mt-6">
@@ -164,6 +169,9 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="data-table" className="mt-6">
                 <DataTable data={data} />
+              </TabsContent>
+              <TabsContent value="summary" className="mt-6">
+                <SummaryTable data={data} />
               </TabsContent>
             </Tabs>
           </div>
