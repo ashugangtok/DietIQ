@@ -27,6 +27,13 @@ interface DataTableProps {
   data: SheetDataRow[];
 }
 
+interface ProcessedRow {
+  row: SheetDataRow;
+  siteNameRowSpan: number;
+  enclosureRowSpan: number;
+  commonNameRowSpan: number;
+}
+
 export function DataTable({ data }: DataTableProps) {
   const [filters, setFilters] = useState({
     site_name: "",
@@ -76,6 +83,40 @@ export function DataTable({ data }: DataTableProps) {
     });
   }, [data, filters]);
   
+  const processedData = useMemo((): ProcessedRow[] => {
+    const result: ProcessedRow[] = [];
+    if (filteredData.length === 0) return result;
+
+    for (let i = 0; i < filteredData.length; i++) {
+        const currentRow = filteredData[i];
+
+        if (i > 0 && 
+            currentRow.site_name === filteredData[i - 1].site_name &&
+            currentRow.user_enclosure_name === filteredData[i - 1].user_enclosure_name &&
+            currentRow.common_name === filteredData[i - 1].common_name
+        ) {
+            result.push({ row: currentRow, siteNameRowSpan: 0, enclosureRowSpan: 0, commonNameRowSpan: 0 });
+            continue;
+        }
+
+        let rowSpan = 1;
+        for (let j = i + 1; j < filteredData.length; j++) {
+            if (
+                filteredData[j].site_name === currentRow.site_name &&
+                filteredData[j].user_enclosure_name === currentRow.user_enclosure_name &&
+                filteredData[j].common_name === currentRow.common_name
+            ) {
+                rowSpan++;
+            } else {
+                break;
+            }
+        }
+        result.push({ row: currentRow, siteNameRowSpan: rowSpan, enclosureRowSpan: rowSpan, commonNameRowSpan: rowSpan });
+    }
+
+    return result;
+  }, [filteredData]);
+
   const handleDownload = () => {
     if (filteredData.length === 0) return;
     const dataToDownload = filteredData.map(row => ({
@@ -160,12 +201,12 @@ export function DataTable({ data }: DataTableProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredData.length > 0 ? (
-                        filteredData.map((row, index) => (
+                        {processedData.length > 0 ? (
+                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan }, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
-                                <TableCell className="font-medium">{row.site_name}</TableCell>
-                                <TableCell>{row.user_enclosure_name}</TableCell>
-                                <TableCell>{row.common_name} ({animalCountsByCommonName[row.common_name] || 0})</TableCell>
+                                {siteNameRowSpan > 0 && <TableCell className="font-medium align-top" rowSpan={siteNameRowSpan}>{row.site_name}</TableCell>}
+                                {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name}</TableCell>}
+                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({animalCountsByCommonName[row.common_name] || 0})</TableCell>}
                                 <TableCell>{row['Feed type name']}</TableCell>
                                 <TableCell>{row.type}</TableCell>
                                 <TableCell>{row.type_name}</TableCell>
