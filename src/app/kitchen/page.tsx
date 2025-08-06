@@ -60,8 +60,8 @@ const getTimeSlot = (time: string): TimeFilter => {
         const hour = parseInt(time.split(':')[0], 10);
         if (hour >= 6 && hour < 12) return 'morning';
         if (hour >= 12 && hour < 18) return 'afternoon';
-        if (hour >= 18) return 'evening';
-        return 'all'; // Default case if time is outside ranges, e.g. early morning
+        if (hour >= 18 || hour < 6) return 'evening'; // includes after 6pm and before 6am
+        return 'all'; 
     } catch {
         return 'all';
     }
@@ -74,7 +74,7 @@ export default function PackingDashboardPage() {
   const processedData = useMemo(() => {
     if (data.length === 0) return [];
 
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status'>>();
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status' | 'rowSpans'>>();
 
     const sortedData = [...data].sort((a, b) => {
         const siteCompare = a.site_name.localeCompare(b.site_name);
@@ -88,21 +88,61 @@ export default function PackingDashboardPage() {
         return (a.type || '').localeCompare(b.type || '');
     });
 
+    const animalCounts = new Map<string, number>();
     sortedData.forEach(row => {
         const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        
-        const animalSet = new Set(data.filter(d => 
-            d.site_name === row.site_name && 
-            d.user_enclosure_name === row.user_enclosure_name && 
-            d.common_name === row.common_name
-        ).map(d => d.animal_id));
-        const animalCount = animalSet.size;
+        if (!animalCounts.has(groupKey)) {
+            const animalSet = new Set(data.filter(d =>
+                d.site_name === row.site_name &&
+                d.user_enclosure_name === row.user_enclosure_name &&
+                d.common_name === row.common_name
+            ).map(d => d.animal_id));
+            animalCounts.set(groupKey, animalSet.size);
+        }
+    });
+
+    sortedData.forEach(row => {
+        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+        const animalCount = animalCounts.get(groupKey) || 0;
 
         if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
             const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
             let existing = aggregationMap.get(recipeKey);
 
             if (!existing) {
+                const allRecipeIngredients = sortedData.filter(
+                    (r) =>
+                    `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
+                    `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` &&
+                    (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
+                );
+
+                const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
+                allRecipeIngredients.forEach(ing => {
+                    if (!ingredientSums[ing.ingredient_name]) {
+                        ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
+                    }
+                    ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
+                    ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
+                });
+
+                const ingredientsString = Object.entries(ingredientSums)
+                    .map(([name, ingData]) => {
+                        const uomLower = ingData.uom.toLowerCase();
+                        let displayQty;
+                        if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1 && ingData.qty > 0) {
+                            displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
+                        } else {
+                            const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            displayQty = `${qtyString} ${ingData.uom}`;
+                        }
+                        return `${name} (${displayQty})`;
+                    })
+                    .join(', ');
+
+                const totalQty = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty, 0);
+                const totalQtyGram = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty_gram, 0);
+
                 existing = {
                     id: recipeKey,
                     groupData: {
@@ -113,58 +153,19 @@ export default function PackingDashboardPage() {
                         feed_type_name: row['Feed type name'],
                         type: row.type,
                         type_name: row.type_name,
-                        ingredients: '', 
-                        total_qty: 0,
-                        total_qty_gram: 0,
-                        total_uom: '',
+                        ingredients: ingredientsString,
+                        total_qty: totalQty,
+                        total_qty_gram: totalQtyGram,
+                        total_uom: allRecipeIngredients[0]?.base_uom_name || '',
                         preparation_type_name: row.preparation_type_name,
                         meal_start_time: row.meal_start_time,
                         cut_size_name: row.cut_size_name,
                     },
-                    rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
                 aggregationMap.set(recipeKey, existing);
             }
-
-            const allRecipeIngredients = sortedData.filter(
-              (r) =>
-                `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
-                `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` &&
-                (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
-            );
-
-            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
-            allRecipeIngredients.forEach(ing => {
-                if (!ingredientSums[ing.ingredient_name]) {
-                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
-                }
-                ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
-                ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
-            });
-            
-            existing.groupData.ingredients = Object.entries(ingredientSums)
-                .map(([name, ingData]) => {
-                    const uomLower = ingData.uom.toLowerCase();
-                    let displayQty;
-                    if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1 && ingData.qty > 0) {
-                         displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
-                    } else {
-                        const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        displayQty = `${qtyString} ${ingData.uom}`;
-                    }
-                    return `${name} (${displayQty})`;
-                })
-                .join(', ');
-            
-            const totalQty = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty, 0);
-            const totalQtyGram = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty_gram, 0);
-            existing.groupData.total_qty = totalQty;
-            existing.groupData.total_qty_gram = totalQtyGram;
-            existing.groupData.total_uom = allRecipeIngredients[0]?.base_uom_name || '';
-
-
         } else { // Handle single ingredients
-            const ingredientKey = `${groupKey}|${row.ingredient_name}`;
+            const ingredientKey = `${groupKey}|${row.ingredient_name}|${row['Feed type name']}`;
             let existing = aggregationMap.get(ingredientKey);
 
             if (!existing) {
@@ -186,7 +187,6 @@ export default function PackingDashboardPage() {
                         meal_start_time: row.meal_start_time,
                         cut_size_name: row.cut_size_name,
                     },
-                    rowSpans: { siteName: 0, enclosure: 0, commonName: 0 },
                 };
                 aggregationMap.set(ingredientKey, existing);
             }
@@ -196,35 +196,34 @@ export default function PackingDashboardPage() {
     });
 
     const aggregatedResult = Array.from(aggregationMap.values());
-    
+
     const timeFilteredData = timeFilter === 'all'
         ? aggregatedResult
         : aggregatedResult.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
 
-
-    let siteNameCache: { [key: string]: number } = {};
-    let enclosureCache: { [key: string]: number } = {};
-    let commonNameCache: { [key: string]: number } = {};
+    const siteNameCache: { [key: string]: number } = {};
+    const enclosureCache: { [key: string]: number } = {};
+    const commonNameCache: { [key: string]: number } = {};
 
     timeFilteredData.forEach(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
-        
+
         siteNameCache[siteKey] = (siteNameCache[siteKey] || 0) + 1;
         enclosureCache[enclosureKey] = (enclosureCache[enclosureKey] || 0) + 1;
         commonNameCache[commonNameKey] = (commonNameCache[commonNameKey] || 0) + 1;
     });
 
-    let processedSiteNames = new Set();
-    let processedEnclosures = new Set();
-    let processedCommonNames = new Set();
+    const processedSiteNames = new Set();
+    const processedEnclosures = new Set();
+    const processedCommonNames = new Set();
 
     return timeFilteredData.map(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
-        
+
         const siteNameSpan = !processedSiteNames.has(siteKey) ? siteNameCache[siteKey] : 0;
         if(siteNameSpan > 0) processedSiteNames.add(siteKey);
 
@@ -234,35 +233,32 @@ export default function PackingDashboardPage() {
         const commonNameSpan = !processedCommonNames.has(commonNameKey) ? commonNameCache[commonNameKey] : 0;
         if(commonNameSpan > 0) processedCommonNames.add(commonNameKey);
 
-        row.rowSpans = {
+        const rowSpans = {
             siteName: siteNameSpan,
             enclosure: enclosureSpan,
             commonName: commonNameSpan,
         };
-        return { ...row, status: 'Pending' as const };
+        return { ...row, rowSpans, status: 'Pending' as const };
     });
-  
   }, [data, timeFilter]);
 
   const allProcessedIds = useMemo(() => {
-    // This memo calculates all possible IDs from the data, irrespective of the time filter.
-    // It's used to initialize the packing list correctly.
     if (data.length === 0) return new Set<string>();
 
-    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status'>>();
-    data.forEach(row => {
-      const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-      if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
-        const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
-        if (!aggregationMap.has(recipeKey)) {
-          aggregationMap.set(recipeKey, { id: recipeKey, groupData: {} as any, rowSpans: {} as any });
+    const aggregationMap = new Map<string, any>();
+     data.forEach(row => {
+        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+        if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
+            const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
+            if (!aggregationMap.has(recipeKey)) {
+                aggregationMap.set(recipeKey, { id: recipeKey });
+            }
+        } else {
+            const ingredientKey = `${groupKey}|${row.ingredient_name}|${row['Feed type name']}`;
+             if (!aggregationMap.has(ingredientKey)) {
+                aggregationMap.set(ingredientKey, { id: ingredientKey });
+            }
         }
-      } else {
-        const ingredientKey = `${groupKey}|${row.ingredient_name}`;
-        if (!aggregationMap.has(ingredientKey)) {
-          aggregationMap.set(ingredientKey, { id: ingredientKey, groupData: {} as any, rowSpans: {} as any });
-        }
-      }
     });
     return new Set(Array.from(aggregationMap.keys()));
   }, [data]);
@@ -272,11 +268,9 @@ export default function PackingDashboardPage() {
         setPackingList(currentList => {
             const currentMap = new Map(currentList.map(item => [item.id, item]));
 
-            // Filter out items that are no longer in the full dataset
             const updatedList: PackingItem[] = currentList.filter(item => allProcessedIds.has(item.id));
             const updatedMap = new Map(updatedList.map(item => [item.id, item]));
-            
-            // Add new items that are not in the current list
+
             allProcessedIds.forEach(id => {
                 if (!updatedMap.has(id)) {
                     updatedList.push({ id, status: 'Pending' });
@@ -290,7 +284,6 @@ export default function PackingDashboardPage() {
     }
   }, [data, allProcessedIds, setPackingList]);
 
-
   const handleToggleStatus = (id: string) => {
     setPackingList((currentList: PackingItem[]) =>
       currentList.map((item) =>
@@ -303,11 +296,10 @@ export default function PackingDashboardPage() {
   
   const packingListWithDetails = useMemo(() => {
     const processedMap = new Map(processedData.map(item => [item.id, item]));
-    // Get statuses from the central packing list
     return packingList
         .map(packingItem => {
             const details = processedMap.get(packingItem.id);
-            if (!details) return null; // Item from packing list is not in the current filtered view
+            if (!details) return null; 
             return {
                 ...details,
                 status: packingItem.status,
@@ -434,5 +426,3 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
-
-    
