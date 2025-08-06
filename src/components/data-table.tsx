@@ -140,24 +140,31 @@ export function DataTable({ data }: DataTableProps) {
                 (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
             );
 
-            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string } } = {};
+            const ingredientSums: { [key: string]: { qty: number, qty_gram: number, uom: string, uom_gram: string } } = {};
             allRecipeIngredients.forEach(ing => {
                 if (!ingredientSums[ing.ingredient_name]) {
-                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name };
+                    ingredientSums[ing.ingredient_name] = { qty: 0, qty_gram: 0, uom: ing.base_uom_name, uom_gram: ing.base_uom_name_gram };
                 }
                 ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
                 ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
             });
             
             existing.groupData.ingredients = Object.entries(ingredientSums)
-                .map(([name, data]) => {
-                    const qtyString = data.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    return `${name} (${qtyString} ${data.uom})`;
+                .map(([name, ingData]) => {
+                    const uomLower = ingData.uom.toLowerCase();
+                    let displayQty;
+                    if ((uomLower === 'kilogram' || uomLower === 'kg') && ingData.qty < 1) {
+                         displayQty = `${ingData.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${ingData.uom_gram}`;
+                    } else {
+                        const qtyString = ingData.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        displayQty = `${qtyString} ${ingData.uom}`;
+                    }
+                    return `${name} (${displayQty})`;
                 })
                 .join(', ');
             
-            const totalQty = Object.values(ingredientSums).reduce((sum, data) => sum + data.qty, 0);
-            const totalQtyGram = Object.values(ingredientSums).reduce((sum, data) => sum + data.qty_gram, 0);
+            const totalQty = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty, 0);
+            const totalQtyGram = Object.values(ingredientSums).reduce((sum, ingData) => sum + ingData.qty_gram, 0);
             existing.groupData.total_qty = totalQty;
             existing.groupData.total_qty_gram = totalQtyGram;
             existing.groupData.total_uom = allRecipeIngredients[0]?.base_uom_name || '';
