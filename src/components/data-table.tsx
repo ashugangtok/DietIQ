@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -120,7 +121,8 @@ export function DataTable({ data }: DataTableProps) {
             }
             const commonNameGroupSlice = filteredData.slice(i, endIndex);
             commonNameRowSpan = commonNameGroupSlice.length;
-            commonNameAnimalCount = new Set(commonNameGroupSlice.map(r => r.animal_id)).size;
+            const uniqueAnimalIds = new Set(commonNameGroupSlice.map(r => r.animal_id));
+            commonNameAnimalCount = uniqueAnimalIds.size;
           }
           
           if(showFeedType) {
