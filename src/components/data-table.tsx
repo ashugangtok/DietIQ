@@ -138,12 +138,13 @@ export function DataTable({ data }: DataTableProps) {
                 (r.type?.toLowerCase() === 'recipe' || r.type?.toLowerCase() === 'combo')
             );
 
-            const ingredientSums: { [key: string]: { qty: number, uom: string } } = {};
+            const ingredientSums: { [key: string]: { qty: number, uom: string, qty_gram: number, uom_gram: string } } = {};
             allRecipeIngredients.forEach(ing => {
                 if (!ingredientSums[ing.ingredient_name]) {
-                    ingredientSums[ing.ingredient_name] = { qty: 0, uom: ing.base_uom_name };
+                    ingredientSums[ing.ingredient_name] = { qty: 0, uom: ing.base_uom_name, qty_gram: 0, uom_gram: ing.base_uom_name_gram };
                 }
                 ingredientSums[ing.ingredient_name].qty += ing.ingredient_qty;
+                ingredientSums[ing.ingredient_name].qty_gram += ing.ingredient_qty_gram;
             });
             
             existing.groupData.ingredients = Object.entries(ingredientSums)
@@ -266,6 +267,16 @@ export function DataTable({ data }: DataTableProps) {
     document.body.removeChild(link);
   };
 
+  const formatTotal = (quantity: number, uom: string) => {
+    if (uom.toLowerCase() === 'kilogram' || uom.toLowerCase() === 'kg') {
+      if (quantity < 1) {
+        return `${(quantity * 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
+      }
+      return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+    return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  };
+
   return (
     <Card className="shadow-lg">
         <CardHeader>
@@ -332,10 +343,7 @@ export function DataTable({ data }: DataTableProps) {
                             processedData.map(({ groupData, rowSpans }, index) => {
                                 const { siteName, enclosure, commonName } = rowSpans;
                                 const rowData = groupData;
-                                const totalQtyString = rowData.total_qty.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                });
+                                const totalDisplay = formatTotal(rowData.total_qty, rowData.total_uom);
                                 return (
                                     <TableRow key={index}>
                                         {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
@@ -345,7 +353,7 @@ export function DataTable({ data }: DataTableProps) {
                                         <TableCell className="align-top">{rowData.type}</TableCell>
                                         <TableCell className="align-top">{rowData.type_name}</TableCell>
                                         <TableCell className="align-top font-bold">{rowData.ingredients}</TableCell>
-                                        <TableCell className="text-right align-top font-bold">{totalQtyString} {rowData.total_uom}</TableCell>
+                                        <TableCell className="text-right align-top font-bold">{totalDisplay}</TableCell>
                                     </TableRow>
                                 );
                             })
