@@ -126,16 +126,16 @@ export function DataTable({ data }: DataTableProps) {
                     }
                 });
                 
-                const recipeIngredientRows = Object.values(aggregatedIngredients);
+                const recipeIngredientRows = Object.values(aggregatedIngredients).sort((a,b) => a.ingredient_name.localeCompare(b.ingredient_name));
 
                 // Add the main recipe row
                 flattenedData.push({ ...recipeIngredientRows[0], ingredient_name: '', ingredient_qty: 0, base_uom_name: '' }); 
                 // Add the aggregated ingredient rows
-                recipeIngredientRows.forEach((ingredientRow, index) => {
+                recipeIngredientRows.forEach((ingredientRow) => {
                     flattenedData.push({
                       ...ingredientRow,
                       type: ``, // This is now an ingredient, not a recipe itself
-                      type_name: `${ingredientRow.type_name}`, // Keep reference to recipe
+                      type_name: ``, // Clear type_name for ingredients to avoid repetition
                     });
                 });
                 
@@ -149,8 +149,8 @@ export function DataTable({ data }: DataTableProps) {
         let j = 0;
         while (j < flattenedData.length) {
             const currentRow = flattenedData[j];
-            const isRecipe = currentRow.type?.toLowerCase() === 'recipe' || currentRow.type?.toLowerCase() === 'combo';
-            const isRecipeIngredient = !isRecipe && !!currentRow.type_name;
+            const isRecipe = (currentRow.type?.toLowerCase() === 'recipe' || currentRow.type?.toLowerCase() === 'combo') && !currentRow.ingredient_name;
+            const isRecipeIngredient = !isRecipe && currentRow.type === '' && currentRow.type_name === '';
             
             const isNewSiteName = j === 0 || currentRow.site_name !== flattenedData[j - 1].site_name;
             const isNewEnclosure = isNewSiteName || currentRow.user_enclosure_name !== flattenedData[j - 1].user_enclosure_name;
@@ -338,7 +338,7 @@ export function DataTable({ data }: DataTableProps) {
                                 {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
                                 
                                 <TableCell>{isRecipeIngredient ? '' : row.type}</TableCell>
-                                <TableCell>{isRecipe ? '' : row.type_name}</TableCell>
+                                <TableCell>{row.type_name}</TableCell>
 
                                 <TableCell className={isRecipeIngredient ? "pl-8" : ""}>
                                   <div className="flex items-center gap-2">
