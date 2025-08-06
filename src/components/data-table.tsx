@@ -126,7 +126,11 @@ export function DataTable({ data }: DataTableProps) {
 
         const totalQty = groupIngredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
   
-        const animalSet = new Set(filteredData.filter(d => d.common_name === currentRow.common_name).map(d => d.animal_id));
+        const animalSet = new Set(filteredData.filter(d => 
+            d.site_name === currentRow.site_name && 
+            d.user_enclosure_name === currentRow.user_enclosure_name && 
+            d.common_name === currentRow.common_name
+        ).map(d => d.animal_id));
 
         aggregatedResult.push({
           isGroupHeader: true,
@@ -145,9 +149,16 @@ export function DataTable({ data }: DataTableProps) {
         });
         i += groupIngredients.length;
       } else {
+        const animalSet = new Set(filteredData.filter(d => 
+            d.site_name === currentRow.site_name && 
+            d.user_enclosure_name === currentRow.user_enclosure_name && 
+            d.common_name === currentRow.common_name
+        ).map(d => d.animal_id));
+
         aggregatedResult.push({
             isGroupHeader: false,
-            groupData: currentRow,
+            // Add animalCount to non-group rows as well to simplify rowspan logic
+            groupData: {...currentRow, animalCount: animalSet.size},
             rowSpans: { siteName: 0, enclosure: 0, commonName: 0 }
         });
         i++;
@@ -156,18 +167,26 @@ export function DataTable({ data }: DataTableProps) {
   
     // Calculate rowSpans
     for (let i = 0; i < aggregatedResult.length; i++) {
-        const getRowSpan = (key: keyof AggregatedRow['groupData']) => {
+        const getRowSpan = (key: 'site_name' | 'user_enclosure_name' | 'common_name') => {
             let span = 0;
-            const currentGroupValue = aggregatedResult[i].groupData[key as keyof typeof aggregatedResult[i]['groupData']];
+            const currentGroupValue = aggregatedResult[i].groupData[key];
             for (let j = i; j < aggregatedResult.length; j++) {
-                if (aggregatedResult[j].groupData[key as keyof typeof aggregatedResult[j]['groupData']] === currentGroupValue) {
-                    span++;
+                if (aggregatedResult[j].groupData[key] === currentGroupValue) {
+                    if (key === 'site_name' || 
+                       (key === 'user_enclosure_name' && aggregatedResult[j].groupData.site_name === aggregatedResult[i].groupData.site_name) ||
+                       (key === 'common_name' && aggregatedResult[j].groupData.site_name === aggregatedResult[i].groupData.site_name && aggregatedResult[j].groupData.user_enclosure_name === aggregatedResult[i].groupData.user_enclosure_name)
+                    ) {
+                        span++;
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
             }
             return span;
         };
+        
         const isFirstSite = i === 0 || aggregatedResult[i].groupData.site_name !== aggregatedResult[i-1].groupData.site_name;
         const isFirstEnclosure = i === 0 || aggregatedResult[i].groupData.user_enclosure_name !== aggregatedResult[i-1].groupData.user_enclosure_name || isFirstSite;
         const isFirstCommonName = i === 0 || aggregatedResult[i].groupData.common_name !== aggregatedResult[i-1].groupData.common_name || isFirstEnclosure;
@@ -299,12 +318,12 @@ export function DataTable({ data }: DataTableProps) {
                                 }
                                 // Fallback for non-grouped rows (if any)
                                 const { siteName, enclosure, commonName } = rowSpans;
-                                const rowData = groupData as SheetDataRow;
+                                const rowData = groupData as SheetDataRow & { animalCount: number };
                                 return (
                                     <TableRow key={index}>
                                         {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
                                         {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
-                                        {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name}</TableCell>}
+                                        {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} ({rowData.animalCount})</TableCell>}
                                         <TableCell>{rowData['Feed type name']}</TableCell>
                                         <TableCell>{rowData.type}</TableCell>
                                         <TableCell>{rowData.type_name}</TableCell>
