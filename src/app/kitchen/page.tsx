@@ -71,7 +71,7 @@ export default function PackingDashboardPage() {
   const { data, packingList, setPackingList } = useContext(DataContext);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
-  const processedData = useMemo(() => {
+  const allProcessedItems = useMemo(() => {
     if (data.length === 0) return [];
 
     const sortedData = [...data].sort((a, b) => {
@@ -149,11 +149,18 @@ export default function PackingDashboardPage() {
         }
     });
 
-    const aggregatedResult = Array.from(aggregationMap.values());
-    
+    return Array.from(aggregationMap.values());
+
+  }, [data]);
+
+  const packingListWithDetails = useMemo(() => {
     const timeFilteredData = timeFilter === 'all'
-      ? aggregatedResult
-      : aggregatedResult.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
+      ? allProcessedItems
+      : allProcessedItems.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
+
+    if (timeFilteredData.length === 0) return [];
+    
+    const packingStatusMap = new Map(packingList.map(item => [item.id, item.status]));
 
     const siteNameCache: { [key: string]: number } = {};
     const enclosureCache: { [key: string]: number } = {};
@@ -192,34 +199,26 @@ export default function PackingDashboardPage() {
             enclosure: enclosureSpan,
             commonName: commonNameSpan,
         };
+        
+        const status = packingStatusMap.get(row.id) || 'Pending';
 
-        return { ...row, rowSpans, status: 'Pending' as const };
+        return { ...row, rowSpans, status };
     });
-  }, [data, timeFilter]);
+  }, [allProcessedItems, timeFilter, packingList]);
 
-  const allProcessedIds = useMemo(() => {
-    if (data.length === 0) return new Set<string>();
-
-    const aggregationMap = new Map<string, any>();
-     data.forEach(row => {
-        const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-        const aggregationKey = `${groupKey}|${row['Feed type name']}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
-        if (!aggregationMap.has(aggregationKey)) {
-            aggregationMap.set(aggregationKey, { id: aggregationKey });
-        }
-    });
-    return new Set(Array.from(aggregationMap.keys()));
-  }, [data]);
+  const allItemIds = useMemo(() => {
+    return new Set(allProcessedItems.map(item => item.id));
+  }, [allProcessedItems]);
 
   useEffect(() => {
     if (data.length > 0) {
         setPackingList(currentList => {
             const currentMap = new Map(currentList.map(item => [item.id, item]));
-
-            const updatedList: PackingItem[] = currentList.filter(item => allProcessedIds.has(item.id));
+            
+            const updatedList: PackingItem[] = currentList.filter(item => allItemIds.has(item.id));
             const updatedMap = new Map(updatedList.map(item => [item.id, item]));
 
-            allProcessedIds.forEach(id => {
+            allItemIds.forEach(id => {
                 if (!updatedMap.has(id)) {
                     updatedList.push({ id, status: 'Pending' });
                 }
@@ -230,7 +229,7 @@ export default function PackingDashboardPage() {
     } else {
         setPackingList([]);
     }
-  }, [data, allProcessedIds, setPackingList]);
+  }, [data, allItemIds, setPackingList]);
 
   const handleToggleStatus = (id: string) => {
     setPackingList((currentList: PackingItem[]) =>
@@ -242,24 +241,6 @@ export default function PackingDashboardPage() {
     );
   };
   
-  const packingListWithDetails = useMemo(() => {
-    const processedMap = new Map(processedData.map(item => [item.id, item]));
-    return packingList
-        .map(packingItem => {
-            const details = processedMap.get(packingItem.id);
-            if (!details) return null; 
-            return {
-                ...details,
-                status: packingItem.status,
-            };
-        })
-        .filter((item): item is AggregatedRow => {
-            if (!item) return false;
-            const itemTimeSlot = getTimeSlot(item.groupData.meal_start_time);
-            return timeFilter === 'all' || itemTimeSlot === timeFilter;
-        });
-  }, [processedData, packingList, timeFilter]);
-
   if (data.length === 0) {
     return (
         <Card>
