@@ -33,6 +33,11 @@ interface SummaryRow {
   uom: string;
 }
 
+const isWeightUnit = (uom: string) => {
+    const lowerUom = uom.toLowerCase();
+    return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
+}
+
 export function SummaryTable({ data }: SummaryTableProps) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
 
@@ -78,26 +83,38 @@ export function SummaryTable({ data }: SummaryTableProps) {
   }, [filteredData]);
 
   const groupedData = useMemo(() => {
-    const groups = new Map<string, { ingredients: { name: string; total_qty: number; total_qty_gram: number; uom: string; }[], siteTotalGram: number }>();
+    const groups = new Map<string, { 
+        ingredients: { name: string; total_qty: number; total_qty_gram: number; uom: string; }[], 
+        siteTotals: { [uom: string]: number },
+    }>();
+    const grandTotals: { [uom: string]: number } = {};
     let grandTotalGram = 0;
 
     summaryData.forEach(row => {
       if (!groups.has(row.site_name)) {
-        groups.set(row.site_name, { ingredients: [], siteTotalGram: 0 });
+        groups.set(row.site_name, { ingredients: [], siteTotals: {} });
       }
       const group = groups.get(row.site_name)!;
       group.ingredients.push({ name: row.ingredient_name, total_qty: row.total_qty, total_qty_gram: row.total_qty_gram, uom: row.uom });
-      group.siteTotalGram += row.total_qty_gram;
-      grandTotalGram += row.total_qty_gram;
-    });
 
-    return { groups, grandTotalGram };
+      if (isWeightUnit(row.uom)) {
+          group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + row.total_qty_gram;
+          grandTotalGram += row.total_qty_gram;
+      } else {
+          group.siteTotals[row.uom] = (group.siteTotals[row.uom] || 0) + row.total_qty;
+          grandTotals[row.uom] = (grandTotals[row.uom] || 0) + row.total_qty;
+      }
+    });
+    
+    grandTotals['weight'] = grandTotalGram;
+
+    return { groups, grandTotals };
   }, [summaryData]);
   
   const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
     const uomLower = uom.toLowerCase();
-    if (uomLower === 'kilogram' || uomLower === 'kg') {
-        if (quantity < 1 && quantity > 0) { // If it's less than 1 kg but not 0
+    if (isWeightUnit(uom)) {
+        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
             return `${quantityGram.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
         }
         return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
@@ -108,13 +125,18 @@ export function SummaryTable({ data }: SummaryTableProps) {
     return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   };
 
-  const formatGramTotal = (totalGrams: number) => {
-    if (totalGrams < 1000) {
-      return `${totalGrams.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gram`;
-    }
-    const kg = totalGrams / 1000;
-    return `${kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kilogram`;
-  }
+  const formatCombinedTotal = (totals: { [uom: string]: number }) => {
+    return Object.entries(totals).map(([unit, total]) => {
+      if (unit === 'weight') {
+        if (total < 1000) {
+          return `${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gram`;
+        }
+        const kg = total / 1000;
+        return `${kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kilogram`;
+      }
+      return `${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`;
+    }).join(', ');
+  };
 
 
   return (
@@ -149,24 +171,24 @@ export function SummaryTable({ data }: SummaryTableProps) {
             <TableBody>
               {groupedData.groups.size > 0 ? (
                 <>
-                  {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotalGram }]) => (
+                  {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotals }]) => (
                     <React.Fragment key={siteName}>
                       {ingredients.map((ing, index) => (
                         <TableRow key={`${siteName}-${ing.name}`}>
-                          <TableCell>{index === 0 ? siteName : ''}</TableCell>
-                          <TableCell>{ing.name}</TableCell>
-                          <TableCell className="text-right">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
+                          <TableCell className="align-top">{index === 0 ? siteName : ''}</TableCell>
+                          <TableCell className="align-top">{ing.name}</TableCell>
+                          <TableCell className="text-right align-top">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow className="bg-muted/30 font-bold">
                         <TableCell colSpan={2}>{siteName} Total</TableCell>
-                        <TableCell className="text-right">{formatGramTotal(siteTotalGram)}</TableCell>
+                        <TableCell className="text-right">{formatCombinedTotal(siteTotals)}</TableCell>
                       </TableRow>
                     </React.Fragment>
                   ))}
                   <TableRow className="bg-primary/80 text-primary-foreground font-bold text-base">
                     <TableCell colSpan={2}>Grand Total</TableCell>
-                    <TableCell className="text-right">{formatGramTotal(groupedData.grandTotalGram)}</TableCell>
+                    <TableCell className="text-right">{formatCombinedTotal(groupedData.grandTotals)}</TableCell>
                   </TableRow>
                 </>
               ) : (
