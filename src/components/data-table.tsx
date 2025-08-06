@@ -33,8 +33,8 @@ interface ProcessedRow {
     isRecipeIngredient: boolean;
     siteNameRowSpan: number;
     enclosureRowSpan: number;
-    enclosureAnimalCount: number;
     commonNameRowSpan: number;
+    commonNameAnimalCount: number;
     feedTypeRowSpan: number;
     recipeRowSpan: number;
 }
@@ -89,7 +89,7 @@ export function DataTable({ data }: DataTableProps) {
           let enclosureRowSpan = 0;
           let commonNameRowSpan = 0;
           let feedTypeRowSpan = 0;
-          let enclosureAnimalCount = 0;
+          let commonNameAnimalCount = 0;
           
           if(showSiteName) {
             let endIndex = i;
@@ -106,9 +106,7 @@ export function DataTable({ data }: DataTableProps) {
                   filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name) {
               endIndex++;
             }
-            const enclosureGroupSlice = filteredData.slice(i, endIndex);
-            enclosureRowSpan = enclosureGroupSlice.length;
-            enclosureAnimalCount = new Set(enclosureGroupSlice.map(r => r.animal_id)).size;
+            enclosureRowSpan = endIndex - i;
           }
           
           if(showCommonName) {
@@ -120,7 +118,9 @@ export function DataTable({ data }: DataTableProps) {
             ) {
               endIndex++;
             }
-            commonNameRowSpan = endIndex - i;
+            const commonNameGroupSlice = filteredData.slice(i, endIndex);
+            commonNameRowSpan = commonNameGroupSlice.length;
+            commonNameAnimalCount = new Set(commonNameGroupSlice.map(r => r.animal_id)).size;
           }
           
           if(showFeedType) {
@@ -144,8 +144,8 @@ export function DataTable({ data }: DataTableProps) {
                   isRecipeIngredient: false,
                   siteNameRowSpan: showSiteName ? siteNameRowSpan : 0,
                   enclosureRowSpan: showEnclosure ? enclosureRowSpan : 0,
-                  enclosureAnimalCount,
                   commonNameRowSpan: showCommonName ? commonNameRowSpan : 0,
+                  commonNameAnimalCount,
                   feedTypeRowSpan: showFeedType ? feedTypeRowSpan : 0,
                   recipeRowSpan: 1,
               });
@@ -157,8 +157,8 @@ export function DataTable({ data }: DataTableProps) {
                   isRecipeIngredient: currentRow.type_name ? currentRow.type?.toLowerCase() !== 'recipe' : false,
                   siteNameRowSpan: showSiteName ? siteNameRowSpan : 0,
                   enclosureRowSpan: showEnclosure ? enclosureRowSpan : 0,
-                  enclosureAnimalCount,
                   commonNameRowSpan: showCommonName ? commonNameRowSpan : 0,
+                  commonNameAnimalCount,
                   feedTypeRowSpan: showFeedType ? feedTypeRowSpan : 0,
                   recipeRowSpan: 1,
               });
@@ -257,11 +257,11 @@ export function DataTable({ data }: DataTableProps) {
                     </TableHeader>
                     <TableBody>
                         {processedData.length > 0 ? (
-                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient, enclosureAnimalCount }, index) => (
+                        processedData.map(({ row, siteNameRowSpan, enclosureRowSpan, commonNameRowSpan, feedTypeRowSpan, isRecipe, isRecipeIngredient, commonNameAnimalCount }, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
                                 {siteNameRowSpan > 0 && <TableCell className="font-medium align-top" rowSpan={siteNameRowSpan}>{row.site_name}</TableCell>}
-                                {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name} ({enclosureAnimalCount})</TableCell>}
-                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name}</TableCell>}
+                                {enclosureRowSpan > 0 && <TableCell className="align-top" rowSpan={enclosureRowSpan}>{row.user_enclosure_name}</TableCell>}
+                                {commonNameRowSpan > 0 && <TableCell className="align-top" rowSpan={commonNameRowSpan}>{row.common_name} ({commonNameAnimalCount})</TableCell>}
                                 {feedTypeRowSpan > 0 && <TableCell className="align-top" rowSpan={feedTypeRowSpan}>{row['Feed type name']}</TableCell>}
                                 
                                 <TableCell>{row.type}</TableCell>
