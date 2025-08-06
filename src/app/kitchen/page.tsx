@@ -87,13 +87,8 @@ export default function PackingDashboardPage() {
         if (feedTypeCompare !== 0) return feedTypeCompare;
         return (a.type || '').localeCompare(b.type || '');
     });
-    
-    const timeFilteredData = timeFilter === 'all'
-        ? sortedData
-        : sortedData.filter(row => getTimeSlot(row.meal_start_time) === timeFilter);
 
-
-    timeFilteredData.forEach(row => {
+    sortedData.forEach(row => {
         const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
         
         const animalSet = new Set(data.filter(d => 
@@ -131,7 +126,7 @@ export default function PackingDashboardPage() {
                 aggregationMap.set(recipeKey, existing);
             }
 
-            const allRecipeIngredients = timeFilteredData.filter(
+            const allRecipeIngredients = sortedData.filter(
               (r) =>
                 `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
                 `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` &&
@@ -201,12 +196,17 @@ export default function PackingDashboardPage() {
     });
 
     const aggregatedResult = Array.from(aggregationMap.values());
+    
+    const timeFilteredData = timeFilter === 'all'
+        ? aggregatedResult
+        : aggregatedResult.filter(row => getTimeSlot(row.groupData.meal_start_time) === timeFilter);
+
 
     let siteNameCache: { [key: string]: number } = {};
     let enclosureCache: { [key: string]: number } = {};
     let commonNameCache: { [key: string]: number } = {};
 
-    aggregatedResult.forEach(row => {
+    timeFilteredData.forEach(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
@@ -220,7 +220,7 @@ export default function PackingDashboardPage() {
     let processedEnclosures = new Set();
     let processedCommonNames = new Set();
 
-    return aggregatedResult.map(row => {
+    return timeFilteredData.map(row => {
         const siteKey = row.groupData.site_name;
         const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
         const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
@@ -244,20 +244,42 @@ export default function PackingDashboardPage() {
   
   }, [data, timeFilter]);
 
+  const allProcessedIds = useMemo(() => {
+    // This memo calculates all possible IDs from the data, irrespective of the time filter.
+    // It's used to initialize the packing list correctly.
+    if (data.length === 0) return new Set<string>();
+
+    const aggregationMap = new Map<string, Omit<AggregatedRow, 'status'>>();
+    data.forEach(row => {
+      const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
+      if (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') {
+        const recipeKey = `${groupKey}|${row['Feed type name']}|${row.type_name}`;
+        if (!aggregationMap.has(recipeKey)) {
+          aggregationMap.set(recipeKey, { id: recipeKey, groupData: {} as any, rowSpans: {} as any });
+        }
+      } else {
+        const ingredientKey = `${groupKey}|${row.ingredient_name}`;
+        if (!aggregationMap.has(ingredientKey)) {
+          aggregationMap.set(ingredientKey, { id: ingredientKey, groupData: {} as any, rowSpans: {} as any });
+        }
+      }
+    });
+    return new Set(Array.from(aggregationMap.keys()));
+  }, [data]);
+
   useEffect(() => {
     if (data.length > 0) {
         setPackingList(currentList => {
-            const allPossibleIds = new Set(processedData.map(item => item.id));
             const currentMap = new Map(currentList.map(item => [item.id, item]));
 
             // Filter out items that are no longer in the full dataset
-            const updatedList: PackingItem[] = currentList.filter(item => allPossibleIds.has(item.id));
+            const updatedList: PackingItem[] = currentList.filter(item => allProcessedIds.has(item.id));
             const updatedMap = new Map(updatedList.map(item => [item.id, item]));
-
+            
             // Add new items that are not in the current list
-            processedData.forEach(item => {
-                if (!updatedMap.has(item.id)) {
-                    updatedList.push({ id: item.id, status: 'Pending' });
+            allProcessedIds.forEach(id => {
+                if (!updatedMap.has(id)) {
+                    updatedList.push({ id, status: 'Pending' });
                 }
             });
             
@@ -266,7 +288,7 @@ export default function PackingDashboardPage() {
     } else {
         setPackingList([]);
     }
-  }, [data, setPackingList]); // Re-run when base data changes to init the list
+  }, [data, allProcessedIds, setPackingList]);
 
 
   const handleToggleStatus = (id: string) => {
@@ -412,3 +434,5 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
+
+    
