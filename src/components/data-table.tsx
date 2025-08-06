@@ -48,7 +48,7 @@ type AggregatedRow = {
     };
 } | {
     isGroupHeader: false;
-    groupData: SheetDataRow;
+    groupData: SheetDataRow & { animalCount: number };
     rowSpans: {
         siteName: number;
         enclosure: number;
@@ -81,14 +81,16 @@ export function DataTable({ data }: DataTableProps) {
   };
 
   const filteredData = useMemo(() => {
-    const sorted = data.sort((a, b) => {
-        const sortOrder = [
-            a.site_name.localeCompare(b.site_name),
-            a.user_enclosure_name.localeCompare(b.user_enclosure_name),
-            a.common_name.localeCompare(b.common_name),
-            a['Feed type name'].localeCompare(b['Feed type name']),
-        ];
-        return sortOrder.find(val => val !== 0) || 0;
+    const sorted = [...data].sort((a, b) => {
+        const siteCompare = a.site_name.localeCompare(b.site_name);
+        if (siteCompare !== 0) return siteCompare;
+        const enclosureCompare = a.user_enclosure_name.localeCompare(b.user_enclosure_name);
+        if (enclosureCompare !== 0) return enclosureCompare;
+        const commonNameCompare = a.common_name.localeCompare(b.common_name);
+        if (commonNameCompare !== 0) return commonNameCompare;
+        const feedTypeCompare = (a['Feed type name'] || '').localeCompare(b['Feed type name'] || '');
+        if (feedTypeCompare !== 0) return feedTypeCompare;
+        return (a.type || '').localeCompare(b.type || '');
     });
 
     return sorted.filter(row => {
@@ -110,9 +112,10 @@ export function DataTable({ data }: DataTableProps) {
         const groupKey = `${currentRow.site_name}|${currentRow.user_enclosure_name}|${currentRow.common_name}|${currentRow['Feed type name']}|${currentRow.type_name}`;
   
         const groupIngredients = filteredData.filter(
-          (row) =>
+          (row, index) =>
             `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` === groupKey &&
-            (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo')
+            (row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo') &&
+            index >= i
         );
 
         const ingredientSums: { [key: string]: number } = {};
@@ -166,35 +169,44 @@ export function DataTable({ data }: DataTableProps) {
     }
   
     // Calculate rowSpans
-    for (let i = 0; i < aggregatedResult.length; i++) {
-        const getRowSpan = (key: 'site_name' | 'user_enclosure_name' | 'common_name') => {
-            let span = 0;
-            const currentGroupValue = aggregatedResult[i].groupData[key];
-            for (let j = i; j < aggregatedResult.length; j++) {
-                if (aggregatedResult[j].groupData[key] === currentGroupValue) {
-                    if (key === 'site_name' || 
-                       (key === 'user_enclosure_name' && aggregatedResult[j].groupData.site_name === aggregatedResult[i].groupData.site_name) ||
-                       (key === 'common_name' && aggregatedResult[j].groupData.site_name === aggregatedResult[i].groupData.site_name && aggregatedResult[j].groupData.user_enclosure_name === aggregatedResult[i].groupData.user_enclosure_name)
-                    ) {
-                        span++;
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            return span;
-        };
+    let siteNameCache: { [key: string]: number } = {};
+    let enclosureCache: { [key: string]: number } = {};
+    let commonNameCache: { [key: string]: number } = {};
+
+    for (let i = aggregatedResult.length - 1; i >= 0; i--) {
+        const row = aggregatedResult[i];
+        const siteKey = row.groupData.site_name;
+        const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
+        const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
         
-        const isFirstSite = i === 0 || aggregatedResult[i].groupData.site_name !== aggregatedResult[i-1].groupData.site_name;
-        const isFirstEnclosure = i === 0 || aggregatedResult[i].groupData.user_enclosure_name !== aggregatedResult[i-1].groupData.user_enclosure_name || isFirstSite;
-        const isFirstCommonName = i === 0 || aggregatedResult[i].groupData.common_name !== aggregatedResult[i-1].groupData.common_name || isFirstEnclosure;
+        siteNameCache[siteKey] = (siteNameCache[siteKey] || 0) + 1;
+        enclosureCache[enclosureKey] = (enclosureCache[enclosureKey] || 0) + 1;
+        commonNameCache[commonNameKey] = (commonNameCache[commonNameKey] || 0) + 1;
+    }
+
+    let processedSiteNames = new Set();
+    let processedEnclosures = new Set();
+    let processedCommonNames = new Set();
+
+    for (let i = 0; i < aggregatedResult.length; i++) {
+        const row = aggregatedResult[i];
+        const siteKey = row.groupData.site_name;
+        const enclosureKey = `${siteKey}|${row.groupData.user_enclosure_name}`;
+        const commonNameKey = `${enclosureKey}|${row.groupData.common_name}`;
+        
+        const siteNameSpan = !processedSiteNames.has(siteKey) ? siteNameCache[siteKey] : 0;
+        if(siteNameSpan > 0) processedSiteNames.add(siteKey);
+
+        const enclosureSpan = !processedEnclosures.has(enclosureKey) ? enclosureCache[enclosureKey] : 0;
+        if(enclosureSpan > 0) processedEnclosures.add(enclosureKey);
+
+        const commonNameSpan = !processedCommonNames.has(commonNameKey) ? commonNameCache[commonNameKey] : 0;
+        if(commonNameSpan > 0) processedCommonNames.add(commonNameKey);
 
         aggregatedResult[i].rowSpans = {
-            siteName: isFirstSite ? getRowSpan('site_name') : 0,
-            enclosure: isFirstEnclosure ? getRowSpan('user_enclosure_name') : 0,
-            commonName: isFirstCommonName ? getRowSpan('common_name') : 0,
+            siteName: siteNameSpan,
+            enclosure: enclosureSpan,
+            commonName: commonNameSpan,
         };
     }
     
@@ -307,28 +319,28 @@ export function DataTable({ data }: DataTableProps) {
                                         <TableRow key={index}>
                                             {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{groupData.site_name}</TableCell>}
                                             {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{groupData.user_enclosure_name}</TableCell>}
-                                            {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{groupData.common_name} ({groupData.animalCount})</TableCell>}
-                                            <TableCell>{groupData.feed_type_name}</TableCell>
-                                            <TableCell>{groupData.type}</TableCell>
-                                            <TableCell>{groupData.type_name}</TableCell>
-                                            <TableCell>{groupData.ingredients}</TableCell>
-                                            <TableCell className="text-right">{groupData.total_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                            {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{groupData.common_name} <span className="font-bold">({groupData.animalCount})</span></TableCell>}
+                                            <TableCell className="align-top">{groupData.feed_type_name}</TableCell>
+                                            <TableCell className="align-top">{groupData.type}</TableCell>
+                                            <TableCell className="align-top">{groupData.type_name}</TableCell>
+                                            <TableCell className="align-top font-bold">{groupData.ingredients}</TableCell>
+                                            <TableCell className="text-right align-top font-bold">{groupData.total_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                         </TableRow>
                                     );
                                 }
                                 // Fallback for non-grouped rows (if any)
                                 const { siteName, enclosure, commonName } = rowSpans;
-                                const rowData = groupData as SheetDataRow & { animalCount: number };
+                                const rowData = groupData;
                                 return (
                                     <TableRow key={index}>
                                         {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
                                         {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
-                                        {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} ({rowData.animalCount})</TableCell>}
-                                        <TableCell>{rowData['Feed type name']}</TableCell>
-                                        <TableCell>{rowData.type}</TableCell>
-                                        <TableCell>{rowData.type_name}</TableCell>
-                                        <TableCell>{rowData.ingredient_name}</TableCell>
-                                        <TableCell className="text-right">{rowData.ingredient_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
+                                        <TableCell className="align-top">{rowData['Feed type name']}</TableCell>
+                                        <TableCell className="align-top">{rowData.type}</TableCell>
+                                        <TableCell className="align-top">{rowData.type_name}</TableCell>
+                                        <TableCell className="align-top font-bold">{rowData.ingredient_name}</TableCell>
+                                        <TableCell className="text-right align-top font-bold">{rowData.ingredient_qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 );
                             })
