@@ -12,6 +12,7 @@ import {
   Settings,
   ChefHat,
   Home,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import {
@@ -52,8 +53,16 @@ export default function KitchenLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/kitchen" passHref>
-                <SidebarMenuButton tooltip="Packing Dashboard" isActive={pathname === '/kitchen'}>
+              <Link href="/kitchen/dashboard" passHref>
+                <SidebarMenuButton tooltip="Live Dashboard" isActive={isActive('/kitchen/dashboard')}>
+                  <LayoutDashboard />
+                  <span>Live Dashboard</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/kitchen/packing" passHref>
+                <SidebarMenuButton tooltip="Packing Dashboard" isActive={isActive('/kitchen/packing')}>
                   <Package />
                   <span>Packing Dashboard</span>
                 </SidebarMenuButton>
