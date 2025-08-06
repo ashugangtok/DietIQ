@@ -117,7 +117,7 @@ export default function PackingDashboardPage() {
 
                 const totalQty = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty, 0);
                 const totalQtyGram = recipeIngredients.reduce((sum, r) => sum + r.ingredient_qty_gram, 0);
-                const ingredientsDisplay = `${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
+                const ingredientsDisplay = `${row.type}: ${row.type_name}: ${[...new Set(recipeIngredients.map(r => r.ingredient_name))].join(', ')}`;
 
                 aggregationMap.set(recipeKey, {
                     id: recipeKey,
@@ -153,7 +153,7 @@ export default function PackingDashboardPage() {
                         feed_type_name: row['Feed type name'],
                         type: row.type,
                         type_name: row.type_name,
-                        ingredients: row.ingredient_name,
+                        ingredients: `${row.type}: ${row.ingredient_name}`,
                         total_qty: 0,
                         total_qty_gram: 0,
                         total_uom: row.base_uom_name,
