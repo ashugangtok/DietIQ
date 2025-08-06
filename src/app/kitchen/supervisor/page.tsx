@@ -1,4 +1,6 @@
 
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -47,36 +49,38 @@ export default function SupervisorDashboardPage() {
                         </SelectContent>
                     </Select>
                  </div>
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Site</TableHead>
-                            <TableHead>Ingredient</TableHead>
-                            <TableHead>Quantity Packed</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dispatchList.map((item, index) => (
-                             <TableRow key={index}>
-                                <TableCell>{item.site}</TableCell>
-                                <TableCell>{item.ingredient}</TableCell>
-                                <TableCell>{item.quantity}</TableCell>
-                                <TableCell>
-                                    <Badge variant={item.status === "Dispatched" ? "default" : "secondary"} className={item.status === "Dispatched" ? "bg-accent" : ""}>
-                                        {item.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Button size="sm" variant="outline" disabled={item.status === "Dispatched"}>
-                                        Mark as Dispatched
-                                    </Button>
-                                </TableCell>
+                 <div className="relative overflow-x-auto rounded-md border">
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Site</TableHead>
+                                <TableHead>Ingredient</TableHead>
+                                <TableHead>Quantity Packed</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Action</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {dispatchList.map((item, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>{item.site}</TableCell>
+                                    <TableCell>{item.ingredient}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={item.status === "Dispatched" ? "default" : "secondary"} className={item.status === "Dispatched" ? "bg-accent" : ""}>
+                                            {item.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button size="sm" variant="outline" disabled={item.status === "Dispatched"}>
+                                            Mark as Dispatched
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     </div>

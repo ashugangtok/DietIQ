@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useContext, useMemo, useEffect } from "react";
+import { useContext, useMemo, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataContext, PackingItem } from "@/context/data-context";
 import { type SheetDataRow } from "@/types";
+import { Sun, Sunrise, Moon } from "lucide-react";
 
 type AggregatedRow = {
     id: string;
@@ -35,6 +36,8 @@ type AggregatedRow = {
     status: "Pending" | "Packed" | "Dispatched";
 };
 
+type TimeFilter = 'all' | 'morning' | 'afternoon' | 'evening';
+
 const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
     const uomLower = uom.toLowerCase();
     const isWeight = uomLower === 'kilogram' || uomLower === 'kg' || uomLower === 'gram';
@@ -51,8 +54,22 @@ const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
     return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
 };
 
+const getTimeSlot = (time: string): TimeFilter => {
+    if (!time || typeof time !== 'string') return 'all';
+    try {
+        const hour = parseInt(time.split(':')[0], 10);
+        if (hour >= 6 && hour < 12) return 'morning';
+        if (hour >= 12 && hour < 18) return 'afternoon';
+        if (hour >= 18) return 'evening';
+        return 'all'; // Default case if time is outside ranges, e.g. early morning
+    } catch {
+        return 'all';
+    }
+}
+
 export default function PackingDashboardPage() {
   const { data, packingList, setPackingList } = useContext(DataContext);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
   const processedData = useMemo(() => {
     if (data.length === 0) return [];
@@ -70,8 +87,13 @@ export default function PackingDashboardPage() {
         if (feedTypeCompare !== 0) return feedTypeCompare;
         return (a.type || '').localeCompare(b.type || '');
     });
+    
+    const timeFilteredData = timeFilter === 'all'
+        ? sortedData
+        : sortedData.filter(row => getTimeSlot(row.meal_start_time) === timeFilter);
 
-    sortedData.forEach(row => {
+
+    timeFilteredData.forEach(row => {
         const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
         
         const animalSet = new Set(data.filter(d => 
@@ -109,7 +131,7 @@ export default function PackingDashboardPage() {
                 aggregationMap.set(recipeKey, existing);
             }
 
-            const allRecipeIngredients = data.filter(
+            const allRecipeIngredients = timeFilteredData.filter(
               (r) =>
                 `${r.site_name}|${r.user_enclosure_name}|${r.common_name}|${r['Feed type name']}|${r.type_name}` ===
                 `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row['Feed type name']}|${row.type_name}` &&
@@ -220,40 +242,31 @@ export default function PackingDashboardPage() {
         return { ...row, status: 'Pending' as const };
     });
   
-  }, [data]);
+  }, [data, timeFilter]);
 
   useEffect(() => {
     if (data.length > 0) {
         setPackingList(currentList => {
-            if (currentList.length === 0) {
-                // Initialize with new data
-                return processedData.map(item => ({
-                    id: item.id,
-                    status: 'Pending',
-                }));
-            }
-
-            // Update existing list: add new items, update existing, remove old ones
-            const newProcessedMap = new Map(processedData.map(item => [item.id, item]));
+            const allPossibleIds = new Set(processedData.map(item => item.id));
             const currentMap = new Map(currentList.map(item => [item.id, item]));
-            const updatedList: PackingItem[] = [];
 
-            // Add or update items from new data
-            for (const [id, item] of newProcessedMap.entries()) {
-                const existingItem = currentMap.get(id);
-                updatedList.push({
-                    id: id,
-                    // keep existing status if item still exists
-                    status: existingItem ? existingItem.status : 'Pending', 
-                });
-            }
+            // Filter out items that are no longer in the full dataset
+            const updatedList: PackingItem[] = currentList.filter(item => allPossibleIds.has(item.id));
+            const updatedMap = new Map(updatedList.map(item => [item.id, item]));
+
+            // Add new items that are not in the current list
+            processedData.forEach(item => {
+                if (!updatedMap.has(item.id)) {
+                    updatedList.push({ id: item.id, status: 'Pending' });
+                }
+            });
             
             return updatedList;
         });
     } else {
         setPackingList([]);
     }
-  }, [data, processedData, setPackingList]);
+  }, [data, setPackingList]); // Re-run when base data changes to init the list
 
 
   const handleToggleStatus = (id: string) => {
@@ -268,14 +281,17 @@ export default function PackingDashboardPage() {
   
   const packingListWithDetails = useMemo(() => {
     const processedMap = new Map(processedData.map(item => [item.id, item]));
-    return packingList.map(packingItem => {
-        const details = processedMap.get(packingItem.id);
-        if (!details) return null; // Should not happen if logic is correct
-        return {
-            ...details,
-            status: packingItem.status,
-        };
-    }).filter(Boolean) as AggregatedRow[];
+    // Get statuses from the central packing list
+    return packingList
+        .map(packingItem => {
+            const details = processedMap.get(packingItem.id);
+            if (!details) return null; // Item from packing list is not in the current filtered view
+            return {
+                ...details,
+                status: packingItem.status,
+            };
+        })
+        .filter(Boolean) as AggregatedRow[];
   }, [processedData, packingList]);
 
   if (data.length === 0) {
@@ -298,14 +314,40 @@ export default function PackingDashboardPage() {
     );
   }
 
+  const TimeFilterButton = ({ value, current, onClick, children }: { value: TimeFilter, current: TimeFilter, onClick: (value: TimeFilter) => void, children: React.ReactNode }) => (
+    <Button
+      variant={current === value ? "default" : "outline"}
+      onClick={() => onClick(value)}
+      className="flex-1 sm:flex-none"
+    >
+      {children}
+    </Button>
+  );
+
   return (
     <div>
         <Card>
-            <CardHeader>
-                <CardTitle>Packing Dashboard</CardTitle>
-                <CardDescription>
-                    Today&apos;s required ingredients. Mark items as &quot;Packed&quot; once they are ready.
-                </CardDescription>
+            <CardHeader className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle>Packing Dashboard</CardTitle>
+                        <CardDescription>
+                            Today&apos;s required ingredients. Mark items as &quot;Packed&quot; once they are ready.
+                        </CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={() => setTimeFilter('all')}>Show All</Button>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                    <TimeFilterButton value="morning" current={timeFilter} onClick={setTimeFilter}>
+                        <Sun className="mr-2 h-4 w-4" /> 6 AM to 12 PM
+                    </TimeFilterButton>
+                    <TimeFilterButton value="afternoon" current={timeFilter} onClick={setTimeFilter}>
+                        <Sunrise className="mr-2 h-4 w-4" /> 12 PM to 6 PM
+                    </TimeFilterButton>
+                    <TimeFilterButton value="evening" current={timeFilter} onClick={setTimeFilter}>
+                        <Moon className="mr-2 h-4 w-4" /> After 6 PM
+                    </TimeFilterButton>
+                </div>
             </CardHeader>
             <CardContent>
                  <div className="relative overflow-x-auto rounded-md border">
@@ -358,7 +400,7 @@ export default function PackingDashboardPage() {
                             ) : (
                             <TableRow>
                                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                No results found.
+                                No results found for the selected time slot.
                                 </TableCell>
                             </TableRow>
                             )}
