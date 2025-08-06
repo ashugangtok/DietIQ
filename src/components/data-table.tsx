@@ -64,11 +64,24 @@ export function DataTable({ data }: DataTableProps) {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter(row => {
+    let filtered = data.filter(row => {
       const siteNameMatch = filters.site_name ? row.site_name === filters.site_name : true;
       const commonNameMatch = filters.common_name ? row.common_name.toLowerCase().includes(filters.common_name.toLowerCase()) : true;
       const feedTypeMatch = filters['Feed type name'] ? row['Feed type name'] === filters['Feed type name'] : true;
       return siteNameMatch && commonNameMatch && feedTypeMatch;
+    });
+
+    // Sort data to ensure proper grouping for row spans
+    return filtered.sort((a, b) => {
+      if (a.site_name < b.site_name) return -1;
+      if (a.site_name > b.site_name) return 1;
+      if (a.user_enclosure_name < b.user_enclosure_name) return -1;
+      if (a.user_enclosure_name > b.user_enclosure_name) return 1;
+      if (a.common_name < b.common_name) return -1;
+      if (a.common_name > b.common_name) return 1;
+      if (a['Feed type name'] < b['Feed type name']) return -1;
+      if (a['Feed type name'] > b['Feed type name']) return 1;
+      return 0;
     });
   }, [data, filters]);
   
@@ -81,36 +94,36 @@ export function DataTable({ data }: DataTableProps) {
           const currentRow = filteredData[i];
           const isRecipe = currentRow.type?.toLowerCase() === 'recipe';
           
-          let showSiteName = i === 0 || currentRow.site_name !== filteredData[i-1].site_name;
-          let showEnclosure = showSiteName || currentRow.user_enclosure_name !== filteredData[i-1].user_enclosure_name;
-          let showCommonName = showEnclosure || currentRow.common_name !== filteredData[i-1].common_name;
-          let showFeedType = showCommonName || currentRow['Feed type name'] !== filteredData[i-1]['Feed type name'];
-
+          const isNewSiteName = i === 0 || currentRow.site_name !== filteredData[i - 1].site_name;
+          const isNewEnclosure = isNewSiteName || currentRow.user_enclosure_name !== filteredData[i - 1].user_enclosure_name;
+          const isNewCommonName = isNewEnclosure || currentRow.common_name !== filteredData[i - 1].common_name;
+          const isNewFeedType = isNewCommonName || currentRow['Feed type name'] !== filteredData[i - 1]['Feed type name'];
+          
           let siteNameRowSpan = 0;
           let enclosureRowSpan = 0;
           let commonNameRowSpan = 0;
           let feedTypeRowSpan = 0;
           let commonNameAnimalCount = 0;
           
-          if(showSiteName) {
+          if (isNewSiteName) {
             let endIndex = i;
-            while(endIndex < filteredData.length && filteredData[endIndex].site_name === currentRow.site_name) {
+            while (endIndex < filteredData.length && filteredData[endIndex].site_name === currentRow.site_name) {
               endIndex++;
             }
             siteNameRowSpan = endIndex - i;
           }
 
-          if(showEnclosure) {
+          if (isNewEnclosure) {
             let endIndex = i;
-            while(endIndex < filteredData.length && 
-                  filteredData[endIndex].site_name === currentRow.site_name &&
-                  filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name) {
+            while (endIndex < filteredData.length && 
+                   filteredData[endIndex].site_name === currentRow.site_name &&
+                   filteredData[endIndex].user_enclosure_name === currentRow.user_enclosure_name) {
               endIndex++;
             }
             enclosureRowSpan = endIndex - i;
           }
           
-          if(showCommonName) {
+          if (isNewCommonName) {
             let endIndex = i;
             while(endIndex < filteredData.length && 
                   filteredData[endIndex].site_name === currentRow.site_name &&
@@ -126,7 +139,7 @@ export function DataTable({ data }: DataTableProps) {
             commonNameAnimalCount = uniqueAnimalIds.size;
           }
           
-          if(showFeedType) {
+          if (isNewFeedType) {
              let endIndex = i;
             while(endIndex < filteredData.length && 
                   filteredData[endIndex].site_name === currentRow.site_name &&
@@ -139,17 +152,16 @@ export function DataTable({ data }: DataTableProps) {
             feedTypeRowSpan = endIndex - i;
           }
 
-
           if (isRecipe) {
               result.push({
                   row: currentRow,
                   isRecipe: true,
                   isRecipeIngredient: false,
-                  siteNameRowSpan: showSiteName ? siteNameRowSpan : 0,
-                  enclosureRowSpan: showEnclosure ? enclosureRowSpan : 0,
-                  commonNameRowSpan: showCommonName ? commonNameRowSpan : 0,
+                  siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
+                  enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
+                  commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
                   commonNameAnimalCount,
-                  feedTypeRowSpan: showFeedType ? feedTypeRowSpan : 0,
+                  feedTypeRowSpan: isNewFeedType ? feedTypeRowSpan : 0,
                   recipeRowSpan: 1,
               });
               i++; 
@@ -158,11 +170,11 @@ export function DataTable({ data }: DataTableProps) {
                   row: currentRow,
                   isRecipe: false,
                   isRecipeIngredient: currentRow.type_name ? currentRow.type?.toLowerCase() !== 'recipe' : false,
-                  siteNameRowSpan: showSiteName ? siteNameRowSpan : 0,
-                  enclosureRowSpan: showEnclosure ? enclosureRowSpan : 0,
-                  commonNameRowSpan: showCommonName ? commonNameRowSpan : 0,
+                  siteNameRowSpan: isNewSiteName ? siteNameRowSpan : 0,
+                  enclosureRowSpan: isNewEnclosure ? enclosureRowSpan : 0,
+                  commonNameRowSpan: isNewCommonName ? commonNameRowSpan : 0,
                   commonNameAnimalCount,
-                  feedTypeRowSpan: showFeedType ? feedTypeRowSpan : 0,
+                  feedTypeRowSpan: isNewFeedType ? feedTypeRowSpan : 0,
                   recipeRowSpan: 1,
               });
               i++;
