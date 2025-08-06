@@ -127,12 +127,12 @@ export function DataTable({ data }: DataTableProps) {
                     <TableHeader className="bg-muted/50">
                         <TableRow>
                             <TableHead>Site Name</TableHead>
-                            <TableHead>Common Name</TableHead>
                             <TableHead>Enclosure</TableHead>
+                            <TableHead>Common Name</TableHead>
                             <TableHead>Feed Type Name</TableHead>
-                            <TableHead>Ingredient</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Type Name</TableHead>
+                            <TableHead>Ingredient</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
                             <TableHead>UOM</TableHead>
                             <TableHead className="text-right">Quantity (grams)</TableHead>
@@ -143,12 +143,12 @@ export function DataTable({ data }: DataTableProps) {
                         filteredData.map((row, index) => (
                             <TableRow key={index} className="transition-colors duration-300">
                                 <TableCell className="font-medium">{row.site_name}</TableCell>
-                                <TableCell>{row.common_name}</TableCell>
                                 <TableCell>{row.user_enclosure_name}</TableCell>
+                                <TableCell>{row.common_name}</TableCell>
                                 <TableCell>{row['Feed type name']}</TableCell>
-                                <TableCell>{row.ingredient_name}</TableCell>
                                 <TableCell>{row.type}</TableCell>
                                 <TableCell>{row.type_name}</TableCell>
+                                <TableCell>{row.ingredient_name}</TableCell>
                                 <TableCell className="text-right">{row.ingredient_qty.toLocaleString()}</TableCell>
                                 <TableCell>{row.base_uom_name}</TableCell>
                                 <TableCell className="text-right">{row.ingredient_qty_gram.toLocaleString()}</TableCell>
