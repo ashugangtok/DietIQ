@@ -305,8 +305,13 @@ export default function PackingDashboardPage() {
                 status: packingItem.status,
             };
         })
-        .filter(Boolean) as AggregatedRow[];
-  }, [processedData, packingList]);
+        .filter((item): item is AggregatedRow => {
+            if (!item) return false;
+            // Check if this item should be visible based on the time filter
+            const itemTimeSlot = getTimeSlot(item.groupData.meal_start_time);
+            return timeFilter === 'all' || itemTimeSlot === timeFilter;
+        });
+  }, [processedData, packingList, timeFilter]);
 
   if (data.length === 0) {
     return (
