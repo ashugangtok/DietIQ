@@ -262,14 +262,19 @@ export default function PackingDashboardPage() {
             {packingListWithDetails.map((item) => {
               const rowData = item.groupData;
               const isPacked = item.status === 'Packed';
-              const groupTitle = `${rowData.site_name} | ${rowData.user_enclosure_name} | ${rowData.common_name} (${rowData.animalCount})`;
               
               return (
                 <Card key={item.id} className={`shadow-lg transition-all ${isPacked ? 'bg-green-50' : 'bg-card'}`}>
                     <CardHeader>
                         <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                                <CardDescription>{groupTitle}</CardDescription>
+                            <div className="flex-1 space-y-2">
+                                <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                                    <span className="font-semibold text-primary">{rowData.site_name}</span>
+                                    <Separator orientation="vertical" className="h-4 bg-border" />
+                                    <span>{rowData.user_enclosure_name}</span>
+                                    <Separator orientation="vertical" className="h-4 bg-border" />
+                                    <span>{rowData.common_name} ({rowData.animalCount})</span>
+                                </div>
                                 <CardTitle className="text-xl font-bold">{rowData.type_name}</CardTitle>
                             </div>
                             <Badge variant={isPacked ? "default" : "secondary"} className={`ml-4 flex-shrink-0 ${isPacked ? 'bg-green-600' : ''}`}>
