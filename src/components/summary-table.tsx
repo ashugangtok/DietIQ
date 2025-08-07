@@ -146,12 +146,16 @@ export function SummaryTable({ data }: SummaryTableProps) {
     return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
 
-  const addContentToPdf = async (pdf: jsPDF, elementId: string) => {
+  const addContentToPdf = async (pdf: jsPDF, elementId: string, isFirstPage: boolean) => {
     const element = document.getElementById(elementId);
     if (!element) return;
   
+    if (!isFirstPage) {
+      pdf.addPage();
+    }
+  
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.5, // Reduced scale for better text size
       useCORS: true,
       logging: false,
     });
@@ -161,25 +165,22 @@ export function SummaryTable({ data }: SummaryTableProps) {
     
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-
     const pageMargin = 10;
-    const contentWidth = pdfWidth - pageMargin * 2;
-    const contentHeight = pdfHeight - pageMargin * 2;
     
-    const ratio = imgProps.width / imgProps.height;
-    const imgHeight = contentWidth / ratio;
+    const imgWidth = pdfWidth - pageMargin * 2;
+    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+    
     let heightLeft = imgHeight;
-    
     let position = 0;
-
-    pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, contentWidth, imgHeight);
-    heightLeft -= contentHeight;
-
+  
+    pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - pageMargin * 2);
+  
     while (heightLeft > 0) {
-      position -= contentHeight;
+      position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, contentWidth, imgHeight);
-      heightLeft -= contentHeight;
+      pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, imgWidth, imgHeight);
+      heightLeft -= (pdfHeight - pageMargin * 2);
     }
   };
 
@@ -189,12 +190,11 @@ export function SummaryTable({ data }: SummaryTableProps) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     
     if (type === 'summary' || type === 'all') {
-      await addContentToPdf(pdf, 'ingredient-summary-card');
+      await addContentToPdf(pdf, 'ingredient-summary-card', true);
     }
     
     if (type === 'overall' || type === 'all') {
-      if (type === 'all') pdf.addPage();
-      await addContentToPdf(pdf, 'overall-totals-card');
+      await addContentToPdf(pdf, 'overall-totals-card', type !== 'all');
     }
 
     pdf.save(`summary-report-${type}.pdf`);
