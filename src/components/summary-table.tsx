@@ -120,7 +120,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
           group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + (row.total_qty_gram || 0);
           grandTotals['weight'] = (grandTotals['weight'] || 0) + (row.total_qty_gram || 0);
       } else {
-          const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
+          const uomKey = row.uom && row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom || 'unit';
           group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + (row.total_qty || 0);
           grandTotals[uomKey] = (grandTotals[uomKey] || 0) + (row.total_qty || 0);
       }
@@ -139,7 +139,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
       if (isWeightUnit(row.uom)) {
         ingredientTotals['weight'] = (ingredientTotals['weight'] || 0) + (row.total_qty_gram || 0);
       } else {
-        const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
+        const uomKey = row.uom && row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom || 'unit';
         ingredientTotals[uomKey] = (ingredientTotals[uomKey] || 0) + (row.total_qty || 0);
       }
     });
@@ -152,35 +152,29 @@ export function SummaryTable({ data }: SummaryTableProps) {
     let isFirstPage = true;
 
     const addContentToPdf = async (elementId: string) => {
-      const element = document.getElementById(elementId);
-      if (!element) return;
+        const element = document.getElementById(elementId);
+        if (!element) return;
 
-      if (!isFirstPage) {
-        pdf.addPage();
-      } else {
+        if (!isFirstPage) {
+            pdf.addPage();
+        }
         isFirstPage = false;
-      }
-      
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = imgWidth / imgHeight;
-      
-      let newImgWidth = pdfWidth - 20; // with margin
-      let newImgHeight = newImgWidth / ratio;
 
-      if (newImgHeight > pdfHeight - 20) {
-        newImgHeight = pdfHeight - 20;
-        newImgWidth = newImgHeight * ratio;
-      }
-      
-      const x = (pdfWidth - newImgWidth) / 2;
-      const y = 10; // margin top
+        const canvas = await html2canvas(element, { scale: 2 }); // Increased scale for better resolution
+        const imgData = canvas.toDataURL('image/png');
 
-      pdf.addImage(imgData, 'PNG', x, y, newImgWidth, newImgHeight);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+
+        const ratio = imgWidth / imgHeight;
+        
+        // Use full page width for the image, with some margin
+        const width = pdfWidth - 20; 
+        const height = width / ratio;
+
+        pdf.addImage(imgData, 'PNG', 10, 10, width, height);
     };
 
     if (type === 'summary' || type === 'all') {
