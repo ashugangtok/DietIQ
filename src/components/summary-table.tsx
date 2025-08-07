@@ -35,6 +35,7 @@ interface SummaryRow {
 }
 
 const isWeightUnit = (uom: string) => {
+    if (!uom) return false;
     const lowerUom = uom.toLowerCase();
     return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
 }
@@ -63,8 +64,8 @@ export function SummaryTable({ data }: SummaryTableProps) {
       const key = `${row.site_name}|${row.ingredient_name}`;
       const current = summaryMap.get(key) || { qty: 0, qty_gram: 0, uom: row.base_uom_name };
       
-      current.qty += row.ingredient_qty;
-      current.qty_gram += row.ingredient_qty_gram;
+      current.qty += row.ingredient_qty || 0;
+      current.qty_gram += row.ingredient_qty_gram || 0;
       
       summaryMap.set(key, current);
     });
@@ -92,8 +93,8 @@ export function SummaryTable({ data }: SummaryTableProps) {
         ingredients: { name: string; total_qty: number; total_qty_gram: number; uom: string; }[], 
         siteTotals: { [uom: string]: number },
     }>();
+    
     const grandTotals: { [uom: string]: number } = {};
-    let grandTotalGram = 0;
 
     summaryData.forEach(row => {
       if (!groups.has(row.site_name)) {
@@ -103,17 +104,15 @@ export function SummaryTable({ data }: SummaryTableProps) {
       group.ingredients.push({ name: row.ingredient_name, total_qty: row.total_qty, total_qty_gram: row.total_qty_gram, uom: row.uom });
 
       if (isWeightUnit(row.uom)) {
-          group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + row.total_qty_gram;
-          grandTotalGram += row.total_qty_gram;
+          group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + (row.total_qty_gram || 0);
+          grandTotals['weight'] = (grandTotals['weight'] || 0) + (row.total_qty_gram || 0);
       } else {
           const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
-          group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + row.total_qty;
-          grandTotals[uomKey] = (grandTotals[uomKey] || 0) + row.total_qty;
+          group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + (row.total_qty || 0);
+          grandTotals[uomKey] = (grandTotals[uomKey] || 0) + (row.total_qty || 0);
       }
     });
     
-    grandTotals['weight'] = grandTotalGram;
-
     return { groups, grandTotals };
   }, [summaryData]);
 
@@ -125,31 +124,34 @@ export function SummaryTable({ data }: SummaryTableProps) {
       }
       const ingredientTotals = totals.get(row.ingredient_name)!;
       if (isWeightUnit(row.uom)) {
-        ingredientTotals['weight'] = (ingredientTotals['weight'] || 0) + row.total_qty_gram;
+        ingredientTotals['weight'] = (ingredientTotals['weight'] || 0) + (row.total_qty_gram || 0);
       } else {
         const uomKey = row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom;
-        ingredientTotals[uomKey] = (ingredientTotals[uomKey] || 0) + row.total_qty;
+        ingredientTotals[uomKey] = (ingredientTotals[uomKey] || 0) + (row.total_qty || 0);
       }
     });
     return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
   
   const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    if (!uom) return "0";
     const uomLower = uom.toLowerCase();
     if (isWeightUnit(uom)) {
         if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
-            return `${quantityGram.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
         }
-        return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
     }
      if (quantity === 1) {
-      return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
     }
-    return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   };
 
   const formatCombinedTotal = (totals: { [uom: string]: number }) => {
     return Object.entries(totals).map(([unit, total]) => {
+      if (!total || total === 0) return null;
+
       if (unit === 'weight') {
         if (total < 1000) {
           return `${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gram`;
@@ -159,7 +161,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
       }
       const unitLabel = total === 1 ? unit : `${unit}s`;
       return `${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unitLabel}`;
-    }).join(', ');
+    }).filter(Boolean).join(', ');
   };
 
 
