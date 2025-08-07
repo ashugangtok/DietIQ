@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useState, useMemo } from "react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import autoTable from "jspdf-autotable";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -146,58 +146,67 @@ export function SummaryTable({ data }: SummaryTableProps) {
     return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
 
-  const addContentToPdf = async (pdf: jsPDF, elementId: string, isFirstPage: boolean) => {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-  
-    if (!isFirstPage) {
-      pdf.addPage();
-    }
-  
-    const canvas = await html2canvas(element, {
-      scale: 1.5, // Reduced scale for better text size
-      useCORS: true,
-      logging: false,
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-    
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const pageMargin = 10;
-    
-    const imgWidth = pdfWidth - pageMargin * 2;
-    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-    
-    let heightLeft = imgHeight;
-    let position = 0;
-  
-    pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, imgWidth, imgHeight);
-    heightLeft -= (pdfHeight - pageMargin * 2);
-  
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, imgWidth, imgHeight);
-      heightLeft -= (pdfHeight - pageMargin * 2);
-    }
-  };
-
-
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const doc = new jsPDF();
     
-    if (type === 'summary' || type === 'all') {
-      await addContentToPdf(pdf, 'ingredient-summary-card', true);
-    }
-    
-    if (type === 'overall' || type === 'all') {
-      await addContentToPdf(pdf, 'overall-totals-card', type !== 'all');
+    const addSummaryTable = () => {
+        doc.text("Ingredient Summary by Site", 14, 15);
+        let firstPage = true;
+        
+        Array.from(groupedData.groups.entries()).forEach(([siteName, { ingredients, siteTotals }]) => {
+            const head = [['Ingredient Name', 'Total']];
+            const body = ingredients.map(ing => [ing.name, formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)]);
+            
+            autoTable(doc, {
+                head: [[{ content: siteName, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 20 } }]],
+                body,
+                startY: firstPage ? 20 : (doc as any).lastAutoTable.finalY + 10,
+                theme: 'grid',
+                headStyles: { fontStyle: 'bold' },
+            });
+            firstPage = false;
+
+            autoTable(doc, {
+                body: [[{ content: `${siteName} Total`, styles: { fontStyle: 'bold' } }, { content: formatCombinedTotal(siteTotals), styles: { fontStyle: 'bold', halign: 'right' }}]],
+                theme: 'grid',
+            });
+        });
+
+        // Grand Total
+        autoTable(doc, {
+            body: [[{ content: 'Grand Total', styles: { fontStyle: 'bold', fontSize: 12, fillColor: '#5B8DAE', textColor: '#FFFFFF' } }, { content: formatCombinedTotal(groupedData.grandTotals), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right', fillColor: '#5B8DAE', textColor: '#FFFFFF' }}]],
+            theme: 'grid',
+        });
     }
 
-    pdf.save(`summary-report-${type}.pdf`);
+    const addOverallTable = () => {
+        if (type === 'all') {
+            doc.addPage();
+        }
+        doc.text("Overall Ingredient Totals", 14, 15);
+        const head = [['Ingredient', 'Total']];
+        const body = overallTotals.map(([name, totals]) => [name, formatCombinedTotal(totals)]);
+
+        autoTable(doc, {
+            head,
+            body,
+            startY: 20,
+            theme: 'grid',
+            headStyles: { fontStyle: 'bold' },
+        });
+    }
+
+    if (type === 'summary') {
+        addSummaryTable();
+    } else if (type === 'overall') {
+        addOverallTable();
+    } else if (type === 'all') {
+        addSummaryTable();
+        addOverallTable();
+    }
+
+    doc.save(`summary-report-${type}-${new Date().toISOString().split('T')[0]}.pdf`);
     setIsDownloading(false);
   };
   
