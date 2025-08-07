@@ -3,6 +3,8 @@
 
 import * as React from "react";
 import { useState, useMemo } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -21,6 +23,16 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { MultiSelect } from "./ui/multi-select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "./ui/button";
+import { Download } from "lucide-react";
 
 interface SummaryTableProps {
   data: SheetDataRow[];
@@ -43,6 +55,7 @@ const isWeightUnit = (uom: string) => {
 export function SummaryTable({ data }: SummaryTableProps) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
   const [ingredientFilter, setIngredientFilter] = useState<string[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
   const ingredientOptions = useMemo(() => [...new Set(data.map(item => item.ingredient_name))].sort(), [data]);
@@ -132,6 +145,47 @@ export function SummaryTable({ data }: SummaryTableProps) {
     });
     return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
+
+  const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
+    setIsDownloading(true);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+    const margin = 10;
+    let yPos = margin;
+
+    const addCanvasToPdf = (canvas: HTMLCanvasElement, y: number) => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = pdfWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      if (y + imgHeight > pdfHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
+      return y + imgHeight;
+    };
+
+    if (type === 'summary' || type === 'all') {
+      const summaryEl = document.getElementById('ingredient-summary-card');
+      if (summaryEl) {
+        const canvas = await html2canvas(summaryEl, { scale: 2 });
+        yPos = addCanvasToPdf(canvas, yPos) + 10; // Add space after
+      }
+    }
+    
+    if (type === 'overall' || type === 'all') {
+      const overallEl = document.getElementById('overall-totals-card');
+      if (overallEl) {
+        const canvas = await html2canvas(overallEl, { scale: 2 });
+        addCanvasToPdf(canvas, yPos);
+      }
+    }
+
+    pdf.save(`summary-report-${type}.pdf`);
+    setIsDownloading(false);
+  };
   
   const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
     if (!uom) return "0";
@@ -186,9 +240,31 @@ export function SummaryTable({ data }: SummaryTableProps) {
           placeholder="Filter by ingredients..."
           className="w-full sm:w-[240px] bg-background"
         />
+        <div className="flex-grow" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button disabled={isDownloading}>
+              <Download className="mr-2 h-4 w-4" />
+              {isDownloading ? "Downloading..." : "Download PDF"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => handleDownload('summary')}>
+              Download Ingredient Summary
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleDownload('overall')}>
+              Download Overall Totals
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleDownload('all')}>
+              Download Full Report
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
-        <div className="lg:w-2/3">
+        <div id="ingredient-summary-card" className="lg:w-2/3">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Ingredient Summary by Site</CardTitle>
@@ -239,7 +315,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
             </CardContent>
           </Card>
         </div>
-        <div className="lg:w-1/3">
+        <div id="overall-totals-card" className="lg:w-1/3">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Overall Ingredient Totals</CardTitle>
