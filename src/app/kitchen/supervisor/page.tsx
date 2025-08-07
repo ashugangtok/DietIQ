@@ -3,22 +3,26 @@
 
 import { useState, useMemo, useContext } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DataContext } from "@/context/data-context";
-import { type SheetDataRow } from "@/types";
+import { DataContext, PackingItem } from "@/context/data-context";
+import { Separator } from "@/components/ui/separator";
+import { Check, Truck, X } from "lucide-react";
 
 type SupervisorItem = {
-    id: string;
-    site_name: string;
-    user_enclosure_name: string;
-    common_name: string;
-    animalCount: number;
-    type_name: string;
+    id: string; // Composite key for the group
+    itemIds: string[]; // Original item IDs in this group
+    groupData: {
+        site_name: string;
+        user_enclosure_name: string;
+        common_name: string;
+        animalCount: number;
+        type_name: string;
+    };
     status: 'Packed' | 'Dispatched';
 }
+
 
 export default function SupervisorDashboardPage() {
     const { data, packingList, setPackingList } = useContext(DataContext);
@@ -31,78 +35,84 @@ export default function SupervisorDashboardPage() {
     }, [data]);
 
     const dispatchList = useMemo(() => {
-        if (data.length === 0) return [];
+        if (data.length === 0 || packingList.length === 0) return [];
     
-        const packedOrDispatchedItems = packingList.filter(item => item.status === 'Packed' || item.status === 'Dispatched');
-    
-        const aggregationMap = new Map<string, {
-            id: string; // The ID of the original packing item
-            site_name: string;
-            user_enclosure_name: string;
-            common_name: string;
-            animalCount: number;
-            type_name: string;
-            status: 'Packed' | 'Dispatched';
-        }>();
+        // 1. Filter the raw packing list for items that are 'Packed' or 'Dispatched'
+        const packedOrDispatchedItemIds = new Set(
+            packingList.filter(item => item.status === 'Packed' || item.status === 'Dispatched').map(item => item.id)
+        );
         
-        // This is a simplified aggregation just to get the display data for the supervisor view.
-        // It relies on the packing list's aggregated IDs.
-        const itemDetailsMap = new Map<string, SheetDataRow>();
+        if (packedOrDispatchedItemIds.size === 0) return [];
+
+        // 2. Aggregate the raw data similar to the packing dashboard
+        const aggregationMap = new Map<string, Omit<SupervisorItem, 'status'>>();
+
         data.forEach(row => {
             const originalItemId = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row.meal_start_time}|${row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name}`;
-            if (!itemDetailsMap.has(originalItemId)) {
-                itemDetailsMap.set(originalItemId, row);
+
+            // Only consider items that are in the packed or dispatched list
+            if (packedOrDispatchedItemIds.has(originalItemId)) {
+                const groupKey = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}|${row.meal_start_time}|${row.type_name}`;
+                
+                let group = aggregationMap.get(groupKey);
+
+                if (!group) {
+                    const animalSet = new Set(data.filter(d => 
+                        d.site_name === row.site_name && 
+                        d.user_enclosure_name === row.user_enclosure_name && 
+                        d.common_name === row.common_name
+                    ).map(d => d.animal_id));
+
+                    group = {
+                        id: groupKey,
+                        itemIds: [],
+                        groupData: {
+                            site_name: row.site_name,
+                            user_enclosure_name: row.user_enclosure_name,
+                            common_name: row.common_name,
+                            animalCount: animalSet.size,
+                            type_name: row.type_name,
+                        }
+                    };
+                    aggregationMap.set(groupKey, group);
+                }
+
+                if (!group.itemIds.includes(originalItemId)) {
+                    group.itemIds.push(originalItemId);
+                }
             }
         });
 
-        // Get animal counts
-        const animalCounts = new Map<string, number>();
-        data.forEach(row => {
-            const key = `${row.site_name}|${row.user_enclosure_name}|${row.common_name}`;
-            if (!animalCounts.has(key)) {
-                const animalSet = new Set(data.filter(d => 
-                    d.site_name === row.site_name && 
-                    d.user_enclosure_name === row.user_enclosure_name && 
-                    d.common_name === row.common_name
-                ).map(d => d.animal_id));
-                animalCounts.set(key, animalSet.size);
-            }
-        });
+        const packingStatusMap = new Map(packingList.map(item => [item.id, item.status]));
 
-        packedOrDispatchedItems.forEach(item => {
-            const [site, enclosure, commonName, mealTime, typeName] = item.id.split('|');
-            const groupKey = `${site}|${enclosure}|${commonName}|${mealTime}|${typeName}`;
-
-            if (aggregationMap.has(groupKey)) return;
-
-            const animalCountKey = `${site}|${enclosure}|${commonName}`;
+        // 3. Map aggregated data to SupervisorItem and determine status
+        return Array.from(aggregationMap.values()).map(group => {
+            // If any item in the group is 'Packed', the whole group is 'Packed'. Otherwise, it's 'Dispatched'.
+            const isDispatched = group.itemIds.every(id => packingStatusMap.get(id) === 'Dispatched');
+            const status = isDispatched ? 'Dispatched' : 'Packed';
             
-            aggregationMap.set(groupKey, {
-                id: item.id,
-                site_name: site,
-                user_enclosure_name: enclosure,
-                common_name: commonName,
-                animalCount: animalCounts.get(animalCountKey) || 0,
-                type_name: typeName,
-                status: item.status,
-            });
+            return { ...group, status };
         });
-        
-        return Array.from(aggregationMap.values());
 
     }, [data, packingList]);
 
     const filteredDispatchList = useMemo(() => {
         return dispatchList.filter(item => {
-            const siteMatch = !siteFilter || item.site_name === siteFilter;
+            const siteMatch = !siteFilter || item.groupData.site_name === siteFilter;
             const statusMatch = statusFilter === 'all' || item.status === statusFilter;
             return siteMatch && statusMatch;
+        }).sort((a,b) => {
+             const siteCompare = a.groupData.site_name.localeCompare(b.groupData.site_name);
+             if (siteCompare !== 0) return siteCompare;
+             const enclosureCompare = a.groupData.user_enclosure_name.localeCompare(b.groupData.user_enclosure_name);
+             if (enclosureCompare !== 0) return enclosureCompare;
+             return a.groupData.common_name.localeCompare(b.groupData.common_name);
         });
     }, [dispatchList, siteFilter, statusFilter]);
     
     const groupedBySite = useMemo(() => {
         return filteredDispatchList.reduce((acc, item) => {
-          const siteName = item.site_name;
+          const siteName = item.groupData.site_name;
           if (!acc[siteName]) {
             acc[siteName] = [];
           }
@@ -111,40 +121,15 @@ export default function SupervisorDashboardPage() {
         }, {} as Record<string, SupervisorItem[]>);
     }, [filteredDispatchList]);
 
-    const handleToggleStatus = (id: string) => {
-        setPackingList(currentList => currentList.map(item => {
-            if (item.id === id) {
-                return { ...item, status: item.status === 'Packed' ? 'Dispatched' : 'Packed' };
-            }
-            // Since supervisor actions might be on a group, we update all items of a group.
-            // This is a simplified approach. A more robust solution might need to check group membership.
-            const [site, enclosure, common, meal, type] = item.id.split('|');
-            const [idSite, idEnclosure, idCommon, idMeal, idType] = id.split('|');
-            if(site === idSite && enclosure === idEnclosure && common === idCommon && meal === idMeal && type === idType){
-                 return { ...item, status: item.status === 'Packed' ? 'Dispatched' : 'Packed' };
-            }
-
-            return item;
-        }));
-    };
-    
-    // This is a bit of a hack to update all items in a group
-    const handleToggleGroupStatus = (itemToUpdate: SupervisorItem) => {
-        const newStatus = itemToUpdate.status === 'Packed' ? 'Dispatched' : 'Packed';
-
-        setPackingList(currentList => currentList.map(item => {
-            const [itemSite, itemEnclosure, itemCommon, itemMeal, itemType] = item.id.split('|');
-            const match = 
-                itemSite === itemToUpdate.site_name &&
-                itemEnclosure === itemToUpdate.user_enclosure_name &&
-                itemCommon === itemToUpdate.common_name &&
-                itemType === itemToUpdate.type_name;
-            
-            if (match && item.status !== newStatus) {
-                return { ...item, status: newStatus };
-            }
-            return item;
-        }));
+    const handleToggleGroupStatus = (itemIds: string[], currentStatus: "Packed" | "Dispatched") => {
+        const newStatus = currentStatus === "Packed" ? "Dispatched" : "Packed";
+        setPackingList((currentList: PackingItem[]) =>
+          currentList.map((item) =>
+            itemIds.includes(item.id)
+              ? { ...item, status: newStatus }
+              : item
+          )
+        );
     };
 
     if (data.length === 0) {
@@ -200,53 +185,60 @@ export default function SupervisorDashboardPage() {
                  </div>
                  
                  <div className="space-y-8">
-                     {Object.keys(groupedBySite).length > 0 ? (
+                    {Object.keys(groupedBySite).length > 0 ? (
                         Object.entries(groupedBySite).map(([siteName, items]) => (
                             <div key={siteName} className="p-4 border rounded-lg shadow-md">
                                 <h2 className="text-2xl font-bold text-center mb-4 text-primary">{siteName}</h2>
-                                <div className="relative overflow-x-auto rounded-md border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Enclosure</TableHead>
-                                                <TableHead>Common Name</TableHead>
-                                                <TableHead>Item</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {items.map((item) => (
-                                                <TableRow key={item.id}>
-                                                    <TableCell>{item.user_enclosure_name}</TableCell>
-                                                    <TableCell>{item.common_name} ({item.animalCount})</TableCell>
-                                                    <TableCell>{item.type_name}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={item.status === "Dispatched" ? "default" : "secondary"} className={item.status === "Dispatched" ? "bg-accent" : ""}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {items.map((item) => {
+                                        const rowData = item.groupData;
+                                        const isDispatched = item.status === 'Dispatched';
+                                        
+                                        return (
+                                            <Card key={item.id} className={`shadow-lg transition-all ${isDispatched ? 'bg-accent/10' : 'bg-green-50'}`}>
+                                                <CardHeader>
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1 space-y-2">
+                                                            <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                                                                <span className="font-semibold text-primary">{rowData.site_name}</span>
+                                                                <Separator orientation="vertical" className="h-4 bg-border" />
+                                                                <span>{rowData.user_enclosure_name}</span>
+                                                                <Separator orientation="vertical" className="h-4 bg-border" />
+                                                                <span>{rowData.common_name} ({rowData.animalCount})</span>
+                                                            </div>
+                                                            <CardTitle className="text-xl font-bold">{rowData.type_name}</CardTitle>
+                                                        </div>
+                                                        <Badge variant={isDispatched ? "default" : "secondary"} className={`ml-4 flex-shrink-0 ${isDispatched ? 'bg-accent' : 'bg-green-600'}`}>
                                                             {item.status}
                                                         </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button size="sm" variant="outline" onClick={() => handleToggleGroupStatus(item)}>
-                                                            {item.status === 'Packed' ? 'Mark as Dispatched' : 'Mark as Packed'}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                                    </div>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <Button
+                                                      size="sm"
+                                                      className="w-full"
+                                                      variant={isDispatched ? 'destructive' : 'default'}
+                                                      onClick={() => handleToggleGroupStatus(item.itemIds, item.status)}
+                                                      style={{backgroundColor: isDispatched ? '' : 'hsl(var(--primary))'}}
+                                                    >
+                                                      {isDispatched ? <X className="mr-2" /> : <Truck className="mr-2" />}
+                                                      {isDispatched ? 'Mark as Packed' : 'Mark as Dispatched'}
+                                                    </Button>
+                                                </CardContent>
+                                            </Card>
+                                        )
+                                    })}
                                 </div>
                             </div>
                         ))
-                     ) : (
+                    ) : (
                         <div className="text-center p-12 border-2 border-dashed rounded-lg">
                             <p className="text-muted-foreground">
                                 No items match the current filters.
                             </p>
                         </div>
-                     )}
+                    )}
                  </div>
-
             </CardContent>
         </Card>
     </div>
