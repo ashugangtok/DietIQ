@@ -151,60 +151,35 @@ export function SummaryTable({ data }: SummaryTableProps) {
     if (!element) return;
   
     const canvas = await html2canvas(element, {
-      scale: 2, // Increase scale for better resolution
+      scale: 2,
       useCORS: true,
-      logging: false, 
-      width: element.scrollWidth,
-      height: element.scrollHeight,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
+      logging: false,
     });
     
     const imgData = canvas.toDataURL('image/png');
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
+    const imgProps = pdf.getImageProperties(imgData);
     
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    // Keep aspect ratio
-    const ratio = imgWidth / imgHeight;
-    const widthInPdf = pdfWidth - 20; // 10mm margin
-    const heightInPdf = widthInPdf / ratio;
-
-    let position = 10; // Initial y position with margin
     const pageMargin = 10;
+    const contentWidth = pdfWidth - pageMargin * 2;
+    const contentHeight = pdfHeight - pageMargin * 2;
     
-    if (heightInPdf < pdfHeight - (pageMargin * 2)) {
-      // Content fits on one page
-      const y = (pdfHeight - heightInPdf) / 2;
-      pdf.addImage(imgData, 'PNG', pageMargin, y, widthInPdf, heightInPdf);
-    } else {
-      // Content needs pagination
-      const pageHeight = pdfHeight - (pageMargin * 2);
-      let y = 0;
-      let heightLeft = imgHeight;
+    const ratio = imgProps.width / imgProps.height;
+    const imgHeight = contentWidth / ratio;
+    let heightLeft = imgHeight;
+    
+    let position = 0;
 
-      while (heightLeft > 0) {
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = imgWidth;
-        const pageCanvasHeight = Math.min(imgHeight - y, pageHeight / (widthInPdf / imgWidth));
-        pageCanvas.height = pageCanvasHeight;
+    pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, contentWidth, imgHeight);
+    heightLeft -= contentHeight;
 
-        const ctx = pageCanvas.getContext('2d');
-        if (ctx) {
-           ctx.drawImage(canvas, 0, y, imgWidth, pageCanvasHeight, 0, 0, imgWidth, pageCanvasHeight);
-           const pageImgData = pageCanvas.toDataURL('image/png');
-           pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, widthInPdf, pageCanvasHeight * (widthInPdf / imgWidth));
-        }
-        
-        y += pageCanvasHeight;
-        heightLeft -= pageCanvasHeight;
-
-        if (heightLeft > 0) {
-          pdf.addPage();
-        }
-      }
+    while (heightLeft > 0) {
+      position -= contentHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, contentWidth, imgHeight);
+      heightLeft -= contentHeight;
     }
   };
 
