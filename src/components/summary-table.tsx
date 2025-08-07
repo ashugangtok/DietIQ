@@ -149,38 +149,46 @@ export function SummaryTable({ data }: SummaryTableProps) {
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-    const margin = 10;
-    let yPos = margin;
+    let isFirstPage = true;
 
-    const addCanvasToPdf = (canvas: HTMLCanvasElement, y: number) => {
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = pdfWidth - margin * 2;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      if (y + imgHeight > pdfHeight - margin) {
+    const addContentToPdf = async (elementId: string) => {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      if (!isFirstPage) {
         pdf.addPage();
-        y = margin;
+      } else {
+        isFirstPage = false;
       }
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight);
-      return y + imgHeight;
+      
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = imgWidth / imgHeight;
+      
+      let newImgWidth = pdfWidth - 20; // with margin
+      let newImgHeight = newImgWidth / ratio;
+
+      if (newImgHeight > pdfHeight - 20) {
+        newImgHeight = pdfHeight - 20;
+        newImgWidth = newImgHeight * ratio;
+      }
+      
+      const x = (pdfWidth - newImgWidth) / 2;
+      const y = 10; // margin top
+
+      pdf.addImage(imgData, 'PNG', x, y, newImgWidth, newImgHeight);
     };
 
     if (type === 'summary' || type === 'all') {
-      const summaryEl = document.getElementById('ingredient-summary-card');
-      if (summaryEl) {
-        const canvas = await html2canvas(summaryEl, { scale: 2 });
-        yPos = addCanvasToPdf(canvas, yPos) + 10; // Add space after
-      }
+      await addContentToPdf('ingredient-summary-card');
     }
     
     if (type === 'overall' || type === 'all') {
-      const overallEl = document.getElementById('overall-totals-card');
-      if (overallEl) {
-        const canvas = await html2canvas(overallEl, { scale: 2 });
-        addCanvasToPdf(canvas, yPos);
-      }
+      await addContentToPdf('overall-totals-card');
     }
 
     pdf.save(`summary-report-${type}.pdf`);
