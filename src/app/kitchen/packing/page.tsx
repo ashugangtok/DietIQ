@@ -31,6 +31,8 @@ type IngredientDetail = {
     qty: number;
     qty_gram: number;
     uom: string;
+    preparation_type_name: string;
+    cut_size_name: string;
 };
 
 
@@ -127,6 +129,8 @@ export default function PackingDashboardPage() {
                 qty: row.ingredient_qty,
                 qty_gram: row.ingredient_qty_gram,
                 uom: row.base_uom_name,
+                preparation_type_name: row.preparation_type_name,
+                cut_size_name: row.cut_size_name,
             });
         }
     });
@@ -149,7 +153,7 @@ export default function PackingDashboardPage() {
     // 3. Map to final display structure
     return timeFilteredData.map(group => {
         // Determine the overall status of the group. If any item is not Packed, the group is Pending.
-        const allItemsPacked = group.itemIds.every(id => packingStatusMap.get(id) === 'Packed');
+        const allItemsPacked = group.itemIds.every(id => packingStatusMap.get(id) === 'Packed' || packingStatusMap.get(id) === 'Dispatched');
         const status = allItemsPacked ? 'Packed' : 'Pending';
 
         return { ...group, status };
@@ -301,11 +305,20 @@ export default function PackingDashboardPage() {
                                     <Separator />
                                     <div>
                                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">Ingredients Used</h4>
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             {rowData.ingredients.map(ing => (
-                                                <div key={ing.name} className="flex justify-between items-center text-sm p-1.5 rounded-md bg-muted/50">
-                                                    <span className="font-semibold">{ing.name}</span>
-                                                    <span className="font-bold text-primary">{formatIngredient(ing.qty, ing.qty_gram, ing.uom)}</span>
+                                                <div key={ing.name} className="flex justify-between items-start text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-semibold">{ing.name}</span>
+                                                        {(ing.cut_size_name || ing.preparation_type_name) && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {ing.cut_size_name && `Cut: ${ing.cut_size_name}`}
+                                                                {ing.cut_size_name && ing.preparation_type_name && ", "}
+                                                                {ing.preparation_type_name && `Prep: ${ing.preparation_type_name}`}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="font-bold text-primary text-right flex-shrink-0 ml-2">{formatIngredient(ing.qty, ing.qty_gram, ing.uom)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -339,3 +352,5 @@ export default function PackingDashboardPage() {
     </div>
   );
 }
+
+    
