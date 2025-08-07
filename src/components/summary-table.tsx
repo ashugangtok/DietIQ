@@ -147,30 +147,65 @@ export function SummaryTable({ data }: SummaryTableProps) {
   }, [summaryData]);
 
   const addContentToPdf = async (pdf: jsPDF, elementId: string) => {
-      const element = document.getElementById(elementId);
-      if (!element) return;
+    const element = document.getElementById(elementId);
+    if (!element) return;
+  
+    const canvas = await html2canvas(element, {
+      scale: 2, // Increase scale for better resolution
+      useCORS: true,
+      logging: false, 
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
+    // Keep aspect ratio
+    const ratio = imgWidth / imgHeight;
+    const widthInPdf = pdfWidth - 20; // 10mm margin
+    const heightInPdf = widthInPdf / ratio;
 
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const ratio = imgWidth / imgHeight;
-      let widthInPdf = pdfWidth - 20; // 10mm margin on each side
-      let heightInPdf = widthInPdf / ratio;
+    let position = 10; // Initial y position with margin
+    const pageMargin = 10;
+    
+    if (heightInPdf < pdfHeight - (pageMargin * 2)) {
+      // Content fits on one page
+      const y = (pdfHeight - heightInPdf) / 2;
+      pdf.addImage(imgData, 'PNG', pageMargin, y, widthInPdf, heightInPdf);
+    } else {
+      // Content needs pagination
+      const pageHeight = pdfHeight - (pageMargin * 2);
+      let y = 0;
+      let heightLeft = imgHeight;
 
-      if (heightInPdf > pdfHeight - 20) {
-        heightInPdf = pdfHeight - 20; // 10mm margin top/bottom
-        widthInPdf = heightInPdf * ratio;
+      while (heightLeft > 0) {
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = imgWidth;
+        const pageCanvasHeight = Math.min(imgHeight - y, pageHeight / (widthInPdf / imgWidth));
+        pageCanvas.height = pageCanvasHeight;
+
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+           ctx.drawImage(canvas, 0, y, imgWidth, pageCanvasHeight, 0, 0, imgWidth, pageCanvasHeight);
+           const pageImgData = pageCanvas.toDataURL('image/png');
+           pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, widthInPdf, pageCanvasHeight * (widthInPdf / imgWidth));
+        }
+        
+        y += pageCanvasHeight;
+        heightLeft -= pageCanvasHeight;
+
+        if (heightLeft > 0) {
+          pdf.addPage();
+        }
       }
-      
-      const x = (pdfWidth - widthInPdf) / 2;
-      const y = 10;
-      
-      pdf.addImage(imgData, 'PNG', x, y, widthInPdf, heightInPdf);
+    }
   };
 
 
