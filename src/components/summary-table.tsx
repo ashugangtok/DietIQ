@@ -146,43 +146,45 @@ export function SummaryTable({ data }: SummaryTableProps) {
     return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
   }, [summaryData]);
 
+  const addContentToPdf = async (pdf: jsPDF, elementId: string) => {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = imgWidth / imgHeight;
+      let widthInPdf = pdfWidth - 20; // 10mm margin on each side
+      let heightInPdf = widthInPdf / ratio;
+
+      if (heightInPdf > pdfHeight - 20) {
+        heightInPdf = pdfHeight - 20; // 10mm margin top/bottom
+        widthInPdf = heightInPdf * ratio;
+      }
+      
+      const x = (pdfWidth - widthInPdf) / 2;
+      const y = 10;
+      
+      pdf.addImage(imgData, 'PNG', x, y, widthInPdf, heightInPdf);
+  };
+
+
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
     const pdf = new jsPDF('p', 'mm', 'a4');
-    let isFirstPage = true;
-
-    const addContentToPdf = async (elementId: string) => {
-        const element = document.getElementById(elementId);
-        if (!element) return;
-
-        if (!isFirstPage) {
-            pdf.addPage();
-        }
-        isFirstPage = false;
-
-        const canvas = await html2canvas(element, { scale: 2 }); // Increased scale for better resolution
-        const imgData = canvas.toDataURL('image/png');
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-
-        const ratio = imgWidth / imgHeight;
-        
-        // Use full page width for the image, with some margin
-        const width = pdfWidth - 20; 
-        const height = width / ratio;
-
-        pdf.addImage(imgData, 'PNG', 10, 10, width, height);
-    };
-
+    
     if (type === 'summary' || type === 'all') {
-      await addContentToPdf('ingredient-summary-card');
+      await addContentToPdf(pdf, 'ingredient-summary-card');
     }
     
     if (type === 'overall' || type === 'all') {
-      await addContentToPdf('overall-totals-card');
+      if (type === 'all') pdf.addPage();
+      await addContentToPdf(pdf, 'overall-totals-card');
     }
 
     pdf.save(`summary-report-${type}.pdf`);
@@ -266,7 +268,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
         </DropdownMenu>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
-        <div id="ingredient-summary-card" className="lg:w-2/3">
+        <div id="ingredient-summary-card" className="lg:w-1/2">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Ingredient Summary by Site</CardTitle>
@@ -317,7 +319,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
             </CardContent>
           </Card>
         </div>
-        <div id="overall-totals-card" className="lg:w-1/3">
+        <div id="overall-totals-card" className="lg:w-1/2">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline text-xl">Overall Ingredient Totals</CardTitle>
