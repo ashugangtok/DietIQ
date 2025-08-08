@@ -71,11 +71,11 @@ export function SummaryTable({ data }: SummaryTableProps) {
   const summaryData = useMemo(() => {
     if (filteredData.length === 0) return [];
 
-    const summaryMap = new Map<string, { qty: number; qty_gram: number; uom: string }>();
+    const summaryMap = new Map<string, { qty: number; qty_gram: number }>();
 
     filteredData.forEach(row => {
-      const key = `${row.site_name}|${row.ingredient_name}`;
-      const current = summaryMap.get(key) || { qty: 0, qty_gram: 0, uom: row.base_uom_name };
+      const key = `${row.site_name}|${row.ingredient_name}|${row.base_uom_name}`;
+      const current = summaryMap.get(key) || { qty: 0, qty_gram: 0 };
       
       current.qty += row.ingredient_qty || 0;
       current.qty_gram += row.ingredient_qty_gram || 0;
@@ -84,20 +84,22 @@ export function SummaryTable({ data }: SummaryTableProps) {
     });
 
     const summary: SummaryRow[] = Array.from(summaryMap.entries()).map(([key, totals]) => {
-      const [site_name, ingredient_name] = key.split('|');
+      const [site_name, ingredient_name, uom] = key.split('|');
       return { 
         site_name, 
         ingredient_name, 
         total_qty: totals.qty,
         total_qty_gram: totals.qty_gram,
-        uom: totals.uom
+        uom
       };
     });
 
     return summary.sort((a, b) => {
       const siteCompare = a.site_name.localeCompare(b.site_name);
       if (siteCompare !== 0) return siteCompare;
-      return a.ingredient_name.localeCompare(b.ingredient_name);
+      const ingCompare = a.ingredient_name.localeCompare(b.ingredient_name);
+      if(ingCompare !== 0) return ingCompare;
+      return a.uom.localeCompare(b.uom);
     });
   }, [filteredData]);
 
@@ -116,14 +118,11 @@ export function SummaryTable({ data }: SummaryTableProps) {
       const group = groups.get(row.site_name)!;
       group.ingredients.push({ name: row.ingredient_name, total_qty: row.total_qty, total_qty_gram: row.total_qty_gram, uom: row.uom });
 
-      if (isWeightUnit(row.uom)) {
-          group.siteTotals['weight'] = (group.siteTotals['weight'] || 0) + (row.total_qty_gram || 0);
-          grandTotals['weight'] = (grandTotals['weight'] || 0) + (row.total_qty_gram || 0);
-      } else {
-          const uomKey = row.uom && row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom || 'unit';
-          group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + (row.total_qty || 0);
-          grandTotals[uomKey] = (grandTotals[uomKey] || 0) + (row.total_qty || 0);
-      }
+      const uomKey = (row.uom || 'unit').toLowerCase();
+      const value = isWeightUnit(uomKey) ? row.total_qty_gram : row.total_qty;
+
+      group.siteTotals[uomKey] = (group.siteTotals[uomKey] || 0) + value;
+      grandTotals[uomKey] = (grandTotals[uomKey] || 0) + value;
     });
     
     return { groups, grandTotals };
@@ -132,68 +131,85 @@ export function SummaryTable({ data }: SummaryTableProps) {
   const overallTotals = useMemo(() => {
     const totals = new Map<string, { [uom: string]: number }>();
     summaryData.forEach(row => {
-      if (!totals.has(row.ingredient_name)) {
-        totals.set(row.ingredient_name, {});
-      }
-      const ingredientTotals = totals.get(row.ingredient_name)!;
-      if (isWeightUnit(row.uom)) {
-        ingredientTotals['weight'] = (ingredientTotals['weight'] || 0) + (row.total_qty_gram || 0);
-      } else {
-        const uomKey = row.uom && row.uom.toLowerCase().endsWith('s') ? row.uom.slice(0, -1) : row.uom || 'unit';
-        ingredientTotals[uomKey] = (ingredientTotals[uomKey] || 0) + (row.total_qty || 0);
-      }
+        const ingredientKey = `${row.ingredient_name}|${row.uom}`;
+        if (!totals.has(ingredientKey)) {
+            totals.set(ingredientKey, { qty: 0, qty_gram: 0 });
+        }
+        const ingredientTotals = totals.get(ingredientKey)!;
+        ingredientTotals.qty = (ingredientTotals.qty || 0) + row.total_qty;
+        ingredientTotals.qty_gram = (ingredientTotals.qty_gram || 0) + row.total_qty_gram;
     });
-    return Array.from(totals.entries()).sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
+
+    return Array.from(totals.entries()).map(([key, values]) => {
+        const [name, uom] = key.split('|');
+        return { name, uom, ...values };
+    }).sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return a.uom.localeCompare(b.uom);
+    });
   }, [summaryData]);
 
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
-    const doc = new jsPDF();
-    
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    });
+    const pageMargin = 10;
+    const fontStyle = { font: "helvetica", fontSize: 10 };
+
     const addSummaryTable = () => {
-        doc.text("Ingredient Summary by Site", 14, 15);
-        let firstPage = true;
+        doc.text("Ingredient Summary by Site", pageMargin, 15);
         
-        Array.from(groupedData.groups.entries()).forEach(([siteName, { ingredients, siteTotals }]) => {
-            const head = [['Ingredient Name', 'Total']];
-            const body = ingredients.map(ing => [ing.name, formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)]);
-            
-            autoTable(doc, {
-                head: [[{ content: siteName, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 20 } }]],
-                body,
-                startY: firstPage ? 20 : (doc as any).lastAutoTable.finalY + 10,
-                theme: 'grid',
-                headStyles: { fontStyle: 'bold' },
-            });
-            firstPage = false;
+        const body: (string|number)[][] = [];
+        const grandTotals: {[uom: string]: number} = {};
 
-            autoTable(doc, {
-                body: [[{ content: `${siteName} Total`, styles: { fontStyle: 'bold' } }, { content: formatCombinedTotal(siteTotals), styles: { fontStyle: 'bold', halign: 'right' }}]],
-                theme: 'grid',
+        Array.from(groupedData.groups.entries()).forEach(([siteName, { ingredients }]) => {
+            body.push([{ content: siteName, colSpan: 3, styles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 20 } }]);
+            const siteTotals: {[uom: string]: number} = {};
+
+            ingredients.forEach(ing => {
+                body.push([ing.name, formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom, true), ing.uom]);
+                
+                const value = isWeightUnit(ing.uom) ? ing.total_qty_gram : ing.total_qty;
+                siteTotals[ing.uom] = (siteTotals[ing.uom] || 0) + value;
+                grandTotals[ing.uom] = (grandTotals[ing.uom] || 0) + value;
             });
+            body.push([{ content: `${siteName} Total`, colSpan: 1, styles: {fontStyle: 'bold'}}, {content: formatCombinedTotal(siteTotals, true), colSpan: 2, styles: {fontStyle: 'bold'}}]);
         });
-
-        // Grand Total
+        
+        body.push([{ content: 'Grand Total', colSpan: 1, styles: { fontStyle: 'bold', fillColor: '#5B8DAE', textColor: '#FFFFFF', fontSize: 12 } }, { content: formatCombinedTotal(grandTotals, true), colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#5B8DAE', textColor: '#FFFFFF', fontSize: 12 } }]);
+        
         autoTable(doc, {
-            body: [[{ content: 'Grand Total', styles: { fontStyle: 'bold', fontSize: 12, fillColor: '#5B8DAE', textColor: '#FFFFFF' } }, { content: formatCombinedTotal(groupedData.grandTotals), styles: { fontStyle: 'bold', fontSize: 12, halign: 'right', fillColor: '#5B8DAE', textColor: '#FFFFFF' }}]],
+            head: [['Ingredient Name', 'Total', 'Unit']],
+            body: body,
+            startY: 20,
             theme: 'grid',
+            headStyles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: 0 },
+            styles: { fontSize: 10, cellPadding: 1.5 },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: pageMargin, right: pageMargin }
         });
-    }
+    };
 
     const addOverallTable = () => {
         if (type === 'all') {
             doc.addPage();
         }
-        doc.text("Overall Ingredient Totals", 14, 15);
-        const head = [['Ingredient', 'Total']];
-        const body = overallTotals.map(([name, totals]) => [name, formatCombinedTotal(totals)]);
+        doc.text("Overall Ingredient Totals", pageMargin, 15);
+        const head = [['Ingredient', 'Total', 'Unit']];
+        const body = overallTotals.map(item => [item.name, formatTotal(item.qty, item.qty_gram, item.uom, true), item.uom]);
 
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            headStyles: { fontStyle: 'bold' },
+            headStyles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: 0 },
+            styles: { fontSize: 10, cellPadding: 1.5 },
+            margin: { left: pageMargin, right: pageMargin },
         });
     }
 
@@ -210,9 +226,15 @@ export function SummaryTable({ data }: SummaryTableProps) {
     setIsDownloading(false);
   };
   
-  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+  const formatTotal = (quantity: number, quantityGram: number, uom: string, pdfMode = false) => {
     if (!uom) return "0";
     const uomLower = uom.toLowerCase();
+    
+    if (pdfMode) {
+      const value = isWeightUnit(uomLower) ? quantityGram : quantity;
+      return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
     if (isWeightUnit(uom)) {
         if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
             return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
@@ -225,19 +247,28 @@ export function SummaryTable({ data }: SummaryTableProps) {
     return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   };
 
-  const formatCombinedTotal = (totals: { [uom: string]: number }) => {
+  const formatCombinedTotal = (totals: { [uom: string]: number }, pdfMode = false) => {
     return Object.entries(totals).map(([unit, total]) => {
       if (!total || total === 0) return null;
 
-      if (unit === 'weight') {
+      let displayUnit = unit;
+      let displayTotal = total;
+
+      if (isWeightUnit(unit)) {
         if (total < 1000) {
-          return `${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gram`;
+            displayTotal = total;
+            displayUnit = 'gram';
+        } else {
+            displayTotal = total / 1000;
+            displayUnit = 'kilogram';
         }
-        const kg = total / 1000;
-        return `${kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kilogram`;
+      } else {
+        displayUnit = total === 1 ? unit.replace(/s$/,'') : unit;
       }
-      const unitLabel = total === 1 ? unit : `${unit}s`;
-      return `${total.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unitLabel}`;
+      
+      const totalString = displayTotal.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+      return `${totalString} ${displayUnit}`;
     }).filter(Boolean).join(', ');
   };
 
@@ -308,7 +339,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
                         {Array.from(groupedData.groups.entries()).map(([siteName, { ingredients, siteTotals }]) => (
                           <React.Fragment key={siteName}>
                             {ingredients.map((ing, index) => (
-                              <TableRow key={`${siteName}-${ing.name}`}>
+                              <TableRow key={`${siteName}-${ing.name}-${ing.uom}`}>
                                 <TableCell className="align-top font-medium">{index === 0 ? siteName : ''}</TableCell>
                                 <TableCell className="align-top">{ing.name}</TableCell>
                                 <TableCell className="text-right align-top">{formatTotal(ing.total_qty, ing.total_qty_gram, ing.uom)}</TableCell>
@@ -354,10 +385,10 @@ export function SummaryTable({ data }: SummaryTableProps) {
                   </TableHeader>
                   <TableBody>
                     {overallTotals.length > 0 ? (
-                      overallTotals.map(([name, totals]) => (
-                        <TableRow key={name}>
-                          <TableCell className="font-medium">{name}</TableCell>
-                          <TableCell className="text-right">{formatCombinedTotal(totals)}</TableCell>
+                      overallTotals.map((item) => (
+                        <TableRow key={`${item.name}-${item.uom}`}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell className="text-right">{formatTotal(item.qty, item.qty_gram, item.uom)}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -377,3 +408,4 @@ export function SummaryTable({ data }: SummaryTableProps) {
     </div>
   );
 }
+
