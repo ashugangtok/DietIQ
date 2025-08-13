@@ -234,11 +234,11 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
               {breakupData.length > 0 ? (
                 breakupData.map((row, index) => (
                   <TableRow key={`${row.groupName}-${row.ingredient}-${index}`}>
-                    {row.rowSpan && row.rowSpan > 0 && (
+                    {row.rowSpan && row.rowSpan > 0 ? (
                        <TableCell className="font-medium align-top" rowSpan={row.rowSpan}>
                           {row.groupName}
                         </TableCell>
-                    )}
+                    ) : null}
                     <TableCell>{row.ingredient}</TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatTotals(row.totals)}
