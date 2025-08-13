@@ -13,19 +13,16 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 
-interface BreakupTableProps {
-  data: SheetDataRow[];
-}
-
 interface BreakupRow {
   ingredient: string;
   speciesCount: number;
   animalCount: number;
   enclosureCount: number;
   siteCount: number;
+  totals: { [uom: string]: number };
 }
 
-export function BreakupTable({ data }: BreakupTableProps) {
+export function BreakupTable({ data }: { data: SheetDataRow[] }) {
   const breakupData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
@@ -36,6 +33,7 @@ export function BreakupTable({ data }: BreakupTableProps) {
         animals: Set<string>;
         enclosures: Set<string>;
         sites: Set<string>;
+        totals: { [uom: string]: number };
       }
     >();
 
@@ -46,6 +44,8 @@ export function BreakupTable({ data }: BreakupTableProps) {
         animal_id,
         user_enclosure_name,
         site_name,
+        ingredient_qty,
+        base_uom_name,
       } = row;
 
       if (!ingredientMap.has(ingredient_name)) {
@@ -54,6 +54,7 @@ export function BreakupTable({ data }: BreakupTableProps) {
           animals: new Set(),
           enclosures: new Set(),
           sites: new Set(),
+          totals: {},
         });
       }
 
@@ -62,6 +63,10 @@ export function BreakupTable({ data }: BreakupTableProps) {
       ingredientEntry.animals.add(animal_id);
       ingredientEntry.enclosures.add(user_enclosure_name);
       ingredientEntry.sites.add(site_name);
+
+      const uom = base_uom_name || 'N/A';
+      ingredientEntry.totals[uom] = (ingredientEntry.totals[uom] || 0) + (ingredient_qty || 0);
+
     });
 
     const result: BreakupRow[] = Array.from(
@@ -72,10 +77,23 @@ export function BreakupTable({ data }: BreakupTableProps) {
       animalCount: counts.animals.size,
       enclosureCount: counts.enclosures.size,
       siteCount: counts.sites.size,
+      totals: counts.totals,
     }));
 
     return result.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
   }, [data]);
+
+  const formatTotals = (totals: { [uom: string]: number }) => {
+    if (Object.keys(totals).length === 0) return "-";
+    
+    return Object.entries(totals)
+      .map(([uom, qty]) => {
+        const uomDisplay = qty === 1 && uom.endsWith('s') ? uom.slice(0, -1) : uom;
+        const qtyDisplay = qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `${qtyDisplay} ${uomDisplay}`;
+      })
+      .join(', ');
+  };
 
   return (
     <Card className="shadow-lg">
@@ -93,6 +111,7 @@ export function BreakupTable({ data }: BreakupTableProps) {
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Ingredient</TableHead>
+                <TableHead className="text-right">Total Qty Required</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
                 <TableHead className="text-center">Count of Enclosures</TableHead>
@@ -105,6 +124,9 @@ export function BreakupTable({ data }: BreakupTableProps) {
                   <TableRow key={row.ingredient}>
                     <TableCell className="font-medium">
                       {row.ingredient}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-primary">
+                      {formatTotals(row.totals)}
                     </TableCell>
                     <TableCell className="text-center">
                       {row.speciesCount}
@@ -123,7 +145,7 @@ export function BreakupTable({ data }: BreakupTableProps) {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No data available to display breakup details.
