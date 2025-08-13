@@ -19,7 +19,7 @@ interface BreakupRow {
   animalCount: number;
   enclosureCount: number;
   siteCount: number;
-  totals: { [uom: string]: number };
+  totals: { [uom: string]: { qty: number; qty_gram: number } };
 }
 
 export function BreakupTable({ data }: { data: SheetDataRow[] }) {
@@ -33,7 +33,7 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
         animals: Set<string>;
         enclosures: Set<string>;
         sites: Set<string>;
-        totals: { [uom: string]: number };
+        totals: { [uom: string]: { qty: number, qty_gram: number } };
       }
     >();
 
@@ -45,6 +45,7 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
         user_enclosure_name,
         site_name,
         ingredient_qty,
+        ingredient_qty_gram,
         base_uom_name,
       } = row;
 
@@ -65,7 +66,11 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
       ingredientEntry.sites.add(site_name);
 
       const uom = base_uom_name || 'N/A';
-      ingredientEntry.totals[uom] = (ingredientEntry.totals[uom] || 0) + (ingredient_qty || 0);
+      if (!ingredientEntry.totals[uom]) {
+        ingredientEntry.totals[uom] = { qty: 0, qty_gram: 0 };
+      }
+      ingredientEntry.totals[uom].qty += (ingredient_qty || 0);
+      ingredientEntry.totals[uom].qty_gram += (ingredient_qty_gram || 0);
 
     });
 
@@ -83,13 +88,26 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
     return result.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
   }, [data]);
 
-  const formatTotals = (totals: { [uom: string]: number }) => {
+  const formatTotals = (totals: { [uom: string]: { qty: number; qty_gram: number } }) => {
     if (Object.keys(totals).length === 0) return "-";
     
     return Object.entries(totals)
-      .map(([uom, qty]) => {
-        const uomDisplay = qty === 1 && uom.endsWith('s') ? uom.slice(0, -1) : uom;
-        const qtyDisplay = qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      .map(([uom, values]) => {
+        const uomLower = uom.toLowerCase();
+        const isWeight = uomLower === 'kilogram' || uomLower === 'kg';
+
+        if (isWeight) {
+          if (values.qty < 1 && values.qty > 0) {
+            return `${values.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
+          }
+          return `${values.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+        }
+        
+        const uomDisplay = values.qty === 1 && uom.endsWith('s') ? uom.slice(0, -1) : uom;
+        const qtyDisplay = Number.isInteger(values.qty) 
+          ? values.qty.toLocaleString() 
+          : values.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
         return `${qtyDisplay} ${uomDisplay}`;
       })
       .join(', ');
