@@ -94,11 +94,11 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
     return Object.entries(totals)
       .map(([uom, values]) => {
         const uomLower = uom.toLowerCase();
-        const isWeight = uomLower === 'kilogram' || uomLower === 'kg';
+        const isWeight = uomLower === 'kilogram' || uomLower === 'kg' || uomLower === 'gram';
 
         if (isWeight) {
           if (values.qty < 1 && values.qty > 0) {
-            return `${values.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
+            return `${values.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
           }
           return `${values.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
         }
