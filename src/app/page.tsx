@@ -3,7 +3,7 @@
 
 import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { LiveDashboard } from "@/components/live-dashboard";
 import Link from "next/link";
 import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
+import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 
 
 export default function Home() {
@@ -153,7 +154,7 @@ export default function Home() {
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto">
+              <TabsList className="grid w-full grid-cols-6 max-w-4xl mx-auto">
                 <TabsTrigger value="live-dashboard">
                   <TrendingUp className="mr-2" />
                   Live Dashboard
@@ -169,6 +170,10 @@ export default function Home() {
                  <TabsTrigger value="breakup">
                   <Spline className="mr-2" />
                   Breakup Details
+                </TabsTrigger>
+                <TabsTrigger value="meal-group-breakup">
+                  <Group className="mr-2" />
+                  Meal Group Breakup
                 </TabsTrigger>
                 <TabsTrigger value="kitchen" asChild>
                   <Link href="/kitchen">
@@ -188,6 +193,9 @@ export default function Home() {
               </TabsContent>
                <TabsContent value="breakup" className="mt-6">
                 <BreakupTable data={data} />
+              </TabsContent>
+              <TabsContent value="meal-group-breakup" className="mt-6">
+                <MealGroupBreakupTable data={data} />
               </TabsContent>
             </Tabs>
           </div>
