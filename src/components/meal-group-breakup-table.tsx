@@ -34,6 +34,7 @@ interface MealGroupBreakupRow {
   enclosureCount: number;
   siteCount: number;
   totals: { [uom: string]: { qty: number; qty_gram: number } };
+  rowSpan?: number;
 }
 
 export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
@@ -78,7 +79,6 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
         base_uom_name,
       } = row;
 
-      // Use a composite key of group name and ingredient name for aggregation
       const key = `${type_name}|${ingredient_name}`;
 
       if (!groupMap.has(key)) {
@@ -105,7 +105,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       groupEntry.totals[uom].qty_gram += ingredient_qty_gram || 0;
     });
 
-    const result: MealGroupBreakupRow[] = Array.from(groupMap.entries()).map(
+    const initialResult: Omit<MealGroupBreakupRow, 'rowSpan'>[] = Array.from(groupMap.entries()).map(
       ([key, counts]) => {
         const [groupName, ingredient] = key.split('|');
         return {
@@ -120,7 +120,27 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       }
     );
 
-    return result.sort((a, b) => a.groupName.localeCompare(b.groupName) || a.ingredient.localeCompare(b.ingredient));
+    const sortedResult = initialResult.sort((a, b) => a.groupName.localeCompare(b.groupName) || a.ingredient.localeCompare(b.ingredient));
+    
+    // Calculate row spans
+    const finalResult: MealGroupBreakupRow[] = [];
+    const groupNameCache: { [key: string]: number } = {};
+
+    sortedResult.forEach(row => {
+      groupNameCache[row.groupName] = (groupNameCache[row.groupName] || 0) + 1;
+    });
+
+    const processedGroupNames = new Set<string>();
+
+    for (const row of sortedResult) {
+        const groupNameSpan = !processedGroupNames.has(row.groupName) ? groupNameCache[row.groupName] : 0;
+        if(groupNameSpan > 0) processedGroupNames.add(row.groupName);
+
+        finalResult.push({ ...row, rowSpan: groupNameSpan });
+    }
+
+    return finalResult;
+    
   }, [filteredData]);
 
   const formatTotals = (totals: {
@@ -214,9 +234,11 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
               {breakupData.length > 0 ? (
                 breakupData.map((row, index) => (
                   <TableRow key={`${row.groupName}-${row.ingredient}-${index}`}>
-                    <TableCell className="font-medium">
-                      {row.groupName}
-                    </TableCell>
+                    {row.rowSpan && row.rowSpan > 0 && (
+                       <TableCell className="font-medium align-top" rowSpan={row.rowSpan}>
+                          {row.groupName}
+                        </TableCell>
+                    )}
                     <TableCell>{row.ingredient}</TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatTotals(row.totals)}
