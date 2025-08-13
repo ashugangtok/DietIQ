@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -11,7 +11,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "./ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BreakupRow {
   ingredient: string;
@@ -23,8 +36,22 @@ interface BreakupRow {
 }
 
 export function BreakupTable({ data }: { data: SheetDataRow[] }) {
+  const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
+
+  const feedTypeOptions = useMemo(
+    () => [...new Set(data.map((item) => item["Feed type name"]))].sort(),
+    [data]
+  );
+
+  const filteredData = useMemo(() => {
+    if (!feedTypeFilter) return data;
+    return data.filter(
+      (row) => row["Feed type name"] === feedTypeFilter
+    );
+  }, [data, feedTypeFilter]);
+
   const breakupData = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    if (!filteredData || filteredData.length === 0) return [];
 
     const ingredientMap = new Map<
       string,
@@ -33,11 +60,11 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
         animals: Set<string>;
         enclosures: Set<string>;
         sites: Set<string>;
-        totals: { [uom: string]: { qty: number, qty_gram: number } };
+        totals: { [uom: string]: { qty: number; qty_gram: number } };
       }
     >();
 
-    data.forEach((row) => {
+    filteredData.forEach((row) => {
       const {
         ingredient_name,
         common_name,
@@ -65,52 +92,67 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
       ingredientEntry.enclosures.add(user_enclosure_name);
       ingredientEntry.sites.add(site_name);
 
-      const uom = base_uom_name || 'N/A';
+      const uom = base_uom_name || "N/A";
       if (!ingredientEntry.totals[uom]) {
         ingredientEntry.totals[uom] = { qty: 0, qty_gram: 0 };
       }
-      ingredientEntry.totals[uom].qty += (ingredient_qty || 0);
-      ingredientEntry.totals[uom].qty_gram += (ingredient_qty_gram || 0);
-
+      ingredientEntry.totals[uom].qty += ingredient_qty || 0;
+      ingredientEntry.totals[uom].qty_gram += ingredient_qty_gram || 0;
     });
 
-    const result: BreakupRow[] = Array.from(
-      ingredientMap.entries()
-    ).map(([ingredient, counts]) => ({
-      ingredient,
-      speciesCount: counts.species.size,
-      animalCount: counts.animals.size,
-      enclosureCount: counts.enclosures.size,
-      siteCount: counts.sites.size,
-      totals: counts.totals,
-    }));
+    const result: BreakupRow[] = Array.from(ingredientMap.entries()).map(
+      ([ingredient, counts]) => ({
+        ingredient,
+        speciesCount: counts.species.size,
+        animalCount: counts.animals.size,
+        enclosureCount: counts.enclosures.size,
+        siteCount: counts.sites.size,
+        totals: counts.totals,
+      })
+    );
 
     return result.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
-  }, [data]);
+  }, [filteredData]);
 
-  const formatTotals = (totals: { [uom: string]: { qty: number; qty_gram: number } }) => {
+  const formatTotals = (totals: {
+    [uom: string]: { qty: number; qty_gram: number };
+  }) => {
     if (Object.keys(totals).length === 0) return "-";
-    
+
     return Object.entries(totals)
       .map(([uom, values]) => {
         const uomLower = uom.toLowerCase();
-        const isWeight = uomLower === 'kilogram' || uomLower === 'kg' || uomLower === 'gram';
+        const isWeight =
+          uomLower === "kilogram" || uomLower === "kg" || uomLower === "gram";
 
         if (isWeight) {
-          if (values.qty < 1 && values.qty > 0) {
-            return `${values.qty_gram.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+          if (
+            (uomLower === "kilogram" || uomLower === "kg") &&
+            values.qty < 1 &&
+            values.qty > 0
+          ) {
+            return `${values.qty_gram.toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            })} gram`;
           }
-          return `${values.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+          return `${values.qty.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} ${uom}`;
         }
-        
-        const uomDisplay = values.qty === 1 && uom.endsWith('s') ? uom.slice(0, -1) : uom;
-        const qtyDisplay = Number.isInteger(values.qty) 
-          ? values.qty.toLocaleString() 
-          : values.qty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const uomDisplay =
+          values.qty === 1 && uom.endsWith("s") ? uom.slice(0, -1) : uom;
+        const qtyDisplay = Number.isInteger(values.qty)
+          ? values.qty.toLocaleString()
+          : values.qty.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
 
         return `${qtyDisplay} ${uomDisplay}`;
       })
-      .join(', ');
+      .join(", ");
   };
 
   return (
@@ -124,6 +166,26 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+          <Select
+            value={feedTypeFilter}
+            onValueChange={(value) =>
+              setFeedTypeFilter(value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-[240px] bg-background">
+              <SelectValue placeholder="Filter by Feed Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Feed Types</SelectItem>
+              {feedTypeOptions.map((option, index) => (
+                <SelectItem key={`${option}-${index}`} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="relative overflow-x-auto rounded-md border">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -132,7 +194,9 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
                 <TableHead className="text-right">Total Qty Required</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
-                <TableHead className="text-center">Count of Enclosures</TableHead>
+                <TableHead className="text-center">
+                  Count of Enclosures
+                </TableHead>
                 <TableHead className="text-center">Count of Sites</TableHead>
               </TableRow>
             </TableHeader>
@@ -166,7 +230,7 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
                     colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No data available to display breakup details.
+                    No data available for the selected filter.
                   </TableCell>
                 </TableRow>
               )}
