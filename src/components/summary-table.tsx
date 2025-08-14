@@ -228,50 +228,50 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
   };
 
   const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
-    const weightTotals: string[] = [];
+    let totalWeightGrams = 0;
     const pieceTotals: string[] = [];
 
     Object.entries(totals).forEach(([uom, values]) => {
         if (isWeightUnit(uom)) {
-            weightTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+            totalWeightGrams += values.qty_gram;
         } else {
             pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
         }
     });
 
+    const weight = totalWeightGrams < 1000 
+      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
+      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+
     return {
-        weight: weightTotals.join(', ') || '-',
-        pieces: pieceTotals.join(', ') || '-'
+        weight: totalWeightGrams > 0 ? weight : '-',
+        pieces: pieceTotals.join(', ') || '-',
+        rawWeightGrams: totalWeightGrams
     };
   };
 
-  const calculatePcsToWeight = (ingredientName: string, totals: OverallTotalRow['totals']) => {
+  const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
     const lowerIngredientName = ingredientName.toLowerCase();
     const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
-    
-    if (!avgWeight) {
-        return '-';
-    }
-
+    if (!avgWeight) return 0;
+  
     let totalPieces = 0;
     Object.entries(totals).forEach(([uom, values]) => {
-        if (isPieceUnit(uom)) {
-            totalPieces += values.qty;
-        }
+      if (isPieceUnit(uom)) {
+        totalPieces += values.qty;
+      }
     });
-
-    if (totalPieces === 0) {
-        return '-';
-    }
-
-    const totalWeightGrams = totalPieces * avgWeight;
-    if (totalWeightGrams < 1000) {
-        return `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
-    } else {
-        return `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
-    }
+  
+    return totalPieces * avgWeight;
   };
 
+  const formatWeightFromGrams = (grams: number) => {
+    if (grams === 0) return '-';
+    if (grams < 1000) {
+      return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
+    }
+    return `${(grams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+  };
 
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
@@ -315,11 +315,19 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
             doc.addPage();
         }
         doc.text("Overall Ingredient Totals", pageMargin, 15);
-        const head = [['Ingredient', 'Total (Weight)', 'Total (Pieces)', 'Pcs into Weight']];
+        const head = [['Ingredient', 'Total (Weight)', 'Total (Pieces)', 'Pcs into Weight', 'Total Weight Req.']];
         const body = overallTotals.map(item => {
-            const { weight, pieces } = formatSeparatedTotals(item.totals);
-            const pcsToWeight = calculatePcsToWeight(item.ingredient_name, item.totals);
-            return [item.ingredient_name, weight, pieces, pcsToWeight]
+            const { weight, pieces, rawWeightGrams } = formatSeparatedTotals(item.totals);
+            const pcsToWeightGrams = getPcsToWeightInGrams(item.ingredient_name, item.totals);
+            const totalWeightGrams = rawWeightGrams + pcsToWeightGrams;
+            
+            return [
+              item.ingredient_name, 
+              weight, 
+              pieces, 
+              formatWeightFromGrams(pcsToWeightGrams),
+              formatWeightFromGrams(totalWeightGrams)
+            ]
         });
 
         autoTable(doc, {
@@ -457,25 +465,28 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
                       <TableHead className="text-right">Total (Weight)</TableHead>
                       <TableHead className="text-right">Total (Pieces)</TableHead>
                       <TableHead className="text-right">Pcs into Weight</TableHead>
+                      <TableHead className="text-right font-bold">Total Weight Req.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {overallTotals.length > 0 ? (
                       overallTotals.map((item) => {
-                        const { weight, pieces } = formatSeparatedTotals(item.totals);
-                        const pcsToWeight = calculatePcsToWeight(item.ingredient_name, item.totals);
+                        const { weight, pieces, rawWeightGrams } = formatSeparatedTotals(item.totals);
+                        const pcsToWeightGrams = getPcsToWeightInGrams(item.ingredient_name, item.totals);
+                        const totalWeightGrams = rawWeightGrams + pcsToWeightGrams;
                         return (
                             <TableRow key={`${item.ingredient_name}`}>
                             <TableCell className="font-medium">{item.ingredient_name}</TableCell>
                             <TableCell className="text-right">{weight}</TableCell>
                             <TableCell className="text-right">{pieces}</TableCell>
-                            <TableCell className="text-right">{pcsToWeight}</TableCell>
+                            <TableCell className="text-right">{formatWeightFromGrams(pcsToWeightGrams)}</TableCell>
+                            <TableCell className="text-right font-bold">{formatWeightFromGrams(totalWeightGrams)}</TableCell>
                             </TableRow>
                         )
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                           No results found.
                         </TableCell>
                       </TableRow>
@@ -490,5 +501,4 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     </div>
   );
 }
-
     
