@@ -216,22 +216,11 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
         const head = [[
             'Group Name', 'Ingredient', 'Total Qty Required', 
-            'Species', 'Animals', 'Enclosures', 'Sites'
+            'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
         ]];
         
         let body: any[][] = [];
-        const groupSpans: { [key: number]: number } = {};
-        let currentGroup = "";
-        let groupStartIndex = 0;
-
-        aggregatedDataForExport.forEach((row, index) => {
-            if (row.groupName !== currentGroup) {
-                if (currentGroup !== "") {
-                    groupSpans[groupStartIndex] = index - groupStartIndex;
-                }
-                currentGroup = row.groupName;
-                groupStartIndex = index;
-            }
+        aggregatedDataForExport.forEach(row => {
             body.push([
                 row.groupName,
                 row.ingredientName,
@@ -242,44 +231,47 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                 row.siteCount.toString()
             ]);
         });
-        if (currentGroup !== "") {
-          groupSpans[groupStartIndex] = aggregatedDataForExport.length - groupStartIndex;
-        }
 
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, halign: 'center' },
-            bodyStyles: { valign: 'middle' },
+            headStyles: { fontStyle: 'bold', halign: 'center' },
             columnStyles: {
                 0: { halign: 'left', valign: 'middle' },
                 1: { halign: 'left' },
-                2: { halign: 'right' },
+                2: { halign: 'left' },
                 3: { halign: 'center' },
                 4: { halign: 'center' },
                 5: { halign: 'center' },
                 6: { halign: 'center' },
             },
-            didDrawCell: (data: CellHookData) => {
-                const doc = data.doc;
+            willDrawCell: (data: CellHookData) => {
                 const rows = data.table.body;
-                
-                // For vertical merging of "Group Name"
-                if (data.column.index === 0 && groupSpans[data.row.index]) {
-                    const cell = data.cell;
-                    cell.rowSpan = groupSpans[data.row.index];
-                }
-
-                // To remove horizontal lines within a group
                 if (data.row.index < rows.length - 1) {
                     const currentRow = rows[data.row.index];
                     const nextRow = rows[data.row.index + 1];
                     if (currentRow && nextRow && currentRow.cells[0] && nextRow.cells[0] && currentRow.cells[0].raw === nextRow.cells[0].raw) {
-                        doc.setDrawColor(255, 255, 255);
-                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                        // If the next row has the same group name, remove the bottom border of all cells in the current row
+                        Object.values(data.row.cells).forEach(cell => {
+                            cell.styles.lineWidth = { ...cell.styles.lineWidth, bottom: 0 };
+                        });
                     }
+                }
+            },
+            didDrawCell: (data: CellHookData) => {
+                const doc = data.doc;
+                const rows = data.table.body;
+                
+                if (data.column.index === 0 && data.row.index > 0) {
+                     const currentRow = rows[data.row.index];
+                     const prevRow = rows[data.row.index - 1];
+                     if(currentRow && prevRow && currentRow.cells[0] && prevRow.cells[0] && currentRow.cells[0].raw === prevRow.cells[0].raw) {
+                        // This cell has the same group name as the one above it, so we'll hide the text.
+                         doc.setFillColor(255, 255, 255);
+                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                     }
                 }
             },
         });
@@ -424,3 +416,5 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
     </Card>
   );
 }
+
+    
