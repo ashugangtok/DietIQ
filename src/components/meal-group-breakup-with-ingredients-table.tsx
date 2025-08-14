@@ -243,7 +243,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             body,
             startY: 20,
             theme: 'grid',
-            headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [54, 162, 155] },
+            headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 220, 220], textColor: 0 },
             columnStyles: {
                 0: { halign: 'left', valign: 'middle' },
                 1: { halign: 'left' },
@@ -256,38 +256,31 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             willDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                const currentRow = rows[data.row.index];
+                if (!rows[data.row.index]) return;
 
-                if (!currentRow) return;
-
-                const currentGroup = currentRow.cells[0]?.raw;
-                const nextRow = rows[data.row.index + 1];
-                const nextGroup = nextRow?.cells[0]?.raw;
-
-                // Remove bottom border for all cells in a row if the next row is in the same group
-                if (nextRow && currentGroup === nextGroup) {
-                     Object.values(data.row.cells).forEach(cell => {
-                        cell.styles.lineWidth = { ...cell.styles.lineWidth, bottom: 0 };
-                    });
+                if (data.row.index < rows.length - 1 && rows[data.row.index].cells[0].raw === rows[data.row.index + 1].cells[0].raw) {
+                    // If the next row has the same group name, remove the bottom border of the current cell
+                   doc.setDrawColor(255, 255, 255);
+                   doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
                 }
             },
             didDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                 const row = data.row;
+                const row = data.row;
                 const cell = data.cell;
 
                 if (data.column.index === 0) {
                     const groupName = row.cells[0]?.raw as string;
+                    if (!groupName) return;
+
                     const groupRowCount = groupRowCounts[groupName];
                     const isFirstRowOfGroup = row.index === 0 || (rows[row.index - 1] && rows[row.index - 1].cells[0]?.raw !== groupName);
                     
                     if (!isFirstRowOfGroup) {
-                        // This cell has the same group name as the one above it, so we'll hide the text.
-                         doc.setFillColor(255, 255, 255);
-                         doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
                     } else {
-                         // This is the first row of the group. Let's vertically center the text.
                         const totalGroupHeight = Array.from({ length: groupRowCount }).reduce((acc, _, i) => {
                             const rowIndex = row.index + i;
                             if (rows[rowIndex]) {
@@ -296,7 +289,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                             return acc;
                         }, 0);
 
-                        const textPos = cell.y + totalGroupHeight / 2 - doc.getLineHeight() / 2 / doc.getAuthoredUnitToPointsRatio();
+                        const textPos = cell.y + totalGroupHeight / 2 - doc.getLineHeight() / 2;
                         
                         doc.setFillColor(255, 255, 255);
                         doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
