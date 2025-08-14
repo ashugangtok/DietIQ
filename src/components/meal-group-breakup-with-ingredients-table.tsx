@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import jsPDF from "jspdf";
-import autoTable, { type CellHookData } from "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import {
   Table,
@@ -205,6 +205,15 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
     const title = "Meal Group Breakup with Ingredients";
+    
+    // Group data by groupName for PDF generation
+    const groupedForPdf = aggregatedDataForExport.reduce((acc, row) => {
+        if (!acc[row.groupName]) {
+            acc[row.groupName] = [];
+        }
+        acc[row.groupName].push(row);
+        return acc;
+    }, {} as Record<string, typeof aggregatedDataForExport>);
 
     if (type === 'pdf') {
         const doc = new jsPDF({
@@ -213,92 +222,49 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             format: 'a4'
         });
         doc.text(title, 14, 15);
+        let lastY = 20;
 
-        const head = [[
-            'Group Name', 'Ingredient', 'Total Qty Required', 
-            'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
-        ]];
-        
-        let body: any[][] = [];
-        aggregatedDataForExport.forEach(row => {
-            body.push([
-                row.groupName,
-                row.ingredientName,
-                formatTotals(row.totals),
-                row.speciesCount.toString(),
-                row.animalCount.toString(),
-                row.enclosureCount.toString(),
-                row.siteCount.toString()
+        for (const groupName in groupedForPdf) {
+            const ingredients = groupedForPdf[groupName];
+            
+            // Add Group Name as a merged header row
+            autoTable(doc, {
+                body: [[{ content: groupName, colSpan: 6, styles: { fontStyle: 'bold', fontSize: 11, halign: 'left' } }]],
+                startY: lastY,
+                theme: 'plain',
+            });
+            lastY = (doc as any).lastAutoTable.finalY;
+
+            // Define the table for the ingredients
+            const head = [['Ingredient', 'Total Qty Required', 'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites']];
+            const body = ingredients.map(ing => [
+                ing.ingredientName,
+                formatTotals(ing.totals),
+                ing.speciesCount,
+                ing.animalCount,
+                ing.enclosureCount,
+                ing.siteCount,
             ]);
-        });
 
-        const groupRowCounts: { [key: string]: number } = {};
-        body.forEach(row => {
-            const groupName = row[0];
-            groupRowCounts[groupName] = (groupRowCounts[groupName] || 0) + 1;
-        });
-
-        autoTable(doc, {
-            head,
-            body,
-            startY: 20,
-            theme: 'grid',
-            headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 220, 220], textColor: 0 },
-            columnStyles: {
-                0: { halign: 'left', valign: 'middle' },
-                1: { halign: 'left' },
-                2: { halign: 'left' },
-                3: { halign: 'center' },
-                4: { halign: 'center' },
-                5: { halign: 'center' },
-                6: { halign: 'center' },
-            },
-            willDrawCell: (data: CellHookData) => {
-                const doc = data.doc;
-                const rows = data.table.body;
-                if (!rows[data.row.index]) return;
-
-                if (data.row.index < rows.length - 1 && rows[data.row.index].cells[0].raw === rows[data.row.index + 1].cells[0].raw) {
-                    // If the next row has the same group name, remove the bottom border of the current cell
-                   doc.setDrawColor(255, 255, 255);
-                   doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
-                }
-            },
-            didDrawCell: (data: CellHookData) => {
-                const doc = data.doc;
-                const rows = data.table.body;
-                const row = data.row;
-                const cell = data.cell;
-
-                if (data.column.index === 0) {
-                    const groupName = row.cells[0]?.raw as string;
-                    if (!groupName) return;
-
-                    const groupRowCount = groupRowCounts[groupName];
-                    const isFirstRowOfGroup = row.index === 0 || (rows[row.index - 1] && rows[row.index - 1].cells[0]?.raw !== groupName);
-                    
-                    if (!isFirstRowOfGroup) {
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
-                    } else {
-                        const totalGroupHeight = Array.from({ length: groupRowCount }).reduce((acc, _, i) => {
-                            const rowIndex = row.index + i;
-                            if (rows[rowIndex]) {
-                                return acc + rows[rowIndex].height;
-                            }
-                            return acc;
-                        }, 0);
-
-                        const textPos = cell.y + totalGroupHeight / 2 - doc.getLineHeight() / 2;
-                        
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
-                        
-                        doc.text(groupName, cell.x + cell.padding('left'), textPos);
-                    }
-                }
-            },
-        });
+            autoTable(doc, {
+                head,
+                body,
+                startY: lastY,
+                theme: 'grid',
+                headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 220, 220], textColor: 0, lineWidth: 0.1 },
+                bodyStyles: { valign: 'middle', lineWidth: 0.1 },
+                columnStyles: {
+                    0: { halign: 'left' },
+                    1: { halign: 'left' },
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                    4: { halign: 'center' },
+                    5: { halign: 'center' },
+                },
+                margin: { bottom: 10 }
+            });
+            lastY = (doc as any).lastAutoTable.finalY;
+        }
 
         doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
 
