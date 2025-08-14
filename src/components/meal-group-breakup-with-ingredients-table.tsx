@@ -204,71 +204,8 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
-    const title = "Meal Group Breakup with Ingredients";
     
-    // Group data by groupName for PDF generation
-    const groupedForPdf = aggregatedDataForExport.reduce((acc, row) => {
-        if (!acc[row.groupName]) {
-            acc[row.groupName] = [];
-        }
-        acc[row.groupName].push(row);
-        return acc;
-    }, {} as Record<string, typeof aggregatedDataForExport>);
-
-    if (type === 'pdf') {
-        const doc = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4'
-        });
-        doc.text(title, 14, 15);
-        let lastY = 20;
-
-        for (const groupName in groupedForPdf) {
-            const ingredients = groupedForPdf[groupName];
-            
-            // Add Group Name as a merged header row
-            autoTable(doc, {
-                body: [[{ content: groupName, colSpan: 6, styles: { fontStyle: 'bold', fontSize: 11, halign: 'left' } }]],
-                startY: lastY,
-                theme: 'plain',
-            });
-            lastY = (doc as any).lastAutoTable.finalY;
-
-            // Define the table for the ingredients
-            const head = [['Ingredient', 'Total Qty Required', 'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites']];
-            const body = ingredients.map(ing => [
-                ing.ingredientName,
-                formatTotals(ing.totals),
-                ing.speciesCount,
-                ing.animalCount,
-                ing.enclosureCount,
-                ing.siteCount,
-            ]);
-
-            autoTable(doc, {
-                head,
-                body,
-                startY: lastY,
-                theme: 'grid',
-                headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [220, 220, 220], textColor: 0, lineWidth: 0.1 },
-                bodyStyles: { valign: 'middle', lineWidth: 0.1 },
-                columnStyles: {
-                    0: { halign: 'left' },
-                    1: { halign: 'left' },
-                    2: { halign: 'center' },
-                    3: { halign: 'center' },
-                    4: { halign: 'center' },
-                    5: { halign: 'center' },
-                },
-                margin: { bottom: 10 }
-            });
-            lastY = (doc as any).lastAutoTable.finalY;
-        }
-
-        doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
-
-    } else if (type === 'excel') {
+    if (type === 'excel') {
       const dataToExport = aggregatedDataForExport.map(row => ({
         'Group Name': row.groupName,
         'Ingredient': row.ingredientName,
@@ -291,6 +228,91 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } else if (type === 'pdf') {
+      const doc = new jsPDF({
+          orientation: 'p',
+          unit: 'mm',
+          format: 'a4'
+      });
+      const title = "Meal Group Breakup with Ingredients";
+      doc.text(title, 14, 15);
+
+      const head = [[
+        'Group Name', 'Ingredient', 'Total Qty Required', 
+        'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
+      ]];
+
+      const body = aggregatedDataForExport.map(row => [
+        row.groupName,
+        row.ingredientName,
+        formatTotals(row.totals),
+        row.speciesCount,
+        row.animalCount,
+        row.enclosureCount,
+        row.siteCount,
+      ]);
+
+      let lastGroupName = "";
+
+      autoTable(doc, {
+          head: head,
+          body: body,
+          startY: 20,
+          theme: 'grid',
+          headStyles: { 
+            fontStyle: 'bold', 
+            halign: 'center', 
+            fillColor: [220, 220, 220], 
+            textColor: 0, 
+            lineWidth: 0.1 
+          },
+          columnStyles: {
+              0: { halign: 'left', fontStyle: 'bold' }, // Group Name
+              1: { halign: 'left' }, // Ingredient
+              2: { halign: 'left' }, // Total Qty Required
+              3: { halign: 'center' }, // Species
+              4: { halign: 'center' }, // Animals
+              5: { halign: 'center' }, // Enclosures
+              6: { halign: 'center' }, // Sites
+          },
+          didParseCell: function (data) {
+              if (data.column.index === 0) { // Group Name column
+                  if (data.cell.raw === lastGroupName) {
+                      data.cell.text = ['']; // Hide text if it's the same as the previous row
+                  } else {
+                      lastGroupName = data.cell.raw as string;
+                  }
+              }
+          },
+          willDrawCell: function (data) {
+            // This hook handles drawing borders to create the merged cell effect
+            const rows = data.table.body;
+            const rowIndex = data.row.index;
+            const isFirstRowOfGroup = rowIndex === 0 || rows[rowIndex].cells[0].raw !== rows[rowIndex - 1].cells[0].raw;
+            const isLastRowOfGroup = rowIndex === rows.length - 1 || rows[rowIndex].cells[0].raw !== rows[rowIndex + 1].cells[0].raw;
+
+            // For the Group Name column, only draw left and right borders
+            if (data.column.index === 0) {
+                if (!isFirstRowOfGroup) {
+                    // Hide top border if not the first row of group
+                    doc.setDrawColor(255, 255, 255);
+                    doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                }
+                 if (!isLastRowOfGroup) {
+                    // Hide bottom border if not the last row of group
+                    doc.setDrawColor(255, 255, 255);
+                    doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                }
+            }
+          },
+          didDrawPage: function() {
+            // Reset for each new page
+            lastGroupName = "";
+          },
+          margin: { top: 25 }
+      });
+
+      doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
     }
     
     setIsDownloading(false);
