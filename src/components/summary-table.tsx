@@ -49,7 +49,28 @@ const isWeightUnit = (uom: string) => {
     if (!uom) return false;
     const lowerUom = uom.toLowerCase();
     return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
-}
+};
+
+const isPieceUnit = (uom: string) => {
+    if (!uom) return false;
+    const lowerUom = uom.toLowerCase();
+    return lowerUom.includes('piece') || lowerUom.includes('pc');
+};
+
+const INSECT_WEIGHTS_G: { [key: string]: number } = {
+  'ant eggs': 0.003,
+  'caedicia major (katydid)': 2.0,
+  'cockroaches (e.g., dubia adult)': 2.5,
+  'crickets (adult)': 0.5,
+  'house geckos (juvenile live prey)': 5.0,
+  'locusts (adult)': 2.0,
+  maggots: 0.03,
+  'maggots (fly larvae)': 0.03,
+  'mealworms (medium)': 0.12,
+  'silkworm (medium)': 1.0,
+  'superworms (large)': 2.0,
+};
+
 
 export function SummaryTable({ data }: {data: SheetDataRow[]}) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
@@ -225,6 +246,33 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     };
   };
 
+  const calculatePcsToWeight = (ingredientName: string, totals: OverallTotalRow['totals']) => {
+    const lowerIngredientName = ingredientName.toLowerCase();
+    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
+    
+    if (!avgWeight) {
+        return '-';
+    }
+
+    let totalPieces = 0;
+    Object.entries(totals).forEach(([uom, values]) => {
+        if (isPieceUnit(uom)) {
+            totalPieces += values.qty;
+        }
+    });
+
+    if (totalPieces === 0) {
+        return '-';
+    }
+
+    const totalWeightGrams = totalPieces * avgWeight;
+    if (totalWeightGrams < 1000) {
+        return `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
+    } else {
+        return `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+    }
+  };
+
 
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
@@ -268,10 +316,11 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
             doc.addPage();
         }
         doc.text("Overall Ingredient Totals", pageMargin, 15);
-        const head = [['Ingredient', 'Total (Weight)', 'Total (Pieces)']];
+        const head = [['Ingredient', 'Total (Weight)', 'Total (Pieces)', 'Pcs into Weight']];
         const body = overallTotals.map(item => {
             const { weight, pieces } = formatSeparatedTotals(item.totals);
-            return [item.ingredient_name, weight, pieces]
+            const pcsToWeight = calculatePcsToWeight(item.ingredient_name, item.totals);
+            return [item.ingredient_name, weight, pieces, pcsToWeight]
         });
 
         autoTable(doc, {
@@ -408,23 +457,26 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
                       <TableHead>Ingredient</TableHead>
                       <TableHead className="text-right">Total (Weight)</TableHead>
                       <TableHead className="text-right">Total (Pieces)</TableHead>
+                      <TableHead className="text-right">Pcs into Weight</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {overallTotals.length > 0 ? (
                       overallTotals.map((item) => {
                         const { weight, pieces } = formatSeparatedTotals(item.totals);
+                        const pcsToWeight = calculatePcsToWeight(item.ingredient_name, item.totals);
                         return (
                             <TableRow key={`${item.ingredient_name}`}>
                             <TableCell className="font-medium">{item.ingredient_name}</TableCell>
                             <TableCell className="text-right">{weight}</TableCell>
                             <TableCell className="text-right">{pieces}</TableCell>
+                            <TableCell className="text-right">{pcsToWeight}</TableCell>
                             </TableRow>
                         )
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                           No results found.
                         </TableCell>
                       </TableRow>
