@@ -48,7 +48,7 @@ interface MealGroupBreakupRow {
   enclosureCount: number;
   siteCount: number;
   totals: { [uom: string]: { qty: number; qty_gram: number } };
-  rowSpan?: number;
+  rowSpan: number;
 }
 
 export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetDataRow[] }) {
@@ -208,40 +208,49 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
     const title = "Meal Group Breakup with Ingredients";
 
     if (type === 'pdf') {
-      const doc = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: 'a4'
-      });
-      const pageMargin = 10;
-      doc.text(title, pageMargin, 15);
+        const doc = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4'
+        });
+        const pageMargin = 10;
+        doc.text(title, pageMargin, 15);
 
-      const head = [[
-        'Group Name', 'Ingredient', 'Total Qty Required', 
-        'Species', 'Animals', 'Enclosures', 'Sites'
-      ]];
-      // Use the flat data structure for the body
-      const body = aggregatedDataForExport.map(row => [
-        row.groupName,
-        row.ingredientName,
-        formatTotals(row.totals),
-        row.speciesCount.toString(),
-        row.animalCount.toString(),
-        row.enclosureCount.toString(),
-        row.siteCount.toString()
-      ]);
+        const head = [[
+            'Group Name', 'Ingredient', 'Total Qty Required', 
+            'Species', 'Animals', 'Enclosures', 'Sites'
+        ]];
+        
+        const body: any[][] = [];
 
-      autoTable(doc, {
-        head,
-        body,
-        startY: 20,
-        theme: 'grid',
-        headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10 },
-        styles: { fontSize: 9, cellPadding: 1.5 },
-        margin: { left: pageMargin, right: pageMargin }
-      });
+        breakupData.forEach(row => {
+            const tableRow = [];
+            if (row.rowSpan > 0) {
+                tableRow.push({ content: row.groupName, rowSpan: row.rowSpan });
+            }
+            tableRow.push(
+                row.ingredientName,
+                formatTotals(row.totals),
+                row.speciesCount.toString(),
+                row.animalCount.toString(),
+                row.enclosureCount.toString(),
+                row.siteCount.toString()
+            );
+            body.push(tableRow);
+        });
 
-      doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
+        autoTable(doc, {
+            head,
+            body,
+            startY: 20,
+            theme: 'grid',
+            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10 },
+            styles: { fontSize: 9, cellPadding: 1.5, valign: 'middle' },
+            margin: { left: pageMargin, right: pageMargin }
+        });
+
+        doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
+
     } else if (type === 'excel') {
       const dataToExport = aggregatedDataForExport.map(row => ({
         'Group Name': row.groupName,
