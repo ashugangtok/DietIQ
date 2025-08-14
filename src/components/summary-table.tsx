@@ -146,6 +146,45 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return groups;
   }, [summaryData]);
 
+  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    if (!uom) return "0";
+    const uomLower = uom.toLowerCase();
+    
+    if (isWeightUnit(uom)) {
+        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
+            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+        }
+        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+     if (quantity === 1) {
+      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+    }
+    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+  };
+
+  const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
+    let totalWeightGrams = 0;
+    const pieceTotals: string[] = [];
+
+    Object.entries(totals).forEach(([uom, values]) => {
+        if (isWeightUnit(uom)) {
+            totalWeightGrams += values.qty_gram;
+        } else {
+            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+        }
+    });
+
+    const weight = totalWeightGrams < 1000 
+      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
+      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+
+    return {
+        weight: totalWeightGrams > 0 ? weight : '-',
+        pieces: pieceTotals.join(', ') || '-',
+        rawWeightGrams: totalWeightGrams
+    };
+  };
+  
   const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
     const lowerIngredientName = ingredientName.toLowerCase();
     const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
@@ -205,22 +244,6 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return totals;
   }, [summaryData]);
 
-  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
-    if (!uom) return "0";
-    const uomLower = uom.toLowerCase();
-    
-    if (isWeightUnit(uom)) {
-        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
-            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
-        }
-        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-    }
-     if (quantity === 1) {
-      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
-    }
-    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-  };
-
   const formatCombinedTotal = (totals: { [uom: string]: number }) => {
     return Object.entries(totals).map(([unit, total]) => {
       if (!total || total === 0) return null;
@@ -250,29 +273,6 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return Object.entries(totals).map(([uom, values]) => {
         return formatTotal(values.qty, values.qty_gram, uom);
     }).join(', ');
-  };
-
-  const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
-    let totalWeightGrams = 0;
-    const pieceTotals: string[] = [];
-
-    Object.entries(totals).forEach(([uom, values]) => {
-        if (isWeightUnit(uom)) {
-            totalWeightGrams += values.qty_gram;
-        } else {
-            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
-        }
-    });
-
-    const weight = totalWeightGrams < 1000 
-      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
-      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
-
-    return {
-        weight: totalWeightGrams > 0 ? weight : '-',
-        pieces: pieceTotals.join(', ') || '-',
-        rawWeightGrams: totalWeightGrams
-    };
   };
 
   const formatWeightFromGrams = (grams: number) => {
@@ -514,3 +514,4 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     
 
     
+
