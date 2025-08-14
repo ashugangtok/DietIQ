@@ -51,7 +51,7 @@ const isWeightUnit = (uom: string) => {
     return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
 }
 
-export function SummaryTable({ data }: SummaryTableProps) {
+export function SummaryTable({ data }: {data: SheetDataRow[]}) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
   const [ingredientFilter, setIngredientFilter] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -207,6 +207,25 @@ export function SummaryTable({ data }: SummaryTableProps) {
     }).join(', ');
   };
 
+  const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
+    const weightTotals: string[] = [];
+    const pieceTotals: string[] = [];
+
+    Object.entries(totals).forEach(([uom, values]) => {
+        if (isWeightUnit(uom)) {
+            weightTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+        } else {
+            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+        }
+    });
+
+    return {
+        weight: weightTotals.join(', ') || '-',
+        pieces: pieceTotals.join(', ') || '-'
+    };
+  };
+
+
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
     setIsDownloading(true);
     const doc = new jsPDF({
@@ -245,12 +264,15 @@ export function SummaryTable({ data }: SummaryTableProps) {
     };
 
     const addOverallTable = () => {
-        if (type === 'all') {
+        if (type === 'all' && doc.internal.getNumberOfPages() > 0) {
             doc.addPage();
         }
         doc.text("Overall Ingredient Totals", pageMargin, 15);
-        const head = [['Ingredient', 'Total']];
-        const body = overallTotals.map(item => [item.ingredient_name, formatTotalsForDisplay(item.totals)]);
+        const head = [['Ingredient', 'Total (Weight)', 'Total (Pieces)']];
+        const body = overallTotals.map(item => {
+            const { weight, pieces } = formatSeparatedTotals(item.totals);
+            return [item.ingredient_name, weight, pieces]
+        });
 
         autoTable(doc, {
             head,
@@ -258,7 +280,8 @@ export function SummaryTable({ data }: SummaryTableProps) {
             startY: 20,
             theme: 'grid',
             headStyles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: 0, fontSize: 10 },
-            styles: { fontSize: 9, cellPadding: 1.5 },
+            styles: { fontSize: 9, cellPadding: 1.5, halign: 'right' },
+            columnStyles: { 0: { halign: 'left' } },
             margin: { left: pageMargin, right: pageMargin },
         });
     }
@@ -383,20 +406,25 @@ export function SummaryTable({ data }: SummaryTableProps) {
                   <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead>Ingredient</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Total (Weight)</TableHead>
+                      <TableHead className="text-right">Total (Pieces)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {overallTotals.length > 0 ? (
-                      overallTotals.map((item) => (
-                        <TableRow key={`${item.ingredient_name}`}>
-                          <TableCell className="font-medium">{item.ingredient_name}</TableCell>
-                          <TableCell className="text-right">{formatTotalsForDisplay(item.totals)}</TableCell>
-                        </TableRow>
-                      ))
+                      overallTotals.map((item) => {
+                        const { weight, pieces } = formatSeparatedTotals(item.totals);
+                        return (
+                            <TableRow key={`${item.ingredient_name}`}>
+                            <TableCell className="font-medium">{item.ingredient_name}</TableCell>
+                            <TableCell className="text-right">{weight}</TableCell>
+                            <TableCell className="text-right">{pieces}</TableCell>
+                            </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                           No results found.
                         </TableCell>
                       </TableRow>
