@@ -107,11 +107,10 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       })
       .join(", ");
   };
-
-  const breakupData = useMemo(() => {
+  
+  const aggregatedDataForExport = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
-
-    const groupMap = new Map<
+      const groupMap = new Map<
       string,
       {
         species: Set<string>;
@@ -163,7 +162,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       groupEntry.totals[uom].qty_gram += ingredient_qty_gram || 0;
     });
 
-    const initialResult: Omit<MealGroupBreakupRow, 'rowSpan'>[] = Array.from(groupMap.entries()).map(
+    return Array.from(groupMap.entries()).map(
       ([key, counts]) => {
         const [ingredientName, groupName] = key.split('|');
         return {
@@ -176,21 +175,22 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
           totals: counts.totals,
         }
       }
-    );
+    ).sort((a, b) => a.ingredientName.localeCompare(b.ingredientName) || (a.groupName || "").localeCompare(b.groupName || ""));
+  }, [filteredData]);
 
-    const sortedResult = initialResult.sort((a, b) => a.ingredientName.localeCompare(b.ingredientName) || (a.groupName || "").localeCompare(b.groupName || ""));
-    
-    // Calculate row spans
+
+  const breakupData = useMemo(() => {
+    // Calculate row spans for UI
     const finalResult: MealGroupBreakupRow[] = [];
     const ingredientNameCache: { [key: string]: number } = {};
 
-    sortedResult.forEach(row => {
+    aggregatedDataForExport.forEach(row => {
       ingredientNameCache[row.ingredientName] = (ingredientNameCache[row.ingredientName] || 0) + 1;
     });
 
     const processedIngredientNames = new Set<string>();
 
-    for (const row of sortedResult) {
+    for (const row of aggregatedDataForExport) {
         const ingredientNameSpan = !processedIngredientNames.has(row.ingredientName) ? ingredientNameCache[row.ingredientName] : 0;
         if(ingredientNameSpan > 0) processedIngredientNames.add(row.ingredientName);
 
@@ -199,7 +199,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
 
     return finalResult;
     
-  }, [filteredData]);
+  }, [aggregatedDataForExport]);
 
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
@@ -217,7 +217,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
         'Ingredient', 'Group Name', 'Total Qty Required', 
         'Species', 'Animals', 'Enclosures', 'Sites'
       ]];
-      const body = breakupData.map(row => [
+      const body = aggregatedDataForExport.map(row => [
         row.ingredientName,
         row.groupName,
         formatTotals(row.totals),
@@ -239,7 +239,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
 
       doc.save(`meal-group-breakup-${new Date().toISOString().split('T')[0]}.pdf`);
     } else if (type === 'excel') {
-      const dataToExport = breakupData.map(row => ({
+      const dataToExport = aggregatedDataForExport.map(row => ({
         'Ingredient': row.ingredientName,
         'Group Name': row.groupName,
         'Total Qty Required': formatTotals(row.totals),
