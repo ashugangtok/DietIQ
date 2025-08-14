@@ -276,49 +276,50 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             },
             willDrawCell: function (data) {
                 const rows = data.table.body;
-                const rowIndex = data.row.index;
-
-                // Ensure the row and cells exist before accessing them
-                const currentRow = rows[rowIndex];
-                if (!currentRow || !currentRow.cells || !currentRow.cells[0]) return;
+                if (data.row.index >= rows.length) return;
                 
-                const isFirstRowOfGroup = rowIndex === 0 || currentRow.cells[0].raw !== rows[rowIndex - 1]?.cells?.[0]?.raw;
-                const isLastRowOfGroup = rowIndex === rows.length - 1 || currentRow.cells[0].raw !== rows[rowIndex + 1]?.cells?.[0]?.raw;
+                const currentRow = rows[data.row.index];
+                const prevRow = data.row.index > 0 ? rows[data.row.index - 1] : undefined;
 
-                if (data.column.index === 0) {
-                    if (!isFirstRowOfGroup) {
+                if(prevRow && currentRow.cells[0].raw === prevRow.cells[0].raw) {
+                    if (data.column.index === 0) {
                         doc.setDrawColor(255, 255, 255);
-                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
-                    }
-                     if (!isLastRowOfGroup) {
-                        doc.setDrawColor(255, 255, 255);
-                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y); // top
+                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height); // bottom
                     }
                 }
             },
-             didDrawCell: function(data) {
+            didDrawCell: function(data) {
                 const rows = data.table.body;
                 const rowIndex = data.row.index;
                 const cell = data.cell;
                 
                 if (data.column.index === 0) { // Group Name column
-                    const isFirstRowOfGroup = rowIndex === 0 || rows[rowIndex]?.cells?.[0]?.raw !== rows[rowIndex - 1]?.cells?.[0]?.raw;
-                    if (isFirstRowOfGroup) {
-                        let groupRowCount = 1;
-                        for (let i = rowIndex + 1; i < rows.length; i++) {
-                            if (rows[i]?.cells?.[0]?.raw === rows[rowIndex]?.cells?.[0]?.raw) {
-                                groupRowCount++;
-                            } else {
-                                break;
-                            }
-                        }
+                    if (rowIndex > 0 && rows[rowIndex]?.cells?.[0]?.raw === rows[rowIndex - 1]?.cells?.[0]?.raw) {
+                        // Clear the text for subsequent rows in the same group
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                        return;
+                    }
 
+                    let groupRowCount = 1;
+                    for (let i = rowIndex + 1; i < rows.length; i++) {
+                        if (rows[i]?.cells?.[0]?.raw === rows[rowIndex]?.cells?.[0]?.raw) {
+                            groupRowCount++;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (groupRowCount > 1) {
                         let totalGroupHeight = cell.height * groupRowCount;
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        const tableStartY = 20; // As defined in autoTable options
+                        const margin = 10; // Default or custom margin
+                        const availableHeight = pageHeight - tableStartY - margin;
                         
-                        // Recalculate if it spans across pages
-                        const pageHeight = doc.internal.pageSize.height - doc.internal.margins.top - doc.internal.margins.bottom;
-                        if (cell.y + totalGroupHeight > pageHeight) {
-                            totalGroupHeight = pageHeight - cell.y;
+                        if (cell.y + totalGroupHeight > pageHeight - margin) {
+                            totalGroupHeight = pageHeight - cell.y - margin;
                         }
 
                         const textPos = cell.y + totalGroupHeight / 2;
@@ -327,14 +328,9 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                         doc.rect(cell.x, cell.y, cell.width, totalGroupHeight, 'F');
                         
                         doc.setTextColor(0,0,0);
-                        doc.text(cell.text[0], cell.x + 2, textPos, {
+                        doc.text(String(cell.raw), cell.x + 2, textPos, {
                             baseline: 'middle'
                         });
-
-                    } else {
-                        // Clear the text for subsequent rows in the same group
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
                     }
                 }
             },
