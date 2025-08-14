@@ -67,6 +67,7 @@ const INSECT_WEIGHTS_G: { [key: string]: number } = {
   'maggots': 0.03,
   'mealworms': 0.12,
   'superworms': 2.0,
+  'silkworm': 1.0,
 };
 
 
@@ -489,3 +490,5 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     </div>
   );
 }
+
+    
