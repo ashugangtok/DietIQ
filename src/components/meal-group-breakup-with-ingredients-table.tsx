@@ -204,7 +204,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
-    
+
     if (type === 'excel') {
       const dataToExport = aggregatedDataForExport.map(row => ({
         'Group Name': row.groupName,
@@ -228,121 +228,82 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } else if (type === 'pdf') {
-        const doc = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4'
-        });
-        const title = "Meal Group Breakup with Ingredients";
-        doc.text(title, 14, 15);
-
-        const head = [[
-          'Group Name', 'Ingredient', 'Total Qty Required', 
-          'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
-        ]];
-
-        const body = aggregatedDataForExport.map(row => [
-          row.groupName,
-          row.ingredientName,
-          formatTotals(row.totals),
-          row.speciesCount,
-          row.animalCount,
-          row.enclosureCount,
-          row.siteCount,
-        ]);
-
-        autoTable(doc, {
-            head: head,
-            body: body,
-            startY: 20,
-            theme: 'grid',
-            headStyles: { 
-              fontStyle: 'bold', 
-              halign: 'center',
-              valign: 'middle',
-              fillColor: [230, 230, 230], 
-              textColor: 20, 
-              lineWidth: 0.1 
-            },
-            columnStyles: {
-                0: { halign: 'left', valign: 'middle' }, // Group Name
-                1: { halign: 'left', valign: 'middle' }, // Ingredient
-                2: { halign: 'left', valign: 'middle' }, // Total Qty Required
-                3: { halign: 'center', valign: 'middle' }, // Species
-                4: { halign: 'center', valign: 'middle' }, // Animals
-                5: { halign: 'center', valign: 'middle' }, // Enclosures
-                6: { halign: 'center', valign: 'middle' }, // Sites
-            },
-            willDrawCell: function (data) {
-                const rows = data.table.body;
-                if (data.row.index >= rows.length) return;
-                
-                const currentRow = rows[data.row.index];
-                const prevRow = data.row.index > 0 ? rows[data.row.index - 1] : undefined;
-
-                if(prevRow && currentRow.cells[0].raw === prevRow.cells[0].raw) {
-                    if (data.column.index === 0) {
-                        doc.setDrawColor(255, 255, 255);
-                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y); // top
-                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height); // bottom
-                    }
-                }
-            },
-            didDrawCell: function(data) {
-                const rows = data.table.body;
-                const rowIndex = data.row.index;
-                const cell = data.cell;
-                
-                if (data.column.index === 0) { // Group Name column
-                    if (rowIndex > 0 && rows[rowIndex]?.cells?.[0]?.raw === rows[rowIndex - 1]?.cells?.[0]?.raw) {
-                        // Clear the text for subsequent rows in the same group
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
-                        return;
-                    }
-
-                    let groupRowCount = 1;
-                    for (let i = rowIndex + 1; i < rows.length; i++) {
-                        if (rows[i]?.cells?.[0]?.raw === rows[rowIndex]?.cells?.[0]?.raw) {
-                            groupRowCount++;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    if (groupRowCount > 1) {
-                        let totalGroupHeight = cell.height * groupRowCount;
-                        const pageHeight = doc.internal.pageSize.getHeight();
-                        const tableStartY = 20; // As defined in autoTable options
-                        const margin = 10; // Default or custom margin
-                        const availableHeight = pageHeight - tableStartY - margin;
-                        
-                        if (cell.y + totalGroupHeight > pageHeight - margin) {
-                            totalGroupHeight = pageHeight - cell.y - margin;
-                        }
-
-                        const textPos = cell.y + totalGroupHeight / 2;
-                        
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(cell.x, cell.y, cell.width, totalGroupHeight, 'F');
-                        
-                        doc.setTextColor(0,0,0);
-                        doc.text(String(cell.raw), cell.x + 2, textPos, {
-                            baseline: 'middle'
-                        });
-                    }
-                }
-            },
-            margin: { top: 25 }
-        });
-
-      doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
+      setIsDownloading(false);
+      return;
     }
     
+    // PDF Generation Logic
+    const doc = new jsPDF("p", "pt");
+    doc.setFontSize(14);
+    doc.text("Meal Group Breakup with Ingredients", 40, 30);
+
+    const groupedForPdf = aggregatedDataForExport.reduce((acc, row) => {
+        if (!acc[row.groupName]) {
+            acc[row.groupName] = [];
+        }
+        acc[row.groupName].push(row);
+        return acc;
+    }, {} as Record<string, typeof aggregatedDataForExport>);
+
+    let startY = 50;
+
+    Object.entries(groupedForPdf).forEach(([groupName, ingredients]) => {
+      autoTable(doc, {
+        head: [[{content: groupName, colSpan: 6}]],
+        body: [],
+        startY,
+        theme: 'plain',
+        headStyles: {
+            fontStyle: 'bold',
+            fontSize: 12,
+            halign: 'left',
+            fillColor: [240, 240, 240]
+        },
+      });
+
+      startY = (doc as any).lastAutoTable.finalY;
+
+      autoTable(doc, {
+        head: [[
+          "Ingredient",
+          "Total Qty Required",
+          "Count of Species",
+          "Count of Animals",
+          "Count of Enclosures",
+          "Count of Sites",
+        ]],
+        body: ingredients.map(item => [
+          item.ingredientName,
+          formatTotals(item.totals),
+          item.speciesCount,
+          item.animalCount,
+          item.enclosureCount,
+          item.siteCount,
+        ]),
+        startY: startY + 2,
+        theme: 'grid',
+        styles: {
+            fontSize: 10,
+            halign: 'center',
+            valign: 'middle',
+            cellPadding: 4,
+        },
+        headStyles: {
+            fillColor: [220, 220, 220],
+            textColor: 20,
+            fontStyle: 'bold',
+        },
+        columnStyles: {
+            0: { halign: 'left' },
+            1: { halign: 'left' },
+        },
+      });
+      startY = (doc as any).lastAutoTable.finalY + 20; // Add space between groups
+    });
+
+    doc.save(`meal-group-breakup-${new Date().toISOString().split('T')[0]}.pdf`);
     setIsDownloading(false);
   };
-
 
   return (
     <Card className="shadow-lg">
