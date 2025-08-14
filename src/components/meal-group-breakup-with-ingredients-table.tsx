@@ -219,15 +219,32 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             'Species', 'Animals', 'Enclosures', 'Sites'
         ]];
         
-        const body = aggregatedDataForExport.map(row => [
-            row.groupName,
-            row.ingredientName,
-            formatTotals(row.totals),
-            row.speciesCount.toString(),
-            row.animalCount.toString(),
-            row.enclosureCount.toString(),
-            row.siteCount.toString()
-        ]);
+        let body: any[][] = [];
+        const groupSpans: { [key: number]: number } = {};
+        let currentGroup = "";
+        let groupStartIndex = 0;
+
+        aggregatedDataForExport.forEach((row, index) => {
+            if (row.groupName !== currentGroup) {
+                if (currentGroup !== "") {
+                    groupSpans[groupStartIndex] = index - groupStartIndex;
+                }
+                currentGroup = row.groupName;
+                groupStartIndex = index;
+            }
+            body.push([
+                row.groupName,
+                row.ingredientName,
+                formatTotals(row.totals),
+                row.speciesCount.toString(),
+                row.animalCount.toString(),
+                row.enclosureCount.toString(),
+                row.siteCount.toString()
+            ]);
+        });
+        if (currentGroup !== "") {
+          groupSpans[groupStartIndex] = aggregatedDataForExport.length - groupStartIndex;
+        }
 
         autoTable(doc, {
             head,
@@ -245,25 +262,17 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                 5: { halign: 'center' },
                 6: { halign: 'center' },
             },
-            willDrawCell: (data: CellHookData) => {
-                const doc = data.doc;
-                const rows = data.table.body;
-                if (data.column.index === 0 && data.row.index > 0) {
-                     if (rows[data.row.index - 1] && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
-                        doc.setFillColor(255, 255, 255);
-                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                    }
-                }
-            },
             didDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                 if (data.column.index === 0 && data.row.index > 0) {
-                    if (rows[data.row.index - 1] && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
-                        doc.setDrawColor(255, 255, 255);
-                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
-                    }
+                
+                // For vertical merging of "Group Name"
+                if (data.column.index === 0 && groupSpans[data.row.index]) {
+                    const cell = data.cell;
+                    cell.rowSpan = groupSpans[data.row.index];
                 }
+
+                // To remove horizontal lines within a group
                 if (data.row.index < rows.length - 1) {
                     const currentRow = rows[data.row.index];
                     const nextRow = rows[data.row.index + 1];
