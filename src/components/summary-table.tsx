@@ -59,16 +59,14 @@ const isPieceUnit = (uom: string) => {
 
 const INSECT_WEIGHTS_G: { [key: string]: number } = {
   'ant eggs': 0.003,
-  'caedicia major (katydid)': 2.0,
-  'cockroaches (e.g., dubia adult)': 2.5,
-  'crickets (adult)': 0.5,
-  'house geckos (juvenile live prey)': 5.0,
-  'locusts (adult)': 2.0,
-  maggots: 0.03,
-  'maggots (fly larvae)': 0.03,
-  'mealworms (medium)': 0.12,
-  'silkworm (medium)': 1.0,
-  'superworms (large)': 2.0,
+  'caedicia major': 2.0,
+  'cockroaches': 2.5,
+  'crickets': 0.5,
+  'house geckos': 5.0,
+  'locusts': 2.0,
+  'maggots': 0.03,
+  'mealworms': 0.12,
+  'superworms': 2.0,
 };
 
 
