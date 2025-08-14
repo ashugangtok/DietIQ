@@ -137,7 +137,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       
       if (!group_name) return;
 
-      const key = `${ingredient_name}|${group_name}`;
+      const key = `${group_name}|${ingredient_name}`;
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
@@ -165,7 +165,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
     const initialResult: Omit<MealGroupBreakupRow, 'rowSpan'>[] = Array.from(groupMap.entries()).map(
       ([key, counts]) => {
-        const [ingredientName, groupName] = key.split('|');
+        const [groupName, ingredientName] = key.split('|');
         return {
           ingredientName,
           groupName,
@@ -178,22 +178,23 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       }
     );
 
-    const sortedResult = initialResult.sort((a, b) => a.ingredientName.localeCompare(b.ingredientName) || (a.groupName || "").localeCompare(b.groupName || ""));
+    const sortedResult = initialResult.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || "") || a.ingredientName.localeCompare(b.ingredientName));
     
+    // Calculate row spans
     const finalResult: MealGroupBreakupRow[] = [];
-    const ingredientNameCache: { [key: string]: number } = {};
+    const groupNameCache: { [key: string]: number } = {};
 
     sortedResult.forEach(row => {
-      ingredientNameCache[row.ingredientName] = (ingredientNameCache[row.ingredientName] || 0) + 1;
+      groupNameCache[row.groupName] = (groupNameCache[row.groupName] || 0) + 1;
     });
 
-    const processedIngredientNames = new Set<string>();
+    const processedGroupNames = new Set<string>();
 
     for (const row of sortedResult) {
-        const ingredientNameSpan = !processedIngredientNames.has(row.ingredientName) ? ingredientNameCache[row.ingredientName] : 0;
-        if(ingredientNameSpan > 0) processedIngredientNames.add(row.ingredientName);
+        const groupNameSpan = !processedGroupNames.has(row.groupName) ? groupNameCache[row.groupName] : 0;
+        if(groupNameSpan > 0) processedGroupNames.add(row.groupName);
 
-        finalResult.push({ ...row, rowSpan: ingredientNameSpan });
+        finalResult.push({ ...row, rowSpan: groupNameSpan });
     }
 
     return finalResult;
@@ -202,6 +203,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
+    const title = "Meal Group Breakup with Ingredients";
 
     if (type === 'pdf') {
       const doc = new jsPDF({
@@ -210,15 +212,15 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
         format: 'a4'
       });
       const pageMargin = 10;
-      doc.text("Meal Group Breakup Details", pageMargin, 15);
+      doc.text(title, pageMargin, 15);
 
       const head = [[
-        'Ingredient', 'Group Name', 'Total Qty Required', 
+        'Group Name', 'Ingredient', 'Total Qty Required', 
         'Species', 'Animals', 'Enclosures', 'Sites'
       ]];
       const body = breakupData.map(row => [
-        row.ingredientName,
         row.groupName,
+        row.ingredientName,
         formatTotals(row.totals),
         row.speciesCount,
         row.animalCount,
@@ -236,11 +238,11 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
         margin: { left: pageMargin, right: pageMargin }
       });
 
-      doc.save(`meal-group-breakup-${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
     } else if (type === 'excel') {
       const dataToExport = breakupData.map(row => ({
-        'Ingredient': row.ingredientName,
         'Group Name': row.groupName,
+        'Ingredient': row.ingredientName,
         'Total Qty Required': formatTotals(row.totals),
         'Count of Species': row.speciesCount,
         'Count of Animals': row.animalCount,
@@ -255,7 +257,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `meal-group-breakup-${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -270,10 +272,10 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-xl">
-          Meal Group Breakup Details
+          Meal Group Breakup with Ingredients
         </CardTitle>
         <CardDescription>
-          A detailed breakdown of ingredients within each meal group. Filter by feed type or export the data.
+          A detailed breakdown of meal groups and their constituent ingredients.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -320,8 +322,8 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Ingredient</TableHead>
                 <TableHead>Group Name</TableHead>
+                <TableHead>Ingredient</TableHead>
                 <TableHead className="text-right">Total Qty Required</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
@@ -334,13 +336,13 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             <TableBody>
               {breakupData.length > 0 ? (
                 breakupData.map((row, index) => (
-                  <TableRow key={`${row.ingredientName}-${row.groupName}-${index}`}>
+                  <TableRow key={`${row.groupName}-${row.ingredientName}-${index}`}>
                     {row.rowSpan > 0 ? (
                        <TableCell className="font-medium align-top" rowSpan={row.rowSpan}>
-                          {row.ingredientName}
+                          {row.groupName}
                         </TableCell>
                     ) : null}
-                    <TableCell>{row.groupName}</TableCell>
+                    <TableCell>{row.ingredientName}</TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatTotals(row.totals)}
                     </TableCell>
@@ -375,3 +377,4 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
     </Card>
   );
 }
+
