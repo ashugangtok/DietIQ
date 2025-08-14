@@ -35,6 +35,93 @@ interface BreakupRow {
   totals: { [uom: string]: { qty: number; qty_gram: number } };
 }
 
+const isWeightUnit = (uom: string) => {
+    if (!uom) return false;
+    const lowerUom = uom.toLowerCase();
+    return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
+};
+
+const isPieceUnit = (uom: string) => {
+    if (!uom) return false;
+    const lowerUom = uom.toLowerCase();
+    return lowerUom.includes('piece') || lowerUom.includes('pc');
+};
+
+const INSECT_WEIGHTS_G: { [key: string]: number } = {
+  'ant eggs': 0.003,
+  'caedicia major': 2.0,
+  'cockroaches': 2.5,
+  'crickets': 0.5,
+  'house geckos': 5.0,
+  'locusts': 2.0,
+  'maggots': 0.03,
+  'mealworms': 0.12,
+  'superworms': 2.0,
+  'silkworm': 1.0,
+};
+
+const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    if (!uom) return "0";
+    const uomLower = uom.toLowerCase();
+    
+    if (isWeightUnit(uom)) {
+        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
+            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+        }
+        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+     if (quantity === 1) {
+      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+    }
+    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+};
+
+const formatSeparatedTotals = (totals: BreakupRow['totals']) => {
+    let totalWeightGrams = 0;
+    const pieceTotals: string[] = [];
+
+    Object.entries(totals).forEach(([uom, values]) => {
+        if (isWeightUnit(uom)) {
+            totalWeightGrams += values.qty_gram;
+        } else {
+            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+        }
+    });
+
+    const weight = totalWeightGrams < 1000 
+      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
+      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+
+    return {
+        weight: totalWeightGrams > 0 ? weight : '-',
+        pieces: pieceTotals.join(', ') || '-',
+        rawWeightGrams: totalWeightGrams
+    };
+};
+  
+const getPcsToWeightInGrams = (ingredientName: string, totals: BreakupRow['totals']): number => {
+    const lowerIngredientName = ingredientName.toLowerCase();
+    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
+    if (!avgWeight) return 0;
+  
+    let totalPieces = 0;
+    Object.entries(totals).forEach(([uom, values]) => {
+      if (isPieceUnit(uom)) {
+        totalPieces += values.qty;
+      }
+    });
+  
+    return totalPieces * avgWeight;
+};
+
+const formatWeightFromGrams = (grams: number) => {
+    if (grams === 0) return '-';
+    if (grams < 1000) {
+      return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
+    }
+    return `${(grams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+};
+
 export function BreakupTable({ data }: { data: SheetDataRow[] }) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
 
@@ -111,49 +198,19 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
       })
     );
 
-    return result.sort((a, b) => a.ingredient.localeCompare(b.ingredient));
+    return result.sort((a, b) => {
+      const { rawWeightGrams: rawA } = formatSeparatedTotals(a.totals);
+      const pcsToWeightA = getPcsToWeightInGrams(a.ingredient, a.totals);
+      const totalA = rawA + pcsToWeightA;
+
+      const { rawWeightGrams: rawB } = formatSeparatedTotals(b.totals);
+      const pcsToWeightB = getPcsToWeightInGrams(b.ingredient, b.totals);
+      const totalB = rawB + pcsToWeightB;
+      
+      return totalB - totalA;
+    });
   }, [filteredData]);
 
-  const formatTotals = (totals: {
-    [uom: string]: { qty: number; qty_gram: number };
-  }) => {
-    if (Object.keys(totals).length === 0) return "-";
-
-    return Object.entries(totals)
-      .map(([uom, values]) => {
-        const uomLower = uom.toLowerCase();
-        const isWeight =
-          uomLower === "kilogram" || uomLower === "kg" || uomLower === "gram";
-
-        if (isWeight) {
-          if (
-            (uomLower === "kilogram" || uomLower === "kg") &&
-            values.qty < 1 &&
-            values.qty > 0
-          ) {
-            return `${values.qty_gram.toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            })} gram`;
-          }
-          return `${values.qty.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })} ${uom}`;
-        }
-
-        const uomDisplay =
-          values.qty === 1 && uom.endsWith("s") ? uom.slice(0, -1) : uom;
-        const qtyDisplay = Number.isInteger(values.qty)
-          ? values.qty.toLocaleString()
-          : values.qty.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
-
-        return `${qtyDisplay} ${uomDisplay}`;
-      })
-      .join(", ");
-  };
 
   return (
     <Card className="shadow-lg">
@@ -191,7 +248,10 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead>Ingredient</TableHead>
-                <TableHead className="text-right">Total Qty Required</TableHead>
+                <TableHead className="text-right">Total (Weight)</TableHead>
+                <TableHead className="text-right">Total (Pieces)</TableHead>
+                <TableHead className="text-right">Pcs into Weight</TableHead>
+                <TableHead className="text-right">Total Weight Req.</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
                 <TableHead className="text-center">
@@ -202,32 +262,46 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
             </TableHeader>
             <TableBody>
               {breakupData.length > 0 ? (
-                breakupData.map((row) => (
-                  <TableRow key={row.ingredient}>
-                    <TableCell className="font-medium">
-                      {row.ingredient}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-primary">
-                      {formatTotals(row.totals)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {row.speciesCount}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {row.animalCount}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {row.enclosureCount}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {row.siteCount}
-                    </TableCell>
-                  </TableRow>
-                ))
+                breakupData.map((row) => {
+                  const { weight, pieces, rawWeightGrams } = formatSeparatedTotals(row.totals);
+                  const pcsToWeightGrams = getPcsToWeightInGrams(row.ingredient, row.totals);
+                  const totalWeightGrams = rawWeightGrams + pcsToWeightGrams;
+                  return (
+                    <TableRow key={row.ingredient}>
+                      <TableCell className="font-medium">
+                        {row.ingredient}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        {weight}
+                      </TableCell>
+                       <TableCell className="text-right font-bold text-primary">
+                        {pieces}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        {formatWeightFromGrams(pcsToWeightGrams)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-primary">
+                        {formatWeightFromGrams(totalWeightGrams)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.speciesCount}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.animalCount}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.enclosureCount}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {row.siteCount}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={9}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No data available for the selected filter.
@@ -241,3 +315,4 @@ export function BreakupTable({ data }: { data: SheetDataRow[] }) {
     </Card>
   );
 }
+
