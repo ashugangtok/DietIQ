@@ -17,6 +17,7 @@ import Link from "next/link";
 import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
+import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
 
 
 export default function Home() {
@@ -154,7 +155,7 @@ export default function Home() {
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-6 max-w-4xl mx-auto">
+              <TabsList className="grid w-full grid-cols-7 max-w-6xl mx-auto">
                 <TabsTrigger value="live-dashboard">
                   <TrendingUp className="mr-2" />
                   Live Dashboard
@@ -174,6 +175,10 @@ export default function Home() {
                 <TabsTrigger value="meal-group-breakup">
                   <Group className="mr-2" />
                   Meal Group Breakup
+                </TabsTrigger>
+                <TabsTrigger value="meal-group-breakup-ingredients">
+                  <Group className="mr-2" />
+                  Meal Group Breakup with Ingredients
                 </TabsTrigger>
                 <TabsTrigger value="kitchen" asChild>
                   <Link href="/kitchen">
@@ -196,6 +201,9 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="meal-group-breakup" className="mt-6">
                 <MealGroupBreakupTable data={data} />
+              </TabsContent>
+              <TabsContent value="meal-group-breakup-ingredients" className="mt-6">
+                <MealGroupBreakupWithIngredientsTable data={data} />
               </TabsContent>
             </Tabs>
           </div>
