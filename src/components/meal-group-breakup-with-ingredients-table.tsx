@@ -219,49 +219,47 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             'Species', 'Animals', 'Enclosures', 'Sites'
         ]];
         
-        const body = aggregatedDataForExport.map(row => ([
-            row.groupName,
-            row.ingredientName,
-            formatTotals(row.totals),
-            row.speciesCount,
-            row.animalCount,
-            row.enclosureCount,
-            row.siteCount
-        ]));
+        const body: any[] = [];
+        const groupedForPdf = breakupData.reduce((acc, row) => {
+            if (!acc[row.groupName]) {
+                acc[row.groupName] = [];
+            }
+            acc[row.groupName].push(row);
+            return acc;
+        }, {} as Record<string, typeof breakupData>);
+        
+        Object.entries(groupedForPdf).forEach(([groupName, items]) => {
+            items.forEach((item, index) => {
+                const row = [
+                    { content: groupName, rowSpan: items.length, styles: { valign: 'middle', halign: 'left' } },
+                    item.ingredientName,
+                    formatTotals(item.totals),
+                    item.speciesCount,
+                    item.animalCount,
+                    item.enclosureCount,
+                    item.siteCount
+                ];
+                // Only add the group name for the first item in the group
+                body.push(index === 0 ? row : row.slice(1));
+            });
+        });
 
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            willDrawCell: function (data) {
-                const doc = data.doc;
-                const rows = data.table.body;
-                // Determine if the current cell is the first cell in the row
-                if (data.column.index === 0) {
-                    // Check if the current row's group name is the same as the previous one
-                    if (data.row.index > 0 && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
-                        // If it is, clear the text content
-                        data.cell.text = [''];
-                    }
-                }
-
-                // Remove the bottom border for all cells in a row if it's not the last row of the group
-                const isLastInGroup = data.row.index === rows.length - 1 || rows[data.row.index].cells[0].raw !== rows[data.row.index + 1].cells[0].raw;
-                if (!isLastInGroup) {
-                    doc.setDrawColor(255, 255, 255); // Set border color to white to "erase" it
-                }
-            },
-            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10, halign: 'center' },
-            bodyStyles: { fontSize: 9, cellPadding: 1.5, valign: 'middle' },
+            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, halign: 'center' },
+            bodyStyles: { valign: 'middle' },
             columnStyles: {
-                0: { fontStyle: 'bold' },
+                0: { halign: 'left' },
+                1: { halign: 'left' },
                 2: { halign: 'right' },
                 3: { halign: 'center' },
                 4: { halign: 'center' },
                 5: { halign: 'center' },
                 6: { halign: 'center' },
-            }
+            },
         });
 
         doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
