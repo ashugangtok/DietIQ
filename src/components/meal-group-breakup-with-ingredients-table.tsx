@@ -182,7 +182,6 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
   const breakupData = useMemo(() => {
     if (!aggregatedDataForExport || aggregatedDataForExport.length === 0) return [];
     
-    // Calculate row spans for UI from the already sorted export data
     const finalResult: MealGroupBreakupRow[] = [];
     const groupNameCache: { [key: string]: number } = {};
 
@@ -213,40 +212,48 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             unit: 'mm',
             format: 'a4'
         });
-        const pageMargin = 10;
-        doc.text(title, pageMargin, 15);
+        doc.text(title, 14, 15);
 
         const head = [[
             'Group Name', 'Ingredient', 'Total Qty Required', 
             'Species', 'Animals', 'Enclosures', 'Sites'
         ]];
         
-        const body: any[][] = [];
+        const body = aggregatedDataForExport.map(row => ([
+            row.groupName,
+            row.ingredientName,
+            formatTotals(row.totals),
+            row.speciesCount,
+            row.animalCount,
+            row.enclosureCount,
+            row.siteCount
+        ]));
 
-        breakupData.forEach(row => {
-            const tableRow = [];
-            if (row.rowSpan > 0) {
-                tableRow.push({ content: row.groupName, rowSpan: row.rowSpan });
-            }
-            tableRow.push(
-                row.ingredientName,
-                formatTotals(row.totals),
-                row.speciesCount.toString(),
-                row.animalCount.toString(),
-                row.enclosureCount.toString(),
-                row.siteCount.toString()
-            );
-            body.push(tableRow);
-        });
-
+        let lastGroupName = "";
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10 },
-            styles: { fontSize: 9, cellPadding: 1.5, valign: 'middle' },
-            margin: { left: pageMargin, right: pageMargin }
+            didParseCell: function (data) {
+                if (data.column.index === 0) {
+                    if (data.cell.raw === lastGroupName) {
+                        data.cell.text = [''];
+                    } else {
+                        lastGroupName = data.cell.raw as string;
+                    }
+                }
+            },
+            headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10, halign: 'center' },
+            bodyStyles: { fontSize: 9, cellPadding: 1.5, valign: 'middle' },
+            columnStyles: {
+                0: { fontStyle: 'bold' },
+                2: { halign: 'right' },
+                3: { halign: 'center' },
+                4: { halign: 'center' },
+                5: { halign: 'center' },
+                6: { halign: 'center' },
+            }
         });
 
         doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
