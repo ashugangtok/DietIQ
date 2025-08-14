@@ -155,7 +155,7 @@ export default function Home() {
         {data.length > 0 && !isLoading && (
           <div className="w-full max-w-7xl mt-8">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-7 max-w-6xl mx-auto">
+              <TabsList className="flex flex-wrap h-auto justify-center gap-1">
                 <TabsTrigger value="live-dashboard">
                   <TrendingUp className="mr-2" />
                   Live Dashboard
