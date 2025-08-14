@@ -146,6 +146,21 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return groups;
   }, [summaryData]);
 
+  const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
+    const lowerIngredientName = ingredientName.toLowerCase();
+    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
+    if (!avgWeight) return 0;
+  
+    let totalPieces = 0;
+    Object.entries(totals).forEach(([uom, values]) => {
+      if (isPieceUnit(uom)) {
+        totalPieces += values.qty;
+      }
+    });
+  
+    return totalPieces * avgWeight;
+  };
+
   const overallTotals = useMemo(() => {
     const totalsMap = new Map<string, { [uom: string]: { qty: number; qty_gram: number } }>();
     summaryData.forEach(row => {
@@ -163,9 +178,19 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
         totalsMap.set(key, current);
     });
 
-    return Array.from(totalsMap.entries()).map(([ingredient_name, totals]) => {
-        return { ingredient_name, totals };
-    }).sort((a, b) => a.ingredient_name.localeCompare(b.ingredient_name));
+    const unsortedTotals = Array.from(totalsMap.entries()).map(([ingredient_name, totals]) => ({ ingredient_name, totals }));
+
+    return unsortedTotals.sort((a, b) => {
+      const { rawWeightGrams: rawA } = formatSeparatedTotals(a.totals);
+      const pcsToWeightA = getPcsToWeightInGrams(a.ingredient_name, a.totals);
+      const totalA = rawA + pcsToWeightA;
+
+      const { rawWeightGrams: rawB } = formatSeparatedTotals(b.totals);
+      const pcsToWeightB = getPcsToWeightInGrams(b.ingredient_name, b.totals);
+      const totalB = rawB + pcsToWeightB;
+      
+      return totalB - totalA;
+    });
   }, [summaryData]);
   
   const grandTotals = useMemo(() => {
@@ -248,21 +273,6 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
         pieces: pieceTotals.join(', ') || '-',
         rawWeightGrams: totalWeightGrams
     };
-  };
-
-  const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
-    const lowerIngredientName = ingredientName.toLowerCase();
-    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
-    if (!avgWeight) return 0;
-  
-    let totalPieces = 0;
-    Object.entries(totals).forEach(([uom, values]) => {
-      if (isPieceUnit(uom)) {
-        totalPieces += values.qty;
-      }
-    });
-  
-    return totalPieces * avgWeight;
   };
 
   const formatWeightFromGrams = (grams: number) => {
