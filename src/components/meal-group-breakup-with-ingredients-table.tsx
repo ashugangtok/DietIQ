@@ -236,7 +236,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
         body,
         startY: 20,
         theme: 'grid',
-        headStyles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: 0, fontSize: 10 },
+        headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10 },
         styles: { fontSize: 9, cellPadding: 1.5 },
         margin: { left: pageMargin, right: pageMargin }
       });
