@@ -205,17 +205,17 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
   const handleDownload = (type: 'pdf' | 'excel') => {
     setIsDownloading(true);
 
+    const dataToExport = aggregatedDataForExport.map(row => ({
+      'Group Name': row.groupName,
+      'Ingredient': row.ingredientName,
+      'Total Qty Required': formatTotals(row.totals),
+      'Count of Species': row.speciesCount,
+      'Count of Animals': row.animalCount,
+      'Count of Enclosures': row.enclosureCount,
+      'Count of Sites': row.siteCount,
+    }));
+
     if (type === 'excel') {
-      const dataToExport = aggregatedDataForExport.map(row => ({
-        'Group Name': row.groupName,
-        'Ingredient': row.ingredientName,
-        'Total Qty Required': formatTotals(row.totals),
-        'Count of Species': row.speciesCount,
-        'Count of Animals': row.animalCount,
-        'Count of Enclosures': row.enclosureCount,
-        'Count of Sites': row.siteCount,
-      }));
-      
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
 
@@ -232,44 +232,28 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       return;
     }
     
-    // PDF Generation Logic as provided by the user
+    // PDF Generation Logic
     const doc = new jsPDF("p", "pt");
 
     doc.setFontSize(14);
     doc.text("Meal Group Breakup with Ingredients", 40, 30);
 
-    // Group the aggregated data for PDF generation
-    const groupedForPdf = aggregatedDataForExport.reduce((acc, row) => {
-        if (!acc[row.groupName]) {
-            acc[row.groupName] = { groupName: row.groupName, ingredients: [] };
+    const rows: (string|number)[][] = [];
+    aggregatedDataForExport.forEach((row, index, array) => {
+        let groupNameCell = row.groupName;
+        // If the current row's group name is the same as the previous one, make it blank
+        if (index > 0 && row.groupName === array[index - 1].groupName) {
+            groupNameCell = "";
         }
-        acc[row.groupName].ingredients.push({
-            ingredient: row.ingredientName,
-            totalQty: formatTotals(row.totals),
-            countSpecies: row.speciesCount,
-            countAnimals: row.animalCount,
-            countEnclosures: row.enclosureCount,
-            countSites: row.siteCount,
-        });
-        return acc;
-    }, {} as Record<string, { groupName: string; ingredients: any[] }>);
-
-    const tableData = Object.values(groupedForPdf);
-    
-    // Flatten the grouped data so group name is in first column, but only for the first row of each group
-    const rows = [];
-    tableData.forEach((group) => {
-        group.ingredients.forEach((item, index) => {
-            rows.push([
-                index === 0 ? group.groupName : "", // Show group name only for the first item
-                item.ingredient,
-                item.totalQty,
-                item.countSpecies,
-                item.countAnimals,
-                item.countEnclosures,
-                item.countSites,
-            ]);
-        });
+        rows.push([
+            groupNameCell,
+            row.ingredientName,
+            formatTotals(row.totals),
+            row.speciesCount,
+            row.animalCount,
+            row.enclosureCount,
+            row.siteCount,
+        ]);
     });
 
     autoTable(doc, {
@@ -291,6 +275,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
         columnStyles: {
             0: { halign: "left" }, 
             1: { halign: "left" }, 
+            2: { halign: "left" },
         },
         margin: { top: 50, left: 40, right: 40 },
     });
@@ -355,7 +340,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
               <TableRow>
                 <TableHead>Group Name</TableHead>
                 <TableHead>Ingredient</TableHead>
-                <TableHead className="text-right">Total Qty Required</TableHead>
+                <TableHead>Total Qty Required</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
                 <TableHead className="text-center">
@@ -374,9 +359,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                         </TableCell>
                     ) : null}
                     <TableCell>{row.ingredientName}</TableCell>
-                    <TableCell className="text-right font-bold text-primary">
-                      {formatTotals(row.totals)}
-                    </TableCell>
+                    <TableCell>{formatTotals(row.totals)}</TableCell>
                     <TableCell className="text-center">
                       {row.speciesCount}
                     </TableCell>
