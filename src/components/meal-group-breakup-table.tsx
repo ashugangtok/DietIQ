@@ -68,7 +68,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
 
     filteredData.forEach((row) => {
       const {
-        type_name,
+        group_name,
         ingredient_name,
         common_name,
         animal_id,
@@ -79,7 +79,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
         base_uom_name,
       } = row;
 
-      const key = `${type_name}|${ingredient_name}`;
+      const key = `${group_name}|${ingredient_name}`;
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
@@ -120,7 +120,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       }
     );
 
-    const sortedResult = initialResult.sort((a, b) => a.groupName.localeCompare(b.groupName) || a.ingredient.localeCompare(b.ingredient));
+    const sortedResult = initialResult.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || "") || a.ingredient.localeCompare(b.ingredient));
     
     // Calculate row spans
     const finalResult: MealGroupBreakupRow[] = [];
@@ -191,7 +191,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
           Meal Group Breakup Details
         </CardTitle>
         <CardDescription>
-          A detailed breakdown of ingredients within each meal group (recipe/combo).
+          A detailed breakdown of ingredients within each meal group.
         </CardDescription>
       </CardHeader>
       <CardContent>

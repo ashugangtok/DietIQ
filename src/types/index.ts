@@ -8,6 +8,7 @@ export interface SheetDataRow {
   ingredient_name: string;
   type: string;
   type_name: string;
+  group_name: string;
   ingredient_qty: number;
   base_uom_name: string;
   ingredient_qty_gram: number;
