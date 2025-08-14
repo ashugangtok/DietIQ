@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { type CellHookData } from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import {
   Table,
@@ -219,30 +219,15 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             'Species', 'Animals', 'Enclosures', 'Sites'
         ]];
         
-        const body: any[] = [];
-        const groupedForPdf = breakupData.reduce((acc, row) => {
-            if (!acc[row.groupName]) {
-                acc[row.groupName] = [];
-            }
-            acc[row.groupName].push(row);
-            return acc;
-        }, {} as Record<string, typeof breakupData>);
-        
-        Object.entries(groupedForPdf).forEach(([groupName, items]) => {
-            items.forEach((item, index) => {
-                const row = [
-                    { content: groupName, rowSpan: items.length, styles: { valign: 'middle', halign: 'left' } },
-                    item.ingredientName,
-                    formatTotals(item.totals),
-                    item.speciesCount,
-                    item.animalCount,
-                    item.enclosureCount,
-                    item.siteCount
-                ];
-                // Only add the group name for the first item in the group
-                body.push(index === 0 ? row : row.slice(1));
-            });
-        });
+        const body = aggregatedDataForExport.map(row => [
+            row.groupName,
+            row.ingredientName,
+            formatTotals(row.totals),
+            row.speciesCount.toString(),
+            row.animalCount.toString(),
+            row.enclosureCount.toString(),
+            row.siteCount.toString()
+        ]);
 
         autoTable(doc, {
             head,
@@ -259,6 +244,40 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                 4: { halign: 'center' },
                 5: { halign: 'center' },
                 6: { halign: 'center' },
+            },
+            willDrawCell: (data: CellHookData) => {
+                const doc = data.doc;
+                const rows = data.table.body;
+                // Only modify the first column ('Group Name')
+                if (data.column.index === 0) {
+                    // Check if the current row's group name is the same as the previous one
+                    if (data.row.index > 0 && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
+                        // If it's the same, we hide the text by drawing a white box over it.
+                        // This gives the visual appearance of a merged cell.
+                        doc.setFillColor(255, 255, 255); // White color
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                    }
+                }
+            },
+            didDrawCell: (data: CellHookData) => {
+                const doc = data.doc;
+                const rows = data.table.body;
+                // Modify borders for the first column to create the merged look
+                if (data.column.index === 0 && data.row.index > 0) {
+                    if (rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
+                        // If the group name is the same as the one above, remove the top border of the cell
+                        doc.setDrawColor(255, 255, 255); // White color to "erase" the border
+                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                    }
+                }
+                 // Modify borders for all cells to remove the bottom border if the next row is part of the same group
+                if (data.row.index < rows.length - 1) {
+                    if (rows[data.row.index].cells[0].raw === rows[data.row.index + 1].cells[0].raw) {
+                         // If the next row has the same group name, remove the bottom border of the current cell
+                        doc.setDrawColor(255, 255, 255);
+                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                    }
+                }
             },
         });
 
