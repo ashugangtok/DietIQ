@@ -237,7 +237,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, halign: 'center' },
             bodyStyles: { valign: 'middle' },
             columnStyles: {
-                0: { halign: 'left' },
+                0: { halign: 'left', valign: 'middle' },
                 1: { halign: 'left' },
                 2: { halign: 'right' },
                 3: { halign: 'center' },
@@ -248,13 +248,9 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             willDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                // Only modify the first column ('Group Name')
-                if (data.column.index === 0) {
-                    // Check if the current row's group name is the same as the previous one
-                    if (data.row.index > 0 && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
-                        // If it's the same, we hide the text by drawing a white box over it.
-                        // This gives the visual appearance of a merged cell.
-                        doc.setFillColor(255, 255, 255); // White color
+                if (data.column.index === 0 && data.row.index > 0) {
+                     if (rows[data.row.index - 1] && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
+                        doc.setFillColor(255, 255, 255);
                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
                     }
                 }
@@ -262,18 +258,16 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             didDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                // Modify borders for the first column to create the merged look
-                if (data.column.index === 0 && data.row.index > 0) {
-                    if (rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
-                        // If the group name is the same as the one above, remove the top border of the cell
-                        doc.setDrawColor(255, 255, 255); // White color to "erase" the border
+                 if (data.column.index === 0 && data.row.index > 0) {
+                    if (rows[data.row.index - 1] && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
+                        doc.setDrawColor(255, 255, 255);
                         doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
                     }
                 }
-                 // Modify borders for all cells to remove the bottom border if the next row is part of the same group
                 if (data.row.index < rows.length - 1) {
-                    if (rows[data.row.index].cells[0].raw === rows[data.row.index + 1].cells[0].raw) {
-                         // If the next row has the same group name, remove the bottom border of the current cell
+                    const currentRow = rows[data.row.index];
+                    const nextRow = rows[data.row.index + 1];
+                    if (currentRow && nextRow && currentRow.cells[0] && nextRow.cells[0] && currentRow.cells[0].raw === nextRow.cells[0].raw) {
                         doc.setDrawColor(255, 255, 255);
                         doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
                     }
