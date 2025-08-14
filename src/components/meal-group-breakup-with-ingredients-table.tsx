@@ -256,7 +256,7 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
 
     const tableData = Object.values(groupedForPdf);
     
-    // Flatten the grouped data so group name is in first column
+    // Flatten the grouped data so group name is in first column, but only for the first row of each group
     const rows = [];
     tableData.forEach((group) => {
         group.ingredients.forEach((item, index) => {
@@ -291,24 +291,6 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
         columnStyles: {
             0: { halign: "left" }, 
             1: { halign: "left" }, 
-        },
-        didDrawCell: (data) => {
-            // This hook handles merging the group name cells visually
-            if (data.column.index === 0 && data.cell.raw) {
-                let cell = data.cell;
-                let row = data.row;
-                let body = data.table.body;
-                
-                let i = row.index + 1;
-                while (i < body.length && !body[i].cells[0].raw) {
-                    cell.height += body[i].height;
-                    i++;
-                }
-
-                // Remove the bottom border of the merged cell
-                doc.setDrawColor(255, 255, 255); // White
-                doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
-            }
         },
         margin: { top: 50, left: 40, right: 40 },
     });
