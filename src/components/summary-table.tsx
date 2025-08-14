@@ -32,7 +32,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { Download } from "lucide-react";
+import { Download, Info } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Input } from "./ui/input";
 
 interface SummaryRow {
   site_name: string;
@@ -44,18 +46,6 @@ interface OverallTotalRow {
   ingredient_name: string;
   totals: { [uom: string]: { qty: number; qty_gram: number } };
 }
-
-const isWeightUnit = (uom: string) => {
-    if (!uom) return false;
-    const lowerUom = uom.toLowerCase();
-    return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
-};
-
-const isPieceUnit = (uom: string) => {
-    if (!uom) return false;
-    const lowerUom = uom.toLowerCase();
-    return lowerUom.includes('piece') || lowerUom.includes('pc');
-};
 
 const INSECT_WEIGHTS_G: { [key: string]: number } = {
   'ant eggs': 0.003,
@@ -70,11 +60,88 @@ const INSECT_WEIGHTS_G: { [key: string]: number } = {
   'silkworm': 1.0,
 };
 
+const isWeightUnit = (uom: string) => {
+    if (!uom) return false;
+    const lowerUom = uom.toLowerCase();
+    return lowerUom === 'gram' || lowerUom === 'kg' || lowerUom === 'kilogram';
+};
+
+const isPieceUnit = (uom: string) => {
+    if (!uom) return false;
+    const lowerUom = uom.toLowerCase();
+    return lowerUom.includes('piece') || lowerUom.includes('pc');
+};
+
+const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
+    if (!uom) return "0";
+    const uomLower = uom.toLowerCase();
+    
+    if (isWeightUnit(uom)) {
+        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
+            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+        }
+        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    }
+     if (quantity === 1) {
+      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+    }
+    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+};
+
+const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
+    let totalWeightGrams = 0;
+    const pieceTotals: string[] = [];
+
+    Object.entries(totals).forEach(([uom, values]) => {
+        if (isWeightUnit(uom)) {
+            totalWeightGrams += values.qty_gram;
+        } else {
+            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
+        }
+    });
+
+    const weight = totalWeightGrams < 1000 
+      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
+      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+
+    return {
+        weight: totalWeightGrams > 0 ? weight : '-',
+        pieces: pieceTotals.join(', ') || '-',
+        rawWeightGrams: totalWeightGrams
+    };
+};
+  
+const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
+    const lowerIngredientName = ingredientName.toLowerCase().trim();
+    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName as keyof typeof INSECT_WEIGHTS_G];
+
+    if (!avgWeight) return 0;
+  
+    let totalPieces = 0;
+    Object.entries(totals).forEach(([uom, values]) => {
+      if (isPieceUnit(uom)) {
+        totalPieces += values.qty;
+      }
+    });
+  
+    return totalPieces * avgWeight;
+};
+
+const formatWeightFromGrams = (grams: number) => {
+    if (grams === 0) return '-';
+    if (grams < 1000) {
+      return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
+    }
+    return `${(grams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
+};
 
 export function SummaryTable({ data }: {data: SheetDataRow[]}) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
   const [ingredientFilter, setIngredientFilter] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
 
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
   const ingredientOptions = useMemo(() => [...new Set(data.map(item => item.ingredient_name))].sort(), [data]);
@@ -83,9 +150,28 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return data.filter(row => {
       const feedTypeMatch = feedTypeFilter ? row['Feed type name'] === feedTypeFilter : true;
       const ingredientMatch = ingredientFilter.length > 0 ? ingredientFilter.includes(row.ingredient_name) : true;
-      return feedTypeMatch && ingredientMatch;
+      
+      const dateMatch = (() => {
+        if (!startDate && !endDate) return true;
+        // @ts-ignore
+        if (!row.feeding_date) return true; // If row has no date, don't filter it out when dates are set
+
+        // @ts-ignore
+        const rowDate = new Date(row.feeding_date);
+        if (isNaN(rowDate.getTime())) return true; // Invalid date in data, don't filter out
+
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+
+        if (start && end) return rowDate >= start && rowDate <= end;
+        if (start) return rowDate >= start;
+        if (end) return rowDate <= end;
+        return true;
+      })();
+      
+      return feedTypeMatch && ingredientMatch && dateMatch;
     });
-  }, [data, feedTypeFilter, ingredientFilter]);
+  }, [data, feedTypeFilter, ingredientFilter, startDate, endDate]);
 
   const summaryData = useMemo(() => {
     if (filteredData.length === 0) return [];
@@ -146,60 +232,6 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return groups;
   }, [summaryData]);
 
-  const formatTotal = (quantity: number, quantityGram: number, uom: string) => {
-    if (!uom) return "0";
-    const uomLower = uom.toLowerCase();
-    
-    if (isWeightUnit(uom)) {
-        if ((uomLower === 'kilogram' || uomLower === 'kg') && quantity < 1 && quantity > 0) {
-            return `${(quantityGram || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
-        }
-        return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-    }
-     if (quantity === 1) {
-      return `${(quantity || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
-    }
-    return `${(quantity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
-  };
-
-  const formatSeparatedTotals = (totals: OverallTotalRow['totals']) => {
-    let totalWeightGrams = 0;
-    const pieceTotals: string[] = [];
-
-    Object.entries(totals).forEach(([uom, values]) => {
-        if (isWeightUnit(uom)) {
-            totalWeightGrams += values.qty_gram;
-        } else {
-            pieceTotals.push(formatTotal(values.qty, values.qty_gram, uom));
-        }
-    });
-
-    const weight = totalWeightGrams < 1000 
-      ? `${totalWeightGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`
-      : `${(totalWeightGrams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
-
-    return {
-        weight: totalWeightGrams > 0 ? weight : '-',
-        pieces: pieceTotals.join(', ') || '-',
-        rawWeightGrams: totalWeightGrams
-    };
-  };
-  
-  const getPcsToWeightInGrams = (ingredientName: string, totals: OverallTotalRow['totals']): number => {
-    const lowerIngredientName = ingredientName.toLowerCase();
-    const avgWeight = INSECT_WEIGHTS_G[lowerIngredientName];
-    if (!avgWeight) return 0;
-  
-    let totalPieces = 0;
-    Object.entries(totals).forEach(([uom, values]) => {
-      if (isPieceUnit(uom)) {
-        totalPieces += values.qty;
-      }
-    });
-  
-    return totalPieces * avgWeight;
-  };
-
   const overallTotals = useMemo(() => {
     const totalsMap = new Map<string, { [uom: string]: { qty: number; qty_gram: number } }>();
     summaryData.forEach(row => {
@@ -217,7 +249,7 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
         totalsMap.set(key, current);
     });
 
-    const unsortedTotals = Array.from(totalsMap.entries()).map(([ingredient_name, totals]) => ({ ingredient_name, totals }));
+    const unsortedTotals: OverallTotalRow[] = Array.from(totalsMap.entries()).map(([ingredient_name, totals]) => ({ ingredient_name, totals }));
 
     return unsortedTotals.sort((a, b) => {
       const { rawWeightGrams: rawA } = formatSeparatedTotals(a.totals);
@@ -273,14 +305,6 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     return Object.entries(totals).map(([uom, values]) => {
         return formatTotal(values.qty, values.qty_gram, uom);
     }).join(', ');
-  };
-
-  const formatWeightFromGrams = (grams: number) => {
-    if (grams === 0) return '-';
-    if (grams < 1000) {
-      return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
-    }
-    return `${(grams / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} kg`;
   };
 
   const handleDownload = async (type: 'summary' | 'overall' | 'all') => {
@@ -368,6 +392,20 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+        <Input 
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full sm:w-auto bg-background"
+            aria-label="Start Date"
+        />
+        <Input 
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full sm:w-auto bg-background"
+            aria-label="End Date"
+        />
         <Select value={feedTypeFilter} onValueChange={(value) => setFeedTypeFilter(value === 'all' ? '' : value)}>
           <SelectTrigger className="w-full sm:w-[240px] bg-background">
             <SelectValue placeholder="Filter by Feed Type Name" />
@@ -409,6 +447,31 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      
+      <Accordion type="single" collapsible className="w-full mb-6">
+        <AccordionItem value="item-1">
+          <AccordionTrigger>
+            <div className="flex items-center gap-2 text-sm">
+                <Info className="h-4 w-4" />
+                <span>Reference for average weight per piece</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-2 text-sm text-muted-foreground">
+                    {Object.entries(INSECT_WEIGHTS_G).map(([name, weight]) => (
+                        <div key={name} className="flex justify-between border-b border-dashed">
+                            <span className="capitalize">{name}</span>
+                            <span>~{weight}g</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+
       <div className="flex flex-col lg:flex-row gap-8">
         <div id="ingredient-summary-card" className="lg:w-1/2">
           <Card className="shadow-lg">
@@ -511,7 +574,3 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
     </div>
   );
 }
-    
-
-    
-
