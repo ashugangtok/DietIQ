@@ -229,19 +229,27 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             row.siteCount
         ]));
 
-        let lastGroupName = "";
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            didParseCell: function (data) {
+            willDrawCell: function (data) {
+                const doc = data.doc;
+                const rows = data.table.body;
+                // Determine if the current cell is the first cell in the row
                 if (data.column.index === 0) {
-                    if (data.cell.raw === lastGroupName) {
+                    // Check if the current row's group name is the same as the previous one
+                    if (data.row.index > 0 && rows[data.row.index].cells[0].raw === rows[data.row.index - 1].cells[0].raw) {
+                        // If it is, clear the text content
                         data.cell.text = [''];
-                    } else {
-                        lastGroupName = data.cell.raw as string;
                     }
+                }
+
+                // Remove the bottom border for all cells in a row if it's not the last row of the group
+                const isLastInGroup = data.row.index === rows.length - 1 || rows[data.row.index].cells[0].raw !== rows[data.row.index + 1].cells[0].raw;
+                if (!isLastInGroup) {
+                    doc.setDrawColor(255, 255, 255); // Set border color to white to "erase" it
                 }
             },
             headStyles: { fontStyle: 'bold', fillColor: [230, 230, 230], textColor: 0, fontSize: 10, halign: 'center' },
