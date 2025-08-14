@@ -232,76 +232,88 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       return;
     }
     
-    // PDF Generation Logic
+    // PDF Generation Logic as provided by the user
     const doc = new jsPDF("p", "pt");
+
     doc.setFontSize(14);
     doc.text("Meal Group Breakup with Ingredients", 40, 30);
 
+    // Group the aggregated data for PDF generation
     const groupedForPdf = aggregatedDataForExport.reduce((acc, row) => {
         if (!acc[row.groupName]) {
-            acc[row.groupName] = [];
+            acc[row.groupName] = { groupName: row.groupName, ingredients: [] };
         }
-        acc[row.groupName].push(row);
+        acc[row.groupName].ingredients.push({
+            ingredient: row.ingredientName,
+            totalQty: formatTotals(row.totals),
+            countSpecies: row.speciesCount,
+            countAnimals: row.animalCount,
+            countEnclosures: row.enclosureCount,
+            countSites: row.siteCount,
+        });
         return acc;
-    }, {} as Record<string, typeof aggregatedDataForExport>);
+    }, {} as Record<string, { groupName: string; ingredients: any[] }>);
 
-    let startY = 50;
-
-    Object.entries(groupedForPdf).forEach(([groupName, ingredients]) => {
-      autoTable(doc, {
-        head: [[{content: groupName, colSpan: 6}]],
-        body: [],
-        startY,
-        theme: 'plain',
-        headStyles: {
-            fontStyle: 'bold',
-            fontSize: 12,
-            halign: 'left',
-            fillColor: [240, 240, 240]
-        },
-      });
-
-      startY = (doc as any).lastAutoTable.finalY;
-
-      autoTable(doc, {
-        head: [[
-          "Ingredient",
-          "Total Qty Required",
-          "Count of Species",
-          "Count of Animals",
-          "Count of Enclosures",
-          "Count of Sites",
-        ]],
-        body: ingredients.map(item => [
-          item.ingredientName,
-          formatTotals(item.totals),
-          item.speciesCount,
-          item.animalCount,
-          item.enclosureCount,
-          item.siteCount,
-        ]),
-        startY: startY + 2,
-        theme: 'grid',
-        styles: {
-            fontSize: 10,
-            halign: 'center',
-            valign: 'middle',
-            cellPadding: 4,
-        },
-        headStyles: {
-            fillColor: [220, 220, 220],
-            textColor: 20,
-            fontStyle: 'bold',
-        },
-        columnStyles: {
-            0: { halign: 'left' },
-            1: { halign: 'left' },
-        },
-      });
-      startY = (doc as any).lastAutoTable.finalY + 20; // Add space between groups
+    const tableData = Object.values(groupedForPdf);
+    
+    // Flatten the grouped data so group name is in first column
+    const rows = [];
+    tableData.forEach((group) => {
+        group.ingredients.forEach((item, index) => {
+            rows.push([
+                index === 0 ? group.groupName : "", // Show group name only for the first item
+                item.ingredient,
+                item.totalQty,
+                item.countSpecies,
+                item.countAnimals,
+                item.countEnclosures,
+                item.countSites,
+            ]);
+        });
     });
 
-    doc.save(`meal-group-breakup-${new Date().toISOString().split('T')[0]}.pdf`);
+    autoTable(doc, {
+        head: [
+            [
+                "Group Name",
+                "Ingredient",
+                "Total Qty Required",
+                "Count of Species",
+                "Count of Animals",
+                "Count of Enclosures",
+                "Count of Sites",
+            ],
+        ],
+        body: rows,
+        theme: "grid",
+        styles: { fontSize: 10, halign: "center", cellPadding: 4, valign: 'middle' },
+        headStyles: { fillColor: [220, 220, 220], textColor: 0, fontStyle: "bold" },
+        columnStyles: {
+            0: { halign: "left" }, 
+            1: { halign: "left" }, 
+        },
+        didDrawCell: (data) => {
+            // This hook handles merging the group name cells visually
+            if (data.column.index === 0 && data.cell.raw) {
+                let cell = data.cell;
+                let row = data.row;
+                let body = data.table.body;
+                
+                let i = row.index + 1;
+                while (i < body.length && !body[i].cells[0].raw) {
+                    cell.height += body[i].height;
+                    i++;
+                }
+
+                // Remove the bottom border of the merged cell
+                doc.setDrawColor(255, 255, 255); // White
+                doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
+            }
+        },
+        margin: { top: 50, left: 40, right: 40 },
+    });
+
+    doc.save(`Meal_Group_Breakup-${new Date().toISOString().split('T')[0]}.pdf`);
     setIsDownloading(false);
   };
 
