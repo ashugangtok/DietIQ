@@ -229,88 +229,117 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
       link.click();
       document.body.removeChild(link);
     } else if (type === 'pdf') {
-      const doc = new jsPDF({
-          orientation: 'p',
-          unit: 'mm',
-          format: 'a4'
-      });
-      const title = "Meal Group Breakup with Ingredients";
-      doc.text(title, 14, 15);
+        const doc = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4'
+        });
+        const title = "Meal Group Breakup with Ingredients";
+        doc.text(title, 14, 15);
 
-      const head = [[
-        'Group Name', 'Ingredient', 'Total Qty Required', 
-        'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
-      ]];
+        const head = [[
+          'Group Name', 'Ingredient', 'Total Qty Required', 
+          'Count of Species', 'Count of Animals', 'Count of Enclosures', 'Count of Sites'
+        ]];
 
-      const body = aggregatedDataForExport.map(row => [
-        row.groupName,
-        row.ingredientName,
-        formatTotals(row.totals),
-        row.speciesCount,
-        row.animalCount,
-        row.enclosureCount,
-        row.siteCount,
-      ]);
+        const body = aggregatedDataForExport.map(row => [
+          row.groupName,
+          row.ingredientName,
+          formatTotals(row.totals),
+          row.speciesCount,
+          row.animalCount,
+          row.enclosureCount,
+          row.siteCount,
+        ]);
 
-      let lastGroupName = "";
+        autoTable(doc, {
+            head: head,
+            body: body,
+            startY: 20,
+            theme: 'grid',
+            headStyles: { 
+              fontStyle: 'bold', 
+              halign: 'center',
+              valign: 'middle',
+              fillColor: [230, 230, 230], 
+              textColor: 20, 
+              lineWidth: 0.1 
+            },
+            columnStyles: {
+                0: { halign: 'left', valign: 'middle' }, // Group Name
+                1: { halign: 'left', valign: 'middle' }, // Ingredient
+                2: { halign: 'left', valign: 'middle' }, // Total Qty Required
+                3: { halign: 'center', valign: 'middle' }, // Species
+                4: { halign: 'center', valign: 'middle' }, // Animals
+                5: { halign: 'center', valign: 'middle' }, // Enclosures
+                6: { halign: 'center', valign: 'middle' }, // Sites
+            },
+            willDrawCell: function (data) {
+                const rows = data.table.body;
+                const rowIndex = data.row.index;
 
-      autoTable(doc, {
-          head: head,
-          body: body,
-          startY: 20,
-          theme: 'grid',
-          headStyles: { 
-            fontStyle: 'bold', 
-            halign: 'center', 
-            fillColor: [220, 220, 220], 
-            textColor: 0, 
-            lineWidth: 0.1 
-          },
-          columnStyles: {
-              0: { halign: 'left', fontStyle: 'bold' }, // Group Name
-              1: { halign: 'left' }, // Ingredient
-              2: { halign: 'left' }, // Total Qty Required
-              3: { halign: 'center' }, // Species
-              4: { halign: 'center' }, // Animals
-              5: { halign: 'center' }, // Enclosures
-              6: { halign: 'center' }, // Sites
-          },
-          didParseCell: function (data) {
-              if (data.column.index === 0) { // Group Name column
-                  if (data.cell.raw === lastGroupName) {
-                      data.cell.text = ['']; // Hide text if it's the same as the previous row
-                  } else {
-                      lastGroupName = data.cell.raw as string;
-                  }
-              }
-          },
-          willDrawCell: function (data) {
-            // This hook handles drawing borders to create the merged cell effect
-            const rows = data.table.body;
-            const rowIndex = data.row.index;
-            const isFirstRowOfGroup = rowIndex === 0 || rows[rowIndex].cells[0].raw !== rows[rowIndex - 1].cells[0].raw;
-            const isLastRowOfGroup = rowIndex === rows.length - 1 || rows[rowIndex].cells[0].raw !== rows[rowIndex + 1].cells[0].raw;
+                // Ensure the row and cells exist before accessing them
+                const currentRow = rows[rowIndex];
+                if (!currentRow || !currentRow.cells || !currentRow.cells[0]) return;
+                
+                const isFirstRowOfGroup = rowIndex === 0 || currentRow.cells[0].raw !== rows[rowIndex - 1]?.cells?.[0]?.raw;
+                const isLastRowOfGroup = rowIndex === rows.length - 1 || currentRow.cells[0].raw !== rows[rowIndex + 1]?.cells?.[0]?.raw;
 
-            // For the Group Name column, only draw left and right borders
-            if (data.column.index === 0) {
-                if (!isFirstRowOfGroup) {
-                    // Hide top border if not the first row of group
-                    doc.setDrawColor(255, 255, 255);
-                    doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                if (data.column.index === 0) {
+                    if (!isFirstRowOfGroup) {
+                        doc.setDrawColor(255, 255, 255);
+                        doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                    }
+                     if (!isLastRowOfGroup) {
+                        doc.setDrawColor(255, 255, 255);
+                        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                    }
                 }
-                 if (!isLastRowOfGroup) {
-                    // Hide bottom border if not the last row of group
-                    doc.setDrawColor(255, 255, 255);
-                    doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+            },
+             didDrawCell: function(data) {
+                const rows = data.table.body;
+                const rowIndex = data.row.index;
+                const cell = data.cell;
+                
+                if (data.column.index === 0) { // Group Name column
+                    const isFirstRowOfGroup = rowIndex === 0 || rows[rowIndex]?.cells?.[0]?.raw !== rows[rowIndex - 1]?.cells?.[0]?.raw;
+                    if (isFirstRowOfGroup) {
+                        let groupRowCount = 1;
+                        for (let i = rowIndex + 1; i < rows.length; i++) {
+                            if (rows[i]?.cells?.[0]?.raw === rows[rowIndex]?.cells?.[0]?.raw) {
+                                groupRowCount++;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let totalGroupHeight = cell.height * groupRowCount;
+                        
+                        // Recalculate if it spans across pages
+                        const pageHeight = doc.internal.pageSize.height - doc.internal.margins.top - doc.internal.margins.bottom;
+                        if (cell.y + totalGroupHeight > pageHeight) {
+                            totalGroupHeight = pageHeight - cell.y;
+                        }
+
+                        const textPos = cell.y + totalGroupHeight / 2;
+                        
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(cell.x, cell.y, cell.width, totalGroupHeight, 'F');
+                        
+                        doc.setTextColor(0,0,0);
+                        doc.text(cell.text[0], cell.x + 2, textPos, {
+                            baseline: 'middle'
+                        });
+
+                    } else {
+                        // Clear the text for subsequent rows in the same group
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                    }
                 }
-            }
-          },
-          didDrawPage: function() {
-            // Reset for each new page
-            lastGroupName = "";
-          },
-          margin: { top: 25 }
-      });
+            },
+            margin: { top: 25 }
+        });
 
       doc.save(`meal-group-breakup-ingredients-${new Date().toISOString().split('T')[0]}.pdf`);
     }
