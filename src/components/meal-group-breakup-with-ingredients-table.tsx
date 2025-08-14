@@ -232,12 +232,18 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
             ]);
         });
 
+        const groupRowCounts: { [key: string]: number } = {};
+        body.forEach(row => {
+            const groupName = row[0];
+            groupRowCounts[groupName] = (groupRowCounts[groupName] || 0) + 1;
+        });
+
         autoTable(doc, {
             head,
             body,
             startY: 20,
             theme: 'grid',
-            headStyles: { fontStyle: 'bold', halign: 'center' },
+            headStyles: { fontStyle: 'bold', halign: 'center', fillColor: [54, 162, 155] },
             columnStyles: {
                 0: { halign: 'left', valign: 'middle' },
                 1: { halign: 'left' },
@@ -248,30 +254,55 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
                 6: { halign: 'center' },
             },
             willDrawCell: (data: CellHookData) => {
+                const doc = data.doc;
                 const rows = data.table.body;
-                if (data.row.index < rows.length - 1) {
-                    const currentRow = rows[data.row.index];
-                    const nextRow = rows[data.row.index + 1];
-                    if (currentRow && nextRow && currentRow.cells[0] && nextRow.cells[0] && currentRow.cells[0].raw === nextRow.cells[0].raw) {
-                        // If the next row has the same group name, remove the bottom border of all cells in the current row
-                        Object.values(data.row.cells).forEach(cell => {
-                            cell.styles.lineWidth = { ...cell.styles.lineWidth, bottom: 0 };
-                        });
-                    }
+                const currentRow = rows[data.row.index];
+
+                if (!currentRow) return;
+
+                const currentGroup = currentRow.cells[0]?.raw;
+                const nextRow = rows[data.row.index + 1];
+                const nextGroup = nextRow?.cells[0]?.raw;
+
+                // Remove bottom border for all cells in a row if the next row is in the same group
+                if (nextRow && currentGroup === nextGroup) {
+                     Object.values(data.row.cells).forEach(cell => {
+                        cell.styles.lineWidth = { ...cell.styles.lineWidth, bottom: 0 };
+                    });
                 }
             },
             didDrawCell: (data: CellHookData) => {
                 const doc = data.doc;
                 const rows = data.table.body;
-                
-                if (data.column.index === 0 && data.row.index > 0) {
-                     const currentRow = rows[data.row.index];
-                     const prevRow = rows[data.row.index - 1];
-                     if(currentRow && prevRow && currentRow.cells[0] && prevRow.cells[0] && currentRow.cells[0].raw === prevRow.cells[0].raw) {
+                 const row = data.row;
+                const cell = data.cell;
+
+                if (data.column.index === 0) {
+                    const groupName = row.cells[0]?.raw as string;
+                    const groupRowCount = groupRowCounts[groupName];
+                    const isFirstRowOfGroup = row.index === 0 || (rows[row.index - 1] && rows[row.index - 1].cells[0]?.raw !== groupName);
+                    
+                    if (!isFirstRowOfGroup) {
                         // This cell has the same group name as the one above it, so we'll hide the text.
                          doc.setFillColor(255, 255, 255);
-                         doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-                     }
+                         doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                    } else {
+                         // This is the first row of the group. Let's vertically center the text.
+                        const totalGroupHeight = Array.from({ length: groupRowCount }).reduce((acc, _, i) => {
+                            const rowIndex = row.index + i;
+                            if (rows[rowIndex]) {
+                                return acc + rows[rowIndex].height;
+                            }
+                            return acc;
+                        }, 0);
+
+                        const textPos = cell.y + totalGroupHeight / 2 - doc.getLineHeight() / 2 / doc.getAuthoredUnitToPointsRatio();
+                        
+                        doc.setFillColor(255, 255, 255);
+                        doc.rect(cell.x, cell.y, cell.width, cell.height, 'F');
+                        
+                        doc.text(groupName, cell.x + cell.padding('left'), textPos);
+                    }
                 }
             },
         });
@@ -416,5 +447,3 @@ export function MealGroupBreakupWithIngredientsTable({ data }: { data: SheetData
     </Card>
   );
 }
-
-    
