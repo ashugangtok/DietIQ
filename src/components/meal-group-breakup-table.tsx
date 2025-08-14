@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/select";
 
 interface MealGroupBreakupRow {
+  ingredientName: string;
   groupName: string;
-  ingredient: string;
   speciesCount: number;
   animalCount: number;
   enclosureCount: number;
@@ -79,7 +79,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
         base_uom_name,
       } = row;
 
-      const key = `${group_name}|${ingredient_name}`;
+      const key = `${ingredient_name}|${group_name}`;
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
@@ -107,10 +107,10 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
 
     const initialResult: Omit<MealGroupBreakupRow, 'rowSpan'>[] = Array.from(groupMap.entries()).map(
       ([key, counts]) => {
-        const [groupName, ingredient] = key.split('|');
+        const [ingredientName, groupName] = key.split('|');
         return {
+          ingredientName,
           groupName,
-          ingredient,
           speciesCount: counts.species.size,
           animalCount: counts.animals.size,
           enclosureCount: counts.enclosures.size,
@@ -120,23 +120,23 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       }
     );
 
-    const sortedResult = initialResult.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || "") || a.ingredient.localeCompare(b.ingredient));
+    const sortedResult = initialResult.sort((a, b) => a.ingredientName.localeCompare(b.ingredientName) || (a.groupName || "").localeCompare(b.groupName || ""));
     
     // Calculate row spans
     const finalResult: MealGroupBreakupRow[] = [];
-    const groupNameCache: { [key: string]: number } = {};
+    const ingredientNameCache: { [key: string]: number } = {};
 
     sortedResult.forEach(row => {
-      groupNameCache[row.groupName] = (groupNameCache[row.groupName] || 0) + 1;
+      ingredientNameCache[row.ingredientName] = (ingredientNameCache[row.ingredientName] || 0) + 1;
     });
 
-    const processedGroupNames = new Set<string>();
+    const processedIngredientNames = new Set<string>();
 
     for (const row of sortedResult) {
-        const groupNameSpan = !processedGroupNames.has(row.groupName) ? groupNameCache[row.groupName] : 0;
-        if(groupNameSpan > 0) processedGroupNames.add(row.groupName);
+        const ingredientNameSpan = !processedIngredientNames.has(row.ingredientName) ? ingredientNameCache[row.ingredientName] : 0;
+        if(ingredientNameSpan > 0) processedIngredientNames.add(row.ingredientName);
 
-        finalResult.push({ ...row, rowSpan: groupNameSpan });
+        finalResult.push({ ...row, rowSpan: ingredientNameSpan });
     }
 
     return finalResult;
@@ -219,8 +219,8 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead>Group Name</TableHead>
                 <TableHead>Ingredient</TableHead>
+                <TableHead>Group Name</TableHead>
                 <TableHead className="text-right">Total Qty Required</TableHead>
                 <TableHead className="text-center">Count of Species</TableHead>
                 <TableHead className="text-center">Count of Animals</TableHead>
@@ -233,13 +233,13 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
             <TableBody>
               {breakupData.length > 0 ? (
                 breakupData.map((row, index) => (
-                  <TableRow key={`${row.groupName}-${row.ingredient}-${index}`}>
+                  <TableRow key={`${row.ingredientName}-${row.groupName}-${index}`}>
                     {row.rowSpan && row.rowSpan > 0 ? (
                        <TableCell className="font-medium align-top" rowSpan={row.rowSpan}>
-                          {row.groupName}
+                          {row.ingredientName}
                         </TableCell>
                     ) : null}
-                    <TableCell>{row.ingredient}</TableCell>
+                    <TableCell>{row.groupName}</TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatTotals(row.totals)}
                     </TableCell>
