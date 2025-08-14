@@ -3,6 +3,9 @@
 
 import { useMemo, useState } from "react";
 import { type SheetDataRow } from "@/types";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import {
   Table,
   TableBody,
@@ -25,6 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "./ui/button";
+import { Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 interface MealGroupBreakupRow {
   ingredientName: string;
@@ -39,6 +53,7 @@ interface MealGroupBreakupRow {
 
 export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
   const [feedTypeFilter, setFeedTypeFilter] = useState<string>("");
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const feedTypeOptions = useMemo(
     () => [...new Set(data.map((item) => item["Feed type name"]))].sort(),
@@ -51,6 +66,47 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
       (row) => row["Feed type name"] === feedTypeFilter
     );
   }, [data, feedTypeFilter]);
+
+  const formatTotals = (totals: {
+    [uom: string]: { qty: number; qty_gram: number };
+  }) => {
+    if (Object.keys(totals).length === 0) return "-";
+
+    return Object.entries(totals)
+      .map(([uom, values]) => {
+        const uomLower = uom.toLowerCase();
+        const isWeight =
+          uomLower === "kilogram" || uomLower === "kg" || uomLower === "gram";
+
+        if (isWeight) {
+          if (
+            (uomLower === "kilogram" || uomLower === "kg") &&
+            values.qty < 1 &&
+            values.qty > 0
+          ) {
+            return `${values.qty_gram.toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            })} gram`;
+          }
+          return `${values.qty.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} ${uom}`;
+        }
+
+        const uomDisplay =
+          values.qty === 1 && uom.endsWith("s") ? uom.slice(0, -1) : uom;
+        const qtyDisplay = Number.isInteger(values.qty)
+          ? values.qty.toLocaleString()
+          : values.qty.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+
+        return `${qtyDisplay} ${uomDisplay}`;
+      })
+      .join(", ");
+  };
 
   const breakupData = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
@@ -78,6 +134,8 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
         ingredient_qty_gram,
         base_uom_name,
       } = row;
+      
+      if (!group_name) return;
 
       const key = `${ingredient_name}|${group_name}`;
 
@@ -143,46 +201,71 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
     
   }, [filteredData]);
 
-  const formatTotals = (totals: {
-    [uom: string]: { qty: number; qty_gram: number };
-  }) => {
-    if (Object.keys(totals).length === 0) return "-";
+  const handleDownload = (type: 'pdf' | 'excel') => {
+    setIsDownloading(true);
 
-    return Object.entries(totals)
-      .map(([uom, values]) => {
-        const uomLower = uom.toLowerCase();
-        const isWeight =
-          uomLower === "kilogram" || uomLower === "kg" || uomLower === "gram";
+    if (type === 'pdf') {
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+      });
+      const pageMargin = 10;
+      doc.text("Meal Group Breakup Details", pageMargin, 15);
 
-        if (isWeight) {
-          if (
-            (uomLower === "kilogram" || uomLower === "kg") &&
-            values.qty < 1 &&
-            values.qty > 0
-          ) {
-            return `${values.qty_gram.toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            })} gram`;
-          }
-          return `${values.qty.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })} ${uom}`;
-        }
+      const head = [[
+        'Ingredient', 'Group Name', 'Total Qty Required', 
+        'Species', 'Animals', 'Enclosures', 'Sites'
+      ]];
+      const body = breakupData.map(row => [
+        row.ingredientName,
+        row.groupName,
+        formatTotals(row.totals),
+        row.speciesCount,
+        row.animalCount,
+        row.enclosureCount,
+        row.siteCount
+      ]);
 
-        const uomDisplay =
-          values.qty === 1 && uom.endsWith("s") ? uom.slice(0, -1) : uom;
-        const qtyDisplay = Number.isInteger(values.qty)
-          ? values.qty.toLocaleString()
-          : values.qty.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
+      autoTable(doc, {
+        head,
+        body,
+        startY: 20,
+        theme: 'grid',
+        headStyles: { fontStyle: 'bold', fillColor: [200, 200, 200], textColor: 0, fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 1.5 },
+        margin: { left: pageMargin, right: pageMargin }
+      });
 
-        return `${qtyDisplay} ${uomDisplay}`;
-      })
-      .join(", ");
+      doc.save(`meal-group-breakup-${new Date().toISOString().split('T')[0]}.pdf`);
+    } else if (type === 'excel') {
+      const dataToExport = breakupData.map(row => ({
+        'Ingredient': row.ingredientName,
+        'Group Name': row.groupName,
+        'Total Qty Required': formatTotals(row.totals),
+        'Count of Species': row.speciesCount,
+        'Count of Animals': row.animalCount,
+        'Count of Enclosures': row.enclosureCount,
+        'Count of Sites': row.siteCount,
+      }));
+      
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+
+      const blob = new Blob([`\uFEFF${csvOutput}`], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `meal-group-breakup-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    setIsDownloading(false);
   };
+
 
   return (
     <Card className="shadow-lg">
@@ -191,7 +274,7 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
           Meal Group Breakup Details
         </CardTitle>
         <CardDescription>
-          A detailed breakdown of ingredients within each meal group.
+          A detailed breakdown of ingredients within each meal group. Filter by feed type or export the data.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -214,6 +297,25 @@ export function MealGroupBreakupTable({ data }: { data: SheetDataRow[] }) {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex-grow" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isDownloading || breakupData.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                {isDownloading ? "Downloading..." : "Download"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleDownload('pdf')}>
+                Download as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleDownload('excel')}>
+                Download as Excel (CSV)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="relative overflow-x-auto rounded-md border">
           <Table>
