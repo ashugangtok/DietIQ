@@ -40,10 +40,10 @@ export default function Home() {
     setError(null);
     setData([]);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-       // Use a timeout to allow the loader to render before the heavy parsing starts
-      setTimeout(() => {
+    // Use a timeout to allow the loader to render before the heavy parsing starts
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
         try {
           const fileData = e.target?.result;
           const workbook = XLSX.read(fileData, { type: 'array' });
@@ -77,13 +77,13 @@ export default function Home() {
         } finally {
           setIsLoading(false);
         }
-      }, 0);
-    };
-    reader.onerror = () => {
-      setError("Failed to read the file.");
-      setIsLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+      };
+      reader.onerror = () => {
+        setError("Failed to read the file.");
+        setIsLoading(false);
+      };
+      reader.readAsArrayBuffer(file);
+    }, 50); // A small delay is enough to let the UI update.
     
     // Reset file input to allow re-uploading the same file
     if (event.target) {
