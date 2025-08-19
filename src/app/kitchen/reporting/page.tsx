@@ -31,7 +31,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={60} height={60} unoptimized />
+                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
                 </CardContent>
             </Card>
             
@@ -45,7 +45,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={60} height={60} unoptimized />
+                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
                 </CardContent>
             </Card>
 
@@ -59,7 +59,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={60} height={60} unoptimized />
+                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
                 </CardContent>
             </Card>
         </div>
