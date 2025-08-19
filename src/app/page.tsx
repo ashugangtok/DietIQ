@@ -121,52 +121,54 @@ export default function Home() {
         <h1 className="text-2xl font-bold text-primary font-headline">Sheet Insights</h1>
       </header>
       <main className="flex-1 p-4 md:p-8 flex flex-col items-center">
-        <Card className="w-full max-w-5xl shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-headline">Upload Your Excel File</CardTitle>
-            <CardDescription>
-              Select a .xlsx file to parse and visualize your data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div 
-              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
-              onClick={handleUploadClick}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange}
-                className="hidden" 
-                accept=".xlsx"
-                disabled={isLoading}
-              />
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <UploadCloud className="w-12 h-12 text-primary" />
-                <p className="font-semibold">Click to browse or drag & drop</p>
-                <p className="text-sm">Supports .xlsx files only</p>
+        {data.length === 0 && !isLoading && (
+          <Card className="w-full max-w-5xl shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-2xl font-headline">Upload Your Excel File</CardTitle>
+              <CardDescription>
+                Select a .xlsx file to parse and visualize your data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                onClick={handleUploadClick}
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange}
+                  className="hidden" 
+                  accept=".xlsx"
+                  disabled={isLoading}
+                />
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <UploadCloud className="w-12 h-12 text-primary" />
+                  <p className="font-semibold">Click to browse or drag & drop</p>
+                  <p className="text-sm">Supports .xlsx files only</p>
+                </div>
               </div>
-            </div>
 
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center p-4">
-                <PawLoader />
-                <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
-              </div>
-            )}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center p-4">
+            <PawLoader />
+            <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
+          </div>
+        )}
 
         {data.length > 0 && !isLoading && (
-          <div className="w-full max-w-7xl mt-8">
+          <div className="w-full max-w-7xl">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="flex flex-wrap h-auto justify-center gap-1">
                 <TabsTrigger value="live-dashboard">
