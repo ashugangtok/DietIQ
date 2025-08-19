@@ -109,7 +109,12 @@ export default function Home() {
         <h1 className="text-2xl font-bold text-primary font-headline">Sheet Insights</h1>
       </header>
       <main className="flex-1 flex flex-col">
-        {data.length === 0 && !isLoading && (
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <img src="/loader.gif" alt="Loading..." className="block h-32 w-32 mb-4" />
+            <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
+          </div>
+        ) : data.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4">
             <Card className="w-full max-w-5xl shadow-lg">
                 <CardHeader>
@@ -152,16 +157,7 @@ export default function Home() {
                 <p className="mt-4 text-lg">Your data will appear here</p>
             </div>
           </div>
-        )}
-
-        {isLoading && (
-          <div className="flex flex-1 flex-col items-center justify-center p-4">
-            <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
-            <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
-          </div>
-        )}
-
-        {data.length > 0 && !isLoading && (
+        ) : (
           <div className="w-full p-4 md:p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="flex flex-wrap h-auto justify-center gap-1">
@@ -225,3 +221,4 @@ export default function Home() {
     </div>
   );
 }
+
