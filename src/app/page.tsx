@@ -151,7 +151,7 @@ export default function Home() {
             {isLoading && (
               <div className="flex flex-col items-center justify-center p-4">
                 <PawLoader />
-                <span className="text-muted-foreground mt-2">We’re crunching the numbers for your animals</span>
+                <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
               </div>
             )}
 
