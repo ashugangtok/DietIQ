@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
+import styles from '../app/reporting.module.css';
 
 export interface Filters {
   site_name: string;
@@ -374,7 +375,11 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
 
             {isProcessing ? (
                 <div className="flex flex-col items-center justify-center p-12">
-                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
+                     <div className={styles['paw-loader-lg']}>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                    </div>
                     <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
                 </div>
             ) : (

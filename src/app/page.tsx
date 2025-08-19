@@ -18,6 +18,7 @@ import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
+import styles from './reporting.module.css';
 
 
 export default function Home() {
@@ -113,7 +114,11 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center">
-            <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
+            <div className={styles['paw-loader-lg']}>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
+            </div>
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         ) : data.length === 0 ? (

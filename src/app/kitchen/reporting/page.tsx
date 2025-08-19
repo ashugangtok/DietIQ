@@ -3,7 +3,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, PawPrint, PieChart, Users } from "lucide-react";
+import { Download, PieChart, Users } from "lucide-react";
+import styles from '../../reporting.module.css';
 
 export default function ReportingPage() {
   return (
@@ -25,14 +26,18 @@ export default function ReportingPage() {
             {/* Overview Card */}
             <Card className="shadow-lg">
                 <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
-                    <PawPrint className="w-8 h-8 text-primary" />
+                    <div className={styles['paw-icon']}></div>
                     <div>
                         <CardTitle className="font-bold text-xl">Overview</CardTitle>
                         <CardDescription>High-level summary stats and highlights.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <div className={styles['paw-loader']}>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                    </div>
                 </CardContent>
             </Card>
             
@@ -46,7 +51,11 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <div className={styles['paw-loader']}>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -60,7 +69,11 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <div className={styles['paw-loader']}>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                        <div className={styles.paw}></div>
+                    </div>
                 </CardContent>
             </Card>
         </div>
