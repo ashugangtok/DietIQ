@@ -42,39 +42,42 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const fileData = e.target?.result;
-        const workbook = XLSX.read(fileData, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        const requiredColumns = [
-          'site_name', 'animal_id', 'common_name', 'section_name', 'user_enclosure_name', 
-          'Feed type name', 'ingredient_name', 'type', 'type_name', 'group_name',
-          'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram',
-          'preparation_type_name', 'meal_start_time', 'cut_size_name'
-        ];
-        
-        const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];
-        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+       // Use a timeout to allow the loader to render before the heavy parsing starts
+      setTimeout(() => {
+        try {
+          const fileData = e.target?.result;
+          const workbook = XLSX.read(fileData, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          const requiredColumns = [
+            'site_name', 'animal_id', 'common_name', 'section_name', 'user_enclosure_name', 
+            'Feed type name', 'ingredient_name', 'type', 'type_name', 'group_name',
+            'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram',
+            'preparation_type_name', 'meal_start_time', 'cut_size_name'
+          ];
+          
+          const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];
+          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
 
-        if (missingColumns.length > 0) {
-          throw new Error(`The following required columns are missing: ${missingColumns.join(', ')}`);
+          if (missingColumns.length > 0) {
+            throw new Error(`The following required columns are missing: ${missingColumns.join(', ')}`);
+          }
+
+          const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet);
+
+          if (jsonData.length === 0) {
+            throw new Error("The Excel sheet is empty or in an invalid format.");
+          }
+          
+          setData(jsonData);
+        } catch (err) {
+          console.error(err);
+          setError(err instanceof Error ? err.message : "An unexpected error occurred during file parsing.");
+        } finally {
+          setIsLoading(false);
         }
-
-        const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet);
-
-        if (jsonData.length === 0) {
-          throw new Error("The Excel sheet is empty or in an invalid format.");
-        }
-        
-        setData(jsonData);
-      } catch (err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : "An unexpected error occurred during file parsing.");
-      } finally {
-        setIsLoading(false);
-      }
+      }, 0);
     };
     reader.onerror = () => {
       setError("Failed to read the file.");
