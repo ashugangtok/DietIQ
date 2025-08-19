@@ -4,19 +4,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, PawPrint, PieChart, Users } from "lucide-react";
-import styles from './reporting.module.css';
-
-const PawLoader = () => (
-    <div className={styles.pawLoader}>
-      <div className={styles.paw}>
-        <div className={`${styles.pad} ${styles.mainPad}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
-      </div>
-    </div>
-);
 
 export default function ReportingPage() {
   return (
@@ -44,8 +31,8 @@ export default function ReportingPage() {
                         <CardDescription>High-level summary stats and highlights.</CardDescription>
                     </div>
                 </CardHeader>
-                <CardContent className="flex justify-center items-center h-20">
-                    <PawLoader />
+                <CardContent className="flex justify-center items-center h-40">
+                    <img src="/loader.gif" alt="Loading..." className="h-32 w-32" />
                 </CardContent>
             </Card>
             
@@ -58,8 +45,8 @@ export default function ReportingPage() {
                         <CardDescription>Animal-specific diet and ingredient breakdowns.</CardDescription>
                     </div>
                 </CardHeader>
-                <CardContent className="flex justify-center items-center h-20">
-                    <PawLoader />
+                <CardContent className="flex justify-center items-center h-40">
+                    <img src="/loader.gif" alt="Loading..." className="h-32 w-32" />
                 </CardContent>
             </Card>
 
@@ -72,8 +59,8 @@ export default function ReportingPage() {
                         <CardDescription>Chart-based historical and comparative data.</CardDescription>
                     </div>
                 </CardHeader>
-                <CardContent className="flex justify-center items-center h-20">
-                    <PawLoader />
+                <CardContent className="flex justify-center items-center h-40">
+                    <img src="/loader.gif" alt="Loading..." className="h-32 w-32" />
                 </CardContent>
             </Card>
         </div>

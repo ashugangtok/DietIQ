@@ -4,6 +4,7 @@
 import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group } from "lucide-react";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,19 +19,6 @@ import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
-import styles from './kitchen/reporting/reporting.module.css';
-
-const PawLoader = () => (
-    <div className={styles.pawLoader}>
-      <div className={styles.paw}>
-        <div className={`${styles.pad} ${styles.mainPad}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
-      </div>
-    </div>
-);
 
 
 export default function Home() {
@@ -168,7 +156,7 @@ export default function Home() {
 
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center p-4">
-            <PawLoader />
+            <img src="/loader.gif" alt="Loading..." className="h-32 w-32" />
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         )}

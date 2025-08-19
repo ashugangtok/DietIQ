@@ -23,20 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
-import styles from '../app/kitchen/reporting/reporting.module.css';
-
-const PawLoader = () => (
-    <div className={styles.pawLoader}>
-      <div className={styles.paw}>
-        <div className={`${styles.pad} ${styles.mainPad}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
-        <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
-      </div>
-    </div>
-);
-
 
 export interface Filters {
   site_name: string;
@@ -388,7 +374,7 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
 
             {isProcessing ? (
                 <div className="flex flex-col items-center justify-center p-12">
-                    <PawLoader />
+                    <img src="/loader.gif" alt="Loading..." className="h-32 w-32" />
                     <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
                 </div>
             ) : (
