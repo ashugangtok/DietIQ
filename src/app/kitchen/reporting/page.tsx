@@ -2,6 +2,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, PawPrint, PieChart, Users } from "lucide-react";
+import styles from './reporting.module.css';
+
+const PawLoader = () => (
+  <div className={styles.pawLoader}>
+    <div className={styles.paw}>
+      <div className={`${styles.pad} ${styles.mainPad}`}></div>
+      <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
+      <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
+      <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
+      <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
+    </div>
+  </div>
+);
 
 export default function ReportingPage() {
   return (
@@ -30,11 +43,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
-                        <p className="text-muted-foreground">
-                           Summary stats will appear here.
-                        </p>
-                    </div>
+                    <PawLoader />
                 </CardContent>
             </Card>
             
@@ -48,11 +57,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
-                        <p className="text-muted-foreground">
-                           Detailed breakdowns will be shown here.
-                        </p>
-                    </div>
+                    <PawLoader />
                 </CardContent>
             </Card>
 
@@ -66,11 +71,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
-                        <p className="text-muted-foreground">
-                           Visualizations and charts will be displayed here.
-                        </p>
-                    </div>
+                    <PawLoader />
                 </CardContent>
             </Card>
         </div>

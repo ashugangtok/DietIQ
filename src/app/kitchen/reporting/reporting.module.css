@@ -1,0 +1,47 @@
+
+.pawLoader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80px;
+}
+
+.paw {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  animation: bounce 1.5s infinite ease-in-out;
+}
+
+.pad {
+  background-color: hsl(var(--primary));
+  border-radius: 50%;
+  position: absolute;
+}
+
+.mainPad {
+  width: 30px;
+  height: 35px;
+  bottom: 0;
+  left: 15px;
+}
+
+.toe {
+  width: 12px;
+  height: 18px;
+  top: 0;
+}
+
+.toe1 { left: 0; }
+.toe2 { left: 14px; }
+.toe3 { left: 28px; }
+.toe4 { left: 42px; }
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
