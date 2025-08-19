@@ -32,7 +32,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjRhN2s4N2lybDU2c25lbmJjdjRjcGpvMzE5Y2pzc3llNTQ4cGpndyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3gXJbXpjgEM9EKSwxI/giphy.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
             
@@ -46,7 +46,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjRhN2s4N2lybDU2c25lbmJjdjRjcGpvMzE5Y2pzc3llNTQ4cGpndyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3gXJbXpjgEM9EKSwxI/giphy.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
 
@@ -60,7 +60,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjRhN2s4N2lybDU2c25lbmJjdjRjcGpvMzE5Y2pzc3llNTQ4cGpndyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3gXJbXpjgEM9EKSwxI/giphy.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
         </div>
