@@ -1,48 +1,79 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Download } from "lucide-react";
+import { Download, PawPrint, PieChart, Users } from "lucide-react";
 
 export default function ReportingPage() {
   return (
-    <div>
-        <Card>
-            <CardHeader>
-                <CardTitle>Reporting</CardTitle>
-                <CardDescription>
-                    View day/week/month-wise summaries of what&apos;s packed and dispatched.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                 <div className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                    <Input type="date" placeholder="Start Date" className="w-full sm:w-auto bg-background" />
-                    <Input type="date" placeholder="End Date" className="w-full sm:w-auto bg-background" />
-                    <Select>
-                        <SelectTrigger className="w-full sm:w-[180px] bg-background">
-                            <SelectValue placeholder="Filter by Site" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Sites</SelectItem>
-                            <SelectItem value="main-zoo">Main Zoo</SelectItem>
-                            <SelectItem value="safari-park">Safari Park</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Input placeholder="Filter by Ingredient..." className="w-full sm:w-[200px] bg-background" />
-                    <div className="flex-grow"></div>
-                    <Button>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download CSV
-                    </Button>
-                 </div>
-                 <div className="text-center p-12 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">
-                        Summary reports and charts will be displayed here.
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
+    <div className="space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 className="text-2xl font-bold font-headline">Reporting Dashboard</h1>
+                <p className="text-muted-foreground">
+                    Analyze historical data and trends.
+                </p>
+            </div>
+            <Button>
+                <Download className="mr-2 h-4 w-4" />
+                Export Full Report
+            </Button>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+            {/* Overview Card */}
+            <Card className="shadow-lg">
+                <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                    <PawPrint className="w-8 h-8 text-primary" />
+                    <div>
+                        <CardTitle className="font-bold text-xl">Overview</CardTitle>
+                        <CardDescription>High-level summary stats and highlights.</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
+                        <p className="text-muted-foreground">
+                           Summary stats will appear here.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+            
+            {/* Detailed Insights Card */}
+            <Card className="shadow-lg">
+                <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                     <Users className="w-8 h-8 text-accent" />
+                     <div>
+                        <CardTitle className="font-bold text-xl">Detailed Insights</CardTitle>
+                        <CardDescription>Animal-specific diet and ingredient breakdowns.</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
+                        <p className="text-muted-foreground">
+                           Detailed breakdowns will be shown here.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Trends Card */}
+            <Card className="shadow-lg">
+                <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                    <PieChart className="w-8 h-8 text-primary" />
+                     <div>
+                        <CardTitle className="font-bold text-xl">Trends</CardTitle>
+                        <CardDescription>Chart-based historical and comparative data.</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg mt-4">
+                        <p className="text-muted-foreground">
+                           Visualizations and charts will be displayed here.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }
