@@ -4,7 +4,6 @@
 import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group } from "lucide-react";
-import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,20 @@ import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
+import styles from './kitchen/reporting/reporting.module.css';
+
+const PawLoader = () => (
+    <div className={styles.pawLoader}>
+      <div className={styles.paw}>
+        <div className={`${styles.pad} ${styles.mainPad}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
+      </div>
+    </div>
+);
+
 
 export default function Home() {
   const { data, setData } = useContext(DataContext);
@@ -109,7 +122,7 @@ export default function Home() {
       </header>
       <main className="flex-1 flex flex-col">
         {data.length === 0 && !isLoading && (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
             <Card className="w-full max-w-5xl shadow-lg">
                 <CardHeader>
                 <CardTitle className="text-2xl font-headline">Upload Your Excel File</CardTitle>
@@ -155,7 +168,7 @@ export default function Home() {
 
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center p-4">
-            <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
+            <PawLoader />
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         )}

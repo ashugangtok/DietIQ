@@ -1,8 +1,22 @@
 
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, PawPrint, PieChart, Users } from "lucide-react";
-import Image from "next/image";
+import styles from './reporting.module.css';
+
+const PawLoader = () => (
+    <div className={styles.pawLoader}>
+      <div className={styles.paw}>
+        <div className={`${styles.pad} ${styles.mainPad}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe1}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe2}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe3}`}></div>
+        <div className={`${styles.pad} ${styles.toe} ${styles.toe4}`}></div>
+      </div>
+    </div>
+);
 
 export default function ReportingPage() {
   return (
@@ -31,7 +45,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
+                    <PawLoader />
                 </CardContent>
             </Card>
             
@@ -45,7 +59,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
+                    <PawLoader />
                 </CardContent>
             </Card>
 
@@ -59,7 +73,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-20">
-                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
+                    <PawLoader />
                 </CardContent>
             </Card>
         </div>
