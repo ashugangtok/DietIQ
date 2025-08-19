@@ -32,7 +32,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
             
@@ -46,7 +46,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
 
@@ -60,7 +60,7 @@ export default function ReportingPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-40">
-                    <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
+                    <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32" />
                 </CardContent>
             </Card>
         </div>

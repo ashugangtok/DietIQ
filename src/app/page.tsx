@@ -113,7 +113,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center">
-            <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
+            <img src="https://i.imgur.com/Wlj2TZE.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         ) : data.length === 0 ? (
