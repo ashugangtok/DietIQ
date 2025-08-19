@@ -376,7 +376,7 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
 
             {isProcessing ? (
                 <div className="flex flex-col items-center justify-center p-12">
-                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} />
+                    <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
                     <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
                 </div>
             ) : (

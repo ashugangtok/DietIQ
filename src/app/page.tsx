@@ -155,7 +155,7 @@ export default function Home() {
 
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center p-4">
-            <Image src="/loader.gif" alt="Loading..." width={80} height={80} />
+            <Image src="/loader.gif" alt="Loading..." width={80} height={80} unoptimized />
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         )}
