@@ -4,7 +4,6 @@
 import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileSpreadsheet, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group } from "lucide-react";
-import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,7 +110,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center">
-            <img src="/loader.gif" alt="Loading..." className="block h-32 w-32 mb-4" />
+            <img src="/loader.gif" alt="Loading..." className="block mx-auto h-32 w-32 mb-4" />
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
         ) : data.length === 0 ? (
@@ -221,4 +220,3 @@ export default function Home() {
     </div>
   );
 }
-
