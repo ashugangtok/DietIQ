@@ -198,6 +198,10 @@ export default function Home() {
                   <ClipboardList className="mr-2" />
                   Diet Plan
                 </TabsTrigger>
+                <TabsTrigger value="pivot-table-report">
+                  <ClipboardList className="mr-2" />
+                  Pivot Table Report
+                </TabsTrigger>
                 <TabsTrigger value="kitchen" asChild>
                   <Link href="/kitchen">
                     <ChefHat className="mr-2" />
@@ -225,6 +229,9 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="table-report" className="mt-6">
                 <TableReport data={data} />
+              </TabsContent>
+              <TabsContent value="pivot-table-report" className="mt-6">
+                <PivotTableReport data={data} />
               </TabsContent>
             </Tabs>
           </div>
