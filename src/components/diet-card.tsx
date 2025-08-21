@@ -7,28 +7,34 @@ import { Button } from "./ui/button";
 import { Download, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas';
+import Image from "next/image";
 
 interface DietCardProps {
     data: SheetDataRow[];
 }
 
 type MealItem = {
-    isCombo: boolean;
-    item: string; // Ingredient name or Combo name
-    typeName: string;
-    details?: string; // Prep details for single items, ingredient breakdown for combos
-    amount: string; // Total amount for this line item
+    ingredient_name: string;
+    type_name: string;
+    details: string;
+    amount: string;
 };
 
 const formatAmount = (quantity: number, uom: string) => {
     if (!uom) return `${quantity}`;
-
-    // Handle cases where quantity is less than 1 kg
-    if ((uom.toLowerCase() === 'kg' || uom.toLowerCase() === 'kilogram') && quantity > 0 && quantity < 1) {
+    const uomLower = uom.toLowerCase();
+    
+    // Handle gram conversion for small kg quantities
+    if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 1) {
         const grams = quantity * 1000;
         return `${grams.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
     }
     
+    // Handle gram amounts directly
+    if (uomLower === 'gram') {
+        return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+    }
+
     const formattedQty = quantity.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -59,98 +65,61 @@ export function DietCard({ data }: DietCardProps) {
         // 2. Process each meal group
         return Array.from(mealMap.entries()).map(([time, rows]) => {
             const processedItems = new Map<string, MealItem>();
-            const comboMap = new Map<string, SheetDataRow[]>();
-            const singleItemMap = new Map<string, SheetDataRow[]>();
 
-            // Separate combos and single ingredients
+            // Sum up quantities for duplicate ingredients within the same mealtime
+            const summedItems = new Map<string, SheetDataRow>();
             rows.forEach(row => {
-                if (row.type === 'Recipe' || row.type === 'Combo') {
-                    const comboKey = row.type_name;
-                    if (!comboMap.has(comboKey)) {
-                        comboMap.set(comboKey, []);
-                    }
-                    comboMap.get(comboKey)!.push(row);
+                const key = row.ingredient_name;
+                if (summedItems.has(key)) {
+                    const existing = summedItems.get(key)!;
+                    existing.ingredient_qty += row.ingredient_qty;
+                    existing.ingredient_qty_gram += row.ingredient_qty_gram;
                 } else {
-                    const singleItemKey = row.ingredient_name;
-                     if (!singleItemMap.has(singleItemKey)) {
-                        singleItemMap.set(singleItemKey, []);
-                    }
-                    singleItemMap.get(singleItemKey)!.push(row);
+                    summedItems.set(key, { ...row });
                 }
             });
-            
-            // Process single items (summing duplicates)
-            singleItemMap.forEach((itemRows, itemName) => {
-                const totalQty = itemRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-                const firstRow = itemRows[0];
+
+            const items: MealItem[] = Array.from(summedItems.values()).map(row => {
                 const detailsParts: string[] = [];
-                if (firstRow.cut_size_name) detailsParts.push(`cut: ${firstRow.cut_size_name}`);
-                if (firstRow.preparation_type_name) detailsParts.push(firstRow.preparation_type_name);
+                if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
+                if (row.preparation_type_name) detailsParts.push(row.preparation_type_name);
 
-                processedItems.set(itemName, {
-                    isCombo: false,
-                    item: itemName,
-                    typeName: firstRow.type_name,
-                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                    amount: formatAmount(totalQty, firstRow.base_uom_name)
-                });
+                return {
+                    ingredient_name: row.ingredient_name,
+                    type_name: row.type_name,
+                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : "",
+                    amount: formatAmount(row.ingredient_qty, row.base_uom_name)
+                };
             });
 
-
-            // Process combos
-            comboMap.forEach((comboRows, comboName) => {
-                const totalAmount = comboRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-                const firstRow = comboRows[0];
-
-                const ingredientBreakdown = comboRows.map(r => 
-                    `${r.ingredient_name} (${formatAmount(r.ingredient_qty, r.base_uom_name)})`
-                ).join(', ');
-
-                processedItems.set(comboName, {
-                    isCombo: true,
-                    item: comboName,
-                    typeName: firstRow.type_name,
-                    details: `(${ingredientBreakdown})`,
-                    amount: formatAmount(totalAmount, firstRow.base_uom_name)
-                });
-            });
-
-            return { time, items: Array.from(processedItems.values()) };
+            return { time, items };
         }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
 
-    const handlePrint = () => {
-        const printContent = cardRef.current;
-        if (printContent) {
+    const handlePrint = async () => {
+        const element = cardRef.current;
+        if (element) {
+            const buttons = element.querySelector('.no-print');
+            if (buttons) (buttons as HTMLElement).style.display = 'none';
+            
+            const canvas = await html2canvas(element, { scale: 2 });
+            
+            if (buttons) (buttons as HTMLElement).style.display = 'flex';
+
             const printWindow = window.open('', '', 'height=800,width=800');
             if (printWindow) {
-                printWindow.document.write('<html><head><title>Print Diet</title>');
-                printWindow.document.write(`
-                    <style>
-                        body { font-family: sans-serif; }
-                        .diet-card { border: 1px solid #eee; padding: 16px; margin: 16px; }
-                        h2, h3 { color: #2c5282; }
-                        table { width: 100%; border-collapse: collapse; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-                        th { background-color: #166534; color: white; }
-                        .no-print { display: none; }
-                        .item-name { font-weight: bold; }
-                        .item-details { font-size: 0.9em; color: #555; }
-                    </style>
-                `);
-                printWindow.document.write('</head><body>');
-                // Clone the element to modify it for printing
-                const contentClone = printContent.cloneNode(true) as HTMLElement;
-                // Remove buttons from clone
-                const buttons = contentClone.querySelector('.no-print');
-                if (buttons) buttons.remove();
-                printWindow.document.write(contentClone.innerHTML);
+                printWindow.document.write('<html><head><title>Print Diet</title></head><body>');
+                printWindow.document.write(`<img src="${canvas.toDataURL()}" style="width:100%;">`);
                 printWindow.document.write('</body></html>');
                 printWindow.document.close();
                 printWindow.focus();
-                printWindow.print();
-                printWindow.close();
+                
+                // Use a timeout to ensure the image loads before printing
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
             }
         }
     };
@@ -177,18 +146,25 @@ export function DietCard({ data }: DietCardProps) {
     };
 
     if (data.length === 0) {
-        return null; // Don't render anything if there's no data
+        return null;
     }
 
     return (
-        <div className="border rounded-lg p-6 bg-white diet-card" ref={cardRef}>
+        <div className="border rounded-lg p-6 bg-white" ref={cardRef}>
             <div className="flex flex-col md:flex-row justify-between items-start mb-6">
                 <div>
                     <h2 className="text-3xl font-bold capitalize text-gray-800">{animalName}</h2>
                     <p className="text-lg text-gray-500">({(data[0] as any).latin_name || "Psittacus erithacus"})</p>
                 </div>
                 <div className="w-full md:w-1/3 mt-4 md:mt-0">
-                    <img src="https://placehold.co/600x400.png" alt={animalName} data-ai-hint="parrot bird" className="rounded-lg shadow-md w-full" />
+                    <Image 
+                        src="https://placehold.co/600x400.png" 
+                        alt={animalName}
+                        width={600}
+                        height={400} 
+                        data-ai-hint="coatimundi animal" 
+                        className="rounded-lg shadow-md w-full"
+                    />
                 </div>
             </div>
 
@@ -213,10 +189,10 @@ export function DietCard({ data }: DietCardProps) {
                                  <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
                                )}
                                <td className="align-top">
-                                 <div className="item-name font-bold">{item.item}</div>
-                                 {item.details && <div className="item-details text-sm text-gray-600">{item.details}</div>}
+                                 <div className="font-bold">{item.ingredient_name}</div>
+                                 {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
                                </td>
-                               <td className="align-top">{item.typeName}</td>
+                               <td className="align-top">{item.type_name}</td>
                                <td className="text-right align-top font-bold">{item.amount}</td>
                              </tr>
                            ))}
@@ -238,4 +214,4 @@ export function DietCard({ data }: DietCardProps) {
             </div>
         </div>
     );
-    
+}
