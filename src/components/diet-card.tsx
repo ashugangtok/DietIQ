@@ -48,10 +48,11 @@ export function DietCard({ data }: DietCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const animalName = data.length > 0 ? data[0].common_name : "";
     
-    // Use diet_name and diet_no for the subheading
-    const dietName = data.length > 0 ? (data[0] as any).diet_name : "Diet";
+    const dietName = data.length > 0 ? (data[0] as any).diet_name : "";
     const dietNo = data.length > 0 ? (data[0] as any).diet_no : "";
-    const subheading = dietNo ? `${dietName} (${dietNo})` : dietName;
+    const subheading = dietNo 
+        ? `Diet Name: ${dietName} and Diet_Number: ${dietNo}` 
+        : `Diet Name: ${dietName}`;
 
 
     const dietData = useMemo(() => {
