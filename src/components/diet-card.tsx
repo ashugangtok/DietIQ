@@ -19,7 +19,11 @@ const formatAmount = (quantity: number, uom: string) => {
     const uomLower = uom.toLowerCase();
     
     // Handle gram conversion for small kg quantities
-    if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 1) {
+    if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 0.001) { // A threshold to avoid tiny fractions
+        const grams = quantity * 1000;
+        return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
+    }
+     if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 1) {
         const grams = quantity * 1000;
         return `${grams.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
     }
@@ -74,18 +78,19 @@ export function DietCard({ data }: DietCardProps) {
                 ? `${startTime} - ${endTime}`
                 : (startTime !== "N/A" ? startTime : "N/A");
 
-            const typeNameGroup = new Map<string, { ingredients: SheetDataRow[], totalQty: number, uom: string }>();
+            const typeNameGroup = new Map<string, { ingredients: SheetDataRow[], totalQty: number, totalGram: number, uom: string }>();
 
             rows.forEach(row => {
                 const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
                 const groupKey = isCombo ? row.type_name : row.ingredient_name;
 
                 if (!typeNameGroup.has(groupKey)) {
-                    typeNameGroup.set(groupKey, { ingredients: [], totalQty: 0, uom: row.base_uom_name });
+                    typeNameGroup.set(groupKey, { ingredients: [], totalQty: 0, totalGram: 0, uom: row.base_uom_name });
                 }
                 const group = typeNameGroup.get(groupKey)!;
                 group.ingredients.push(row);
                 group.totalQty += row.ingredient_qty;
+                group.totalGram += row.ingredient_qty_gram;
             });
 
             const items = Array.from(typeNameGroup.values()).map(group => {
@@ -94,23 +99,28 @@ export function DietCard({ data }: DietCardProps) {
                 let itemDetails = "";
                 const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
+                let amountPerAnimal = 0;
+                let uomForTotals = group.uom;
 
                 if (isCombo) {
                     itemName = mainItem.type_name;
                     
-                    // Aggregate ingredients within the combo
-                    const ingredientAggregator = new Map<string, { totalQty: number, uom: string }>();
+                    const ingredientAggregator = new Map<string, { totalQty: number, totalGram: number, uom: string }>();
                     group.ingredients.forEach(ing => {
                         const ingKey = ing.ingredient_name;
                         if (!ingredientAggregator.has(ingKey)) {
-                            ingredientAggregator.set(ingKey, { totalQty: 0, uom: ing.base_uom_name });
+                            ingredientAggregator.set(ingKey, { totalQty: 0, totalGram: 0, uom: ing.base_uom_name });
                         }
                         const entry = ingredientAggregator.get(ingKey)!;
                         entry.totalQty += ing.ingredient_qty;
+                        entry.totalGram += ing.ingredient_qty_gram;
                     });
+                    
+                    amountPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
+                    uomForTotals = 'gram';
 
                     const breakdown = Array.from(ingredientAggregator.entries()).map(([name, data]) => {
-                        return `${name} ${formatAmount(data.totalQty, data.uom)}`;
+                        return `${name} ${formatAmount(data.totalGram, 'gram')}`;
                     }).join(', ');
 
                     itemDetails = `(${breakdown})`;
@@ -118,17 +128,18 @@ export function DietCard({ data }: DietCardProps) {
                 } else {
                     itemName = mainItem.ingredient_name;
                     itemDetails = "";
+                    amountPerAnimal = group.totalQty;
+                    uomForTotals = group.uom;
                 }
 
-                const amountPerAnimal = group.totalQty;
                 const totalAmount = amountPerAnimal * animalCount;
 
                 return {
                     id: mainItem.type_name || mainItem.ingredient_name,
                     item_name: itemName,
                     item_details: itemDetails,
-                    amount_per_animal: formatAmount(amountPerAnimal, group.uom),
-                    total_amount_required: formatAmount(totalAmount, group.uom)
+                    amount_per_animal: formatAmount(amountPerAnimal, uomForTotals),
+                    total_amount_required: formatAmount(totalAmount, uomForTotals === 'gram' ? 'kilogram' : uomForTotals), // Convert total to kg if it's grams
                 };
             });
 
