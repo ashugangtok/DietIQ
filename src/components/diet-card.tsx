@@ -193,7 +193,7 @@ export function DietCard({ data }: DietCardProps) {
         <div className="border rounded-lg p-6 bg-white" ref={cardRef}>
             <div className="flex flex-col md:flex-row justify-between items-start mb-6">
                 <div>
-                    <h2 className="text-3xl font-bold capitalize text-gray-800">{animalName}</h2>
+                    <h2 className="text-3xl font-bold capitalize text-gray-800">{animalName} ({animalCount})</h2>
                     <p className="text-lg text-gray-500">({scientificName})</p>
                 </div>
                 <div className="w-full md:w-1/3 mt-4 md:mt-0">
@@ -255,5 +255,3 @@ export function DietCard({ data }: DietCardProps) {
         </div>
     );
 }
-
-    
