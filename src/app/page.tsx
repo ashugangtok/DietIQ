@@ -19,7 +19,7 @@ import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
 import styles from './reporting.module.css';
-import { PivotTableReport } from "@/components/pivot-table-report";
+import { TableReport } from "@/components/table-report";
 
 
 export default function Home() {
@@ -195,7 +195,7 @@ export default function Home() {
                 </TabsTrigger>
                 <TabsTrigger value="table-report">
                   <ClipboardList className="mr-2" />
-                  Pivot Table Report
+                  Table Report
                 </TabsTrigger>
                 <TabsTrigger value="kitchen" asChild>
                   <Link href="/kitchen">
@@ -223,7 +223,7 @@ export default function Home() {
                 <MealGroupBreakupWithIngredientsTable data={data} />
               </TabsContent>
               <TabsContent value="table-report" className="mt-6">
-                <PivotTableReport data={data} />
+                <TableReport data={data} />
               </TabsContent>
             </Tabs>
           </div>
