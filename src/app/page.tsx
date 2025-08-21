@@ -194,10 +194,6 @@ export default function Home() {
                   <Group className="mr-2" />
                   Meal Group Breakup with Ingredients
                 </TabsTrigger>
-                <TabsTrigger value="pivot-table-report">
-                  <ClipboardList className="mr-2" />
-                  Pivot Table Report
-                </TabsTrigger>
                 <TabsTrigger value="table-report">
                   <ClipboardList className="mr-2" />
                   Diet Plan
@@ -226,9 +222,6 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="meal-group-breakup-ingredients" className="mt-6">
                 <MealGroupBreakupWithIngredientsTable data={data} />
-              </TabsContent>
-              <TabsContent value="pivot-table-report" className="mt-6">
-                <PivotTableReport data={data} />
               </TabsContent>
               <TabsContent value="table-report" className="mt-6">
                 <TableReport data={data} />
