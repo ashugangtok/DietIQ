@@ -104,48 +104,76 @@ export function LiveDashboard({ data, onCardClick }: LiveDashboardProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Animals</CardTitle>
-                <PawPrint className="w-5 h-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-3xl font-bold text-primary">{stats.animalCount.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Unique animals recorded</p>
-            </CardContent>
+        <Card 
+            className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative bg-cover bg-center text-white" 
+            onClick={() => onCardClick()}
+            style={{ backgroundImage: "url('/Total Animal.jpg')" }}
+        >
+            <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+            <div className="relative">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Total Animals</CardTitle>
+                    <PawPrint className="w-5 h-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-3xl font-bold">{stats.animalCount.toLocaleString()}</div>
+                    <p className="text-xs text-white/80">Unique animals recorded</p>
+                </CardContent>
+            </div>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Sites</CardTitle>
-                <Building className="w-5 h-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-3xl font-bold text-primary">{stats.siteCount.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Locations providing data</p>
-            </CardContent>
+        <Card 
+            className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative bg-cover bg-center text-white" 
+            onClick={() => onCardClick()}
+            style={{ backgroundImage: "url('/Total Sites.jpg')" }}
+        >
+            <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+            <div className="relative">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Total Sites</CardTitle>
+                    <Building className="w-5 h-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-3xl font-bold">{stats.siteCount.toLocaleString()}</div>
+                    <p className="text-xs text-white/80">Locations providing data</p>
+                </CardContent>
+            </div>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Unique Ingredients</CardTitle>
-                <Sprout className="w-5 h-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-3xl font-bold text-primary">{stats.ingredientCount.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Different ingredients used</p>
-            </CardContent>
+        <Card 
+            className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative bg-cover bg-center text-white" 
+            onClick={() => onCardClick()}
+            style={{ backgroundImage: "url('/Ingredients.jpg')" }}
+        >
+            <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+            <div className="relative">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Unique Ingredients</CardTitle>
+                    <Sprout className="w-5 h-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-3xl font-bold">{stats.ingredientCount.toLocaleString()}</div>
+                    <p className="text-xs text-white/80">Different ingredients used</p>
+                </CardContent>
+            </div>
         </Card>
         
-        <Card className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => onCardClick()}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Feed Types</CardTitle>
-                <PieChartIcon className="w-5 h-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-3xl font-bold text-primary">{stats.feedTypeCount.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Distinct feed categories</p>
-            </CardContent>
+        <Card 
+            className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative bg-cover bg-center text-white" 
+            onClick={() => onCardClick()}
+            style={{ backgroundImage: "url('/Feed types.jpg')" }}
+        >
+            <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+            <div className="relative">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Feed Types</CardTitle>
+                    <PieChartIcon className="w-5 h-5 text-accent" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-3xl font-bold">{stats.feedTypeCount.toLocaleString()}</div>
+                    <p className="text-xs text-white/80">Distinct feed categories</p>
+                </CardContent>
+            </div>
         </Card>
         
         <Card className="md:col-span-2 lg:col-span-2 shadow-lg">
