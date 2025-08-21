@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -168,7 +169,7 @@ export function DietCard({ data }: DietCardProps) {
                 </div>
             </div>
 
-            <h3 className="text-xl font-semibold mb-4" style={{color: '#166534'}}>Diet – {dietName}</h3>
+            <h3 className="text-xl font-semibold mb-4" style={{color: '#166534'}}>{dietName}</h3>
 
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
