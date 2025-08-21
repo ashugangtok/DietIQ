@@ -3,7 +3,7 @@
 
 import { useState, useRef, useContext } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileSpreadsheet, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, AlertCircle, TrendingUp, Table, BarChart2, ChefHat, Spline, Group, ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { BreakupTable } from "@/components/breakup-table";
 import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
 import styles from './reporting.module.css';
+import { TableReport } from "@/components/table-report";
 
 
 export default function Home() {
@@ -192,6 +193,10 @@ export default function Home() {
                   <Group className="mr-2" />
                   Meal Group Breakup with Ingredients
                 </TabsTrigger>
+                <TabsTrigger value="table-report">
+                  <ClipboardList className="mr-2" />
+                  Table Report
+                </TabsTrigger>
                 <TabsTrigger value="kitchen" asChild>
                   <Link href="/kitchen">
                     <ChefHat className="mr-2" />
@@ -216,6 +221,9 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="meal-group-breakup-ingredients" className="mt-6">
                 <MealGroupBreakupWithIngredientsTable data={data} />
+              </TabsContent>
+              <TabsContent value="table-report" className="mt-6">
+                <TableReport data={data} />
               </TabsContent>
             </Tabs>
           </div>
