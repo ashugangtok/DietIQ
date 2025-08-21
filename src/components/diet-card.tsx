@@ -93,27 +93,25 @@ export function DietCard({ data }: DietCardProps) {
                     itemName = mainItem.type_name;
                     
                     // Aggregate ingredients within the combo
-                    const ingredientAggregator = new Map<string, { totalQty: number, uom: string, details: Set<string> }>();
+                    const ingredientAggregator = new Map<string, { totalQty: number, uom: string }>();
                     group.ingredients.forEach(ing => {
                         const ingKey = ing.ingredient_name;
                         if (!ingredientAggregator.has(ingKey)) {
-                            ingredientAggregator.set(ingKey, { totalQty: 0, uom: ing.base_uom_name, details: new Set() });
+                            ingredientAggregator.set(ingKey, { totalQty: 0, uom: ing.base_uom_name });
                         }
                         const entry = ingredientAggregator.get(ingKey)!;
                         entry.totalQty += ing.ingredient_qty;
                     });
 
                     const breakdown = Array.from(ingredientAggregator.entries()).map(([name, data]) => {
-                        const detailsString = data.details.size > 0 ? ` (${Array.from(data.details).join(', ')})` : "";
-                        return `${name} ${formatAmount(data.totalQty, data.uom)}${detailsString}`;
+                        return `${name} ${formatAmount(data.totalQty, data.uom)}`;
                     }).join(', ');
 
                     itemDetails = `(${breakdown})`;
 
                 } else {
                     itemName = mainItem.ingredient_name;
-                    const detailsParts: string[] = [];
-                    itemDetails = detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : "";
+                    itemDetails = "";
                 }
 
                 return {
@@ -209,7 +207,6 @@ export function DietCard({ data }: DietCardProps) {
                         <tr>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6">Time</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Item</th>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4">Type Name</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Daily Amount (per animal)</th>
                         </tr>
                     </thead>
@@ -225,7 +222,6 @@ export function DietCard({ data }: DietCardProps) {
                                  <div className="font-bold">{item.item_name}</div>
                                  {item.item_details && <div className="text-sm text-gray-600">{item.item_details}</div>}
                                </td>
-                               <td className="align-top">{item.type_name}</td>
                                <td className="text-right align-top font-bold">{item.amount}</td>
                              </tr>
                            ))}
