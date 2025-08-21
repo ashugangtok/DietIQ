@@ -14,7 +14,8 @@ interface DietPlanProps {
 }
 
 type MealItem = {
-    item: string;
+    isCombo: boolean;
+    itemName: string;
     details?: string;
     amount: string;
 };
@@ -37,51 +38,75 @@ export function DietPlan({ data }: DietPlanProps) {
 
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
-        
-        const mealMap = new Map<string, Map<string, SheetDataRow[]>>();
 
-        // Group rows by time, then by ingredient name to sum up duplicates
+        const mealMap = new Map<string, SheetDataRow[]>();
         data.forEach(row => {
             const time = row.meal_start_time || "N/A";
             if (!mealMap.has(time)) {
-                mealMap.set(time, new Map<string, SheetDataRow[]>());
+                mealMap.set(time, []);
             }
-            const timeGroup = mealMap.get(time)!;
-            
-            const ingredientKey = row.ingredient_name;
-            if (!timeGroup.has(ingredientKey)) {
-                timeGroup.set(ingredientKey, []);
-            }
-            timeGroup.get(ingredientKey)!.push(row);
+            mealMap.get(time)!.push(row);
         });
+        
+        return Array.from(mealMap.entries()).map(([time, rows]) => {
+            const comboMap = new Map<string, SheetDataRow[]>();
+            const singleItems: MealItem[] = [];
 
-        // Process the grouped data into the final structure for rendering
-        return Array.from(mealMap.entries()).map(([time, timeGroup]) => {
-            const items: MealItem[] = Array.from(timeGroup.entries()).map(([ingredientName, rows]) => {
-                
-                const totalQty = rows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-                const firstRow = rows[0];
-                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
-                
-                let detailsParts: string[] = [];
-                if (firstRow.cut_size_name) {
-                    detailsParts.push(`cut: ${firstRow.cut_size_name}`);
+            // First, separate combos from single items
+            rows.forEach(row => {
+                if ((row.type === 'Recipe' || row.type === 'Combo') && row.type_name) {
+                    if (!comboMap.has(row.type_name)) {
+                        comboMap.set(row.type_name, []);
+                    }
+                    comboMap.get(row.type_name)!.push(row);
+                } else {
+                    // Group and sum single items
+                    const existingItem = singleItems.find(item => item.itemName === row.ingredient_name);
+                    if (existingItem) {
+                        // This part is tricky if units are different. Assuming same unit for simplicity.
+                        const currentQty = parseFloat(existingItem.amount.split(' ')[0]);
+                        const newQty = currentQty + row.ingredient_qty;
+                        existingItem.amount = formatIngredientAmount(newQty, row.base_uom_name);
+                    } else {
+                        let detailsParts: string[] = [];
+                        if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
+                        if (row.preparation_type_name) detailsParts.push(`prep: ${row.preparation_type_name}`);
+                        
+                        singleItems.push({
+                            isCombo: false,
+                            itemName: row.ingredient_name,
+                            details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                            amount: formatIngredientAmount(row.ingredient_qty, row.base_uom_name)
+                        });
+                    }
                 }
-                if (firstRow.preparation_type_name) {
-                    detailsParts.push(`prep: ${firstRow.preparation_type_name}`);
-                }
+            });
 
+            const comboItems: MealItem[] = Array.from(comboMap.entries()).map(([comboName, ingredients]) => {
+                const totalAmount = ingredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
+                const firstIngredient = ingredients[0];
+
+                const ingredientDetails = ingredients.map(ing => {
+                    return `${ing.ingredient_name} (${formatIngredientAmount(ing.ingredient_qty, ing.base_uom_name)})`;
+                }).join(', ');
+                
                 return {
-                    item: ingredientName,
-                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                    amount
+                    isCombo: true,
+                    itemName: comboName,
+                    details: `(${ingredientDetails})`,
+                    amount: formatIngredientAmount(totalAmount, firstIngredient.base_uom_name)
                 };
             });
 
-            return { time, items };
+            return {
+                time,
+                items: [...comboItems, ...singleItems]
+            };
+
         }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
+
 
     const handlePrint = () => {
         const printContent = cardRef.current;
@@ -167,7 +192,7 @@ export function DietPlan({ data }: DietPlanProps) {
                                  <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
                                )}
                                <td>
-                                 <div className="font-bold">{item.item}</div>
+                                 <div className="font-bold">{item.itemName}</div>
                                  {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
                                </td>
                                <td className="text-right">{item.amount}</td>
