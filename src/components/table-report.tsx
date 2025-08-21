@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { DietCard } from "./diet-card";
+import { DietPlan } from "./diet-plan";
 
 
 export function TableReport({ data }: { data: SheetDataRow[] }) {
@@ -52,7 +52,7 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
                 </div>
                 
                 {selectedAnimal ? (
-                    <DietCard data={animalData} />
+                    <DietPlan data={animalData} />
                 ) : (
                     <div className="text-center p-12 border-2 border-dashed rounded-lg">
                         <p className="text-muted-foreground">
