@@ -114,13 +114,16 @@ export function DietPlan({ data }: DietPlanProps) {
     const handleDownloadPdf = async () => {
         const element = cardRef.current;
         if (element) {
-            const buttons = element.querySelector('.no-print');
-            if (buttons) buttons.classList.add('hidden');
+            // Temporarily hide buttons for the screenshot
+            const buttons = element.querySelector('.no-print') as HTMLElement | null;
+            if (buttons) buttons.style.display = 'none';
             
             const canvas = await html2canvas(element, { scale: 2 });
-            const data = canvas.toDataURL('image/png');
             
-            if (buttons) buttons.classList.remove('hidden');
+            // Show buttons again
+            if (buttons) buttons.style.display = 'flex';
+
+            const data = canvas.toDataURL('image/png');
 
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgProperties = pdf.getImageProperties(data);
