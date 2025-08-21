@@ -101,8 +101,6 @@ export function DietCard({ data }: DietCardProps) {
                         }
                         const entry = ingredientAggregator.get(ingKey)!;
                         entry.totalQty += ing.ingredient_qty;
-                        if (ing.cut_size_name) entry.details.add(`cut: ${ing.cut_size_name}`);
-                        if (ing.preparation_type_name) entry.details.add(ing.preparation_type_name);
                     });
 
                     const breakdown = Array.from(ingredientAggregator.entries()).map(([name, data]) => {
@@ -115,8 +113,6 @@ export function DietCard({ data }: DietCardProps) {
                 } else {
                     itemName = mainItem.ingredient_name;
                     const detailsParts: string[] = [];
-                    if (mainItem.cut_size_name) detailsParts.push(`cut: ${mainItem.cut_size_name}`);
-                    if (mainItem.preparation_type_name) detailsParts.push(mainItem.preparation_type_name);
                     itemDetails = detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : "";
                 }
 
