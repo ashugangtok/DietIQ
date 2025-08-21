@@ -195,7 +195,7 @@ export default function MainLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-                <Link href="/dashboard">
+                <Link href="/dashboard" passHref>
                     <SidebarMenuButton tooltip="Live Dashboard" isActive={isActive('/dashboard')}>
                         <BarChart2 />
                         <span>Live Dashboard</span>
@@ -203,7 +203,7 @@ export default function MainLayout({
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/data-table">
+                <Link href="/data-table" passHref>
                     <SidebarMenuButton tooltip="Data Table" isActive={isActive('/data-table')}>
                         <Table />
                         <span>Data Table</span>
@@ -211,7 +211,7 @@ export default function MainLayout({
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/summary">
+                <Link href="/summary" passHref>
                     <SidebarMenuButton tooltip="Summary" isActive={isActive('/summary')}>
                         <TrendingUp />
                         <span>Summary</span>
@@ -219,7 +219,7 @@ export default function MainLayout({
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/ingredient-breakup">
+                <Link href="/ingredient-breakup" passHref>
                     <SidebarMenuButton tooltip="Ingredient Breakup" isActive={isActive('/ingredient-breakup')}>
                         <Spline />
                         <span>Ingredient Breakup</span>
@@ -227,7 +227,7 @@ export default function MainLayout({
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/meal-group-breakup">
+                <Link href="/meal-group-breakup" passHref>
                     <SidebarMenuButton tooltip="Meal Group Breakup" isActive={isActive('/meal-group-breakup')}>
                         <Group />
                         <span>Meal Group Breakup</span>
@@ -235,7 +235,7 @@ export default function MainLayout({
                 </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <Link href="/diet-plan">
+                <Link href="/diet-plan" passHref>
                     <SidebarMenuButton tooltip="Diet Plan" isActive={isActive('/diet-plan')}>
                         <ClipboardList />
                         <span>Diet Plan</span>
