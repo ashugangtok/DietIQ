@@ -15,6 +15,7 @@ interface DietCardProps {
 
 type MealItem = {
     item: string;
+    typeName: string;
     details?: string;
     amount: string;
 };
@@ -71,6 +72,7 @@ export function DietCard({ data }: DietCardProps) {
 
                 return {
                     item: ingredientName,
+                    typeName: firstRow.type_name,
                     details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
                     amount
                 };
@@ -149,7 +151,8 @@ export function DietCard({ data }: DietCardProps) {
                     <thead>
                         <tr>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4">Time</th>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/2">Item</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Item</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Type Name</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4 text-right">Daily Amount (data per animal)</th>
                         </tr>
                     </thead>
@@ -165,6 +168,7 @@ export function DietCard({ data }: DietCardProps) {
                                  <div className="font-bold">{item.item}</div>
                                  {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
                                </td>
+                               <td>{item.typeName}</td>
                                <td className="text-right">{item.amount}</td>
                              </tr>
                            ))}
