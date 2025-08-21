@@ -40,7 +40,7 @@ export function DietCard({ data }: DietCardProps) {
             }
 
             const amount = `${row.ingredient_qty.toLocaleString(undefined, {
-                minimumFractionDigits: 0,
+                minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             })} ${row.base_uom_name}`;
 
@@ -92,7 +92,7 @@ export function DietCard({ data }: DietCardProps) {
                         h2, h3 { color: #2c5282; }
                         table { width: 100%; border-collapse: collapse; }
                         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #2c5282; color: white; }
+                        th { background-color: #166534; color: white; }
                         .no-print { display: none; }
                     </style>
                 `);
@@ -130,7 +130,7 @@ export function DietCard({ data }: DietCardProps) {
     };
 
     return (
-        <div className="border rounded-lg p-6 bg-white" ref={cardRef}>
+        <div className="border rounded-lg p-6 bg-white diet-card" ref={cardRef}>
             <div className="flex flex-col md:flex-row justify-between items-start mb-6">
                 <div>
                     <h2 className="text-3xl font-bold capitalize text-gray-800">{animalName}</h2>
@@ -141,7 +141,7 @@ export function DietCard({ data }: DietCardProps) {
                 </div>
             </div>
 
-            <h3 className="text-xl font-semibold mb-4 text-green-700">Diet – {dietName}</h3>
+            <h3 className="text-xl font-semibold mb-4" style={{color: '#166534'}}>Diet – {dietName}</h3>
 
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -153,26 +153,21 @@ export function DietCard({ data }: DietCardProps) {
                         </tr>
                     </thead>
                     <tbody className="bg-white">
-                       {dietData.map((mealGroup, index) => (
-                         <tr key={index} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
-                            <td rowSpan={mealGroup.items.length || 1} className="align-top">{mealGroup.time}</td>
-                            <td>
-                                <strong>{mealGroup.items[0]?.item}</strong>
-                                {mealGroup.items[0]?.details && <div className="text-sm text-gray-600">{mealGroup.items[0]?.details}</div>}
-                            </td>
-                            <td className="text-right">{mealGroup.items[0]?.amount}</td>
-                         </tr>
-                       ))}
                        {dietData.map((mealGroup, groupIndex) => (
-                           mealGroup.items.slice(1).map((item, itemIndex) => (
-                                <tr key={`${groupIndex}-${itemIndex}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
-                                    <td>
-                                        <strong>{item.item}</strong>
-                                        {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
-                                    </td>
-                                    <td className="text-right">{item.amount}</td>
-                                </tr>
-                           ))
+                         <React.Fragment key={groupIndex}>
+                           {mealGroup.items.map((item, itemIndex) => (
+                             <tr key={`${groupIndex}-${itemIndex}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
+                               {itemIndex === 0 && (
+                                 <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
+                               )}
+                               <td>
+                                 <div className="font-bold">{item.item}</div>
+                                 {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
+                               </td>
+                               <td className="text-right">{item.amount}</td>
+                             </tr>
+                           ))}
+                         </React.Fragment>
                        ))}
                     </tbody>
                 </table>
