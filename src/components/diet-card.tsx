@@ -15,11 +15,11 @@ interface DietCardProps {
 }
 
 const formatAmount = (quantity: number, uom: string) => {
-    if (!uom) return `${quantity}`;
+    if (!uom || isNaN(quantity)) return `0 ${uom || ''}`.trim();
+
     const uomLower = uom.toLowerCase();
     
-    // Handle gram conversion for small kg quantities
-    if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 0.001) { // A threshold to avoid tiny fractions
+    if ((uomLower === 'kg' || uomLower === 'kilogram') && quantity > 0 && quantity < 0.001) { 
         const grams = quantity * 1000;
         return `${grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} gram`;
     }
@@ -28,7 +28,6 @@ const formatAmount = (quantity: number, uom: string) => {
         return `${grams.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
     }
     
-    // Handle gram amounts directly
     if (uomLower === 'gram') {
         return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
     }
@@ -60,7 +59,7 @@ export function DietCard({ data }: DietCardProps) {
 
 
     const dietData = useMemo(() => {
-        if (data.length === 0) return [];
+        if (data.length === 0 || animalCount === 0) return [];
         
         const mealMap = new Map<string, SheetDataRow[]>();
 
@@ -99,7 +98,7 @@ export function DietCard({ data }: DietCardProps) {
                 let itemDetails = "";
                 const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
-                let amountPerAnimal = 0;
+                let totalAmountForAllAnimals = 0;
                 let uomForTotals = group.uom;
 
                 if (isCombo) {
@@ -116,11 +115,11 @@ export function DietCard({ data }: DietCardProps) {
                         entry.totalGram += ing.ingredient_qty_gram;
                     });
                     
-                    amountPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
+                    totalAmountForAllAnimals = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
                     uomForTotals = 'gram';
 
-                    const breakdown = Array.from(ingredientAggregator.entries()).map(([name, data]) => {
-                        return `${name} ${formatAmount(data.totalGram, 'gram')}`;
+                    const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
+                        return `${name} ${formatAmount(ingData.totalGram, 'gram')}`;
                     }).join(', ');
 
                     itemDetails = `(${breakdown})`;
@@ -128,18 +127,23 @@ export function DietCard({ data }: DietCardProps) {
                 } else {
                     itemName = mainItem.ingredient_name;
                     itemDetails = "";
-                    amountPerAnimal = group.totalQty;
-                    uomForTotals = group.uom;
+                    totalAmountForAllAnimals = group.totalGram > 0 ? group.totalGram : group.totalQty;
+                    uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
                 }
 
-                const totalAmount = amountPerAnimal * animalCount;
+                const amountPerAnimal = totalAmountForAllAnimals / animalCount;
+                
+                // For total required, use kilogram if original unit was gram
+                const totalUom = uomForTotals === 'gram' ? 'kilogram' : uomForTotals;
+                const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimals / 1000 : totalAmountForAllAnimals;
+
 
                 return {
                     id: mainItem.type_name || mainItem.ingredient_name,
                     item_name: itemName,
                     item_details: itemDetails,
                     amount_per_animal: formatAmount(amountPerAnimal, uomForTotals),
-                    total_amount_required: formatAmount(totalAmount, uomForTotals === 'gram' ? 'kilogram' : uomForTotals), // Convert total to kg if it's grams
+                    total_amount_required: formatAmount(totalAmountForDisplay, totalUom),
                 };
             });
 
