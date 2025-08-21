@@ -277,7 +277,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
                   <XAxis type="number" stroke="#c7d2fe" tick={{ fill: "#c7d2fe", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" stroke="#c7d2fe" tick={{ fill: "#c7d2fe", fontSize: 12 }} width={120} />
                   <Tooltip content={<ChartTooltip unit="kg" />} />
-                  <Bar dataKey="value" radius={[6, 6, 6, 6]} fill="url(#grad1)" />
+                  <Bar dataKey="value" radius={[6, 6, 6, 6]} fill="url(#grad1)" barSize={20} />
                   <defs>
                     <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#34d399" />
@@ -300,7 +300,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
                   <XAxis type="number" allowDecimals={false} stroke="#c7d2fe" tick={{ fill: "#c7d2fe", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" stroke="#c7d2fe" tick={{ fill: "#c7d2fe", fontSize: 12 }} width={160} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="value" radius={[6, 6, 6, 6]} fill="url(#grad2)" />
+                  <Bar dataKey="value" radius={[6, 6, 6, 6]} fill="url(#grad2)" barSize={20} />
                   <defs>
                     <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#a78bfa" />
