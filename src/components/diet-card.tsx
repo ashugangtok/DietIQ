@@ -63,15 +63,20 @@ export function DietCard({ data }: DietCardProps) {
 
         // 1. Group all rows by mealtime
         data.forEach(row => {
-            const time = row.meal_start_time || "N/A";
-            if (!mealMap.has(time)) {
-                mealMap.set(time, []);
+            const timeKey = `${row.meal_start_time || "N/A"}|${row.meal_end_time || "N/A"}`;
+            if (!mealMap.has(timeKey)) {
+                mealMap.set(timeKey, []);
             }
-            mealMap.get(time)!.push(row);
+            mealMap.get(timeKey)!.push(row);
         });
 
         // 2. Process each meal group
-        return Array.from(mealMap.entries()).map(([time, rows]) => {
+        return Array.from(mealMap.entries()).map(([timeKey, rows]) => {
+            const [startTime, endTime] = timeKey.split('|');
+            const timeDisplay = (startTime !== "N/A" && endTime !== "N/A" && startTime !== endTime)
+                ? `${startTime} - ${endTime}`
+                : (startTime !== "N/A" ? startTime : "N/A");
+
             const processedItems = new Map<string, MealItem>();
 
             // Sum up quantities for duplicate ingredients within the same mealtime
@@ -100,7 +105,7 @@ export function DietCard({ data }: DietCardProps) {
                 };
             });
 
-            return { time, items };
+            return { time: timeDisplay, items };
         }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
@@ -170,7 +175,7 @@ export function DietCard({ data }: DietCardProps) {
                         alt={animalName}
                         width={600}
                         height={400} 
-                        data-ai-hint="coatimundi animal" 
+                        data-ai-hint="animal" 
                         className="rounded-lg shadow-md w-full"
                     />
                 </div>

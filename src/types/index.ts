@@ -15,6 +15,7 @@ export interface SheetDataRow {
   base_uom_name_gram: string;
   preparation_type_name: string;
   meal_start_time: string;
+  meal_end_time: string;
   cut_size_name: string;
   feeding_date: string; // Added for date filtering
 }
