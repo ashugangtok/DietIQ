@@ -12,7 +12,7 @@ import { DataTable, type Filters } from "@/components/data-table";
 import { type SheetDataRow } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SummaryTable } from "@/components/summary-table";
-import { LiveDashboard } from "@/components/live-dashboard";
+import DashboardMockup from "@/components/dashboard-mockup";
 import Link from "next/link";
 import { DataContext } from "@/context/data-context";
 import { BreakupTable } from "@/components/breakup-table";
@@ -20,7 +20,6 @@ import { MealGroupBreakupTable } from "@/components/meal-group-breakup-table";
 import { MealGroupBreakupWithIngredientsTable } from "@/components/meal-group-breakup-with-ingredients-table";
 import styles from './reporting.module.css';
 import { TableReport } from "@/components/table-report";
-import { PivotTableReport } from "@/components/pivot-table-report";
 
 
 export default function Home() {
@@ -108,6 +107,10 @@ export default function Home() {
     setActiveTab("data-table");
   };
 
+  if (data.length > 0) {
+    return <DashboardMockup data={data} />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="py-4 px-6 border-b bg-card">
@@ -123,7 +126,7 @@ export default function Home() {
             </div>
             <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
           </div>
-        ) : data.length === 0 ? (
+        ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-4">
             <Card className="w-full max-w-5xl shadow-lg">
                 <CardHeader>
@@ -166,77 +169,7 @@ export default function Home() {
                 <p className="mt-4 text-lg">Your data will appear here</p>
             </div>
           </div>
-        ) : (
-          <div className="w-full p-4 md:p-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="flex flex-wrap h-auto justify-center gap-1">
-                <TabsTrigger value="live-dashboard">
-                  <TrendingUp className="mr-2" />
-                  Live Dashboard
-                </TabsTrigger>
-                <TabsTrigger value="data-table">
-                  <Table className="mr-2" />
-                  Data Table
-                </TabsTrigger>
-                <TabsTrigger value="summary">
-                  <BarChart2 className="mr-2" />
-                  Summary
-                </TabsTrigger>
-                 <TabsTrigger value="breakup">
-                  <Spline className="mr-2" />
-                  Breakup Details
-                </TabsTrigger>
-                <TabsTrigger value="meal-group-breakup">
-                  <Group className="mr-2" />
-                  Meal Group Breakup
-                </TabsTrigger>
-                <TabsTrigger value="meal-group-breakup-ingredients">
-                  <Group className="mr-2" />
-                  Meal Group Breakup with Ingredients
-                </TabsTrigger>
-                <TabsTrigger value="table-report">
-                  <ClipboardList className="mr-2" />
-                  Diet Plan
-                </TabsTrigger>
-                <TabsTrigger value="pivot-table-report">
-                  <ClipboardList className="mr-2" />
-                  Pivot Table Report
-                </TabsTrigger>
-                <TabsTrigger value="kitchen" asChild>
-                  <Link href="/kitchen">
-                    <ChefHat className="mr-2" />
-                    Kitchen
-                  </Link>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="live-dashboard" className="mt-6">
-                 <LiveDashboard data={data} onCardClick={handleCardClick} />
-              </TabsContent>
-              <TabsContent value="data-table" className="mt-6">
-                <DataTable data={data} initialFilters={filters} onFiltersChange={setFilters} />
-              </TabsContent>
-              <TabsContent value="summary" className="mt-6">
-                <SummaryTable data={data} />
-              </TabsContent>
-               <TabsContent value="breakup" className="mt-6">
-                <BreakupTable data={data} />
-              </TabsContent>
-              <TabsContent value="meal-group-breakup" className="mt-6">
-                <MealGroupBreakupTable data={data} />
-              </TabsContent>
-              <TabsContent value="meal-group-breakup-ingredients" className="mt-6">
-                <MealGroupBreakupWithIngredientsTable data={data} />
-              </TabsContent>
-              <TabsContent value="table-report" className="mt-6">
-                <TableReport data={data} />
-              </TabsContent>
-              <TabsContent value="pivot-table-report" className="mt-6">
-                <PivotTableReport data={data} />
-              </TabsContent>
-            </Tabs>
-          </div>
         )}
-        
       </main>
       <footer className="text-center p-4 text-sm text-muted-foreground border-t">
           Built for Firebase Studio
