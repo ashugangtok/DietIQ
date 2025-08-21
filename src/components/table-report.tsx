@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { DietPlan } from "./diet-plan";
+import { DietCard } from "./diet-card";
 
 
 export function TableReport({ data }: { data: SheetDataRow[] }) {
@@ -30,7 +30,7 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
     return (
         <Card className="shadow-lg">
             <CardHeader>
-                <CardTitle className="font-headline text-xl">Table Report</CardTitle>
+                <CardTitle className="font-headline text-xl">Diet Plan Report</CardTitle>
                 <CardDescription>
                     Select an animal to view its detailed diet plan. You can print this plan or save it as a PDF.
                 </CardDescription>
@@ -52,7 +52,7 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
                 </div>
                 
                 {selectedAnimal ? (
-                    <DietPlan data={animalData} />
+                    <DietCard data={animalData} />
                 ) : (
                     <div className="text-center p-12 border-2 border-dashed rounded-lg">
                         <p className="text-muted-foreground">

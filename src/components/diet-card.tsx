@@ -63,7 +63,7 @@ export function DietCard({ data }: DietCardProps) {
                 
                 let detailsParts: string[] = [];
                 if (firstRow.cut_size_name) {
-                    detailsParts.push(`cutting size ${firstRow.cut_size_name}`);
+                    detailsParts.push(`cut: ${firstRow.cut_size_name}`);
                 }
                 if (firstRow.preparation_type_name) {
                     detailsParts.push(firstRow.preparation_type_name);
