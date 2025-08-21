@@ -187,15 +187,8 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
   }
 
   return (
-    <div className="min-h-[100vh] w-full bg-gradient-to-b from-[#0a0f1f] via-[#0b1328] to-[#0d1530] p-6 md:p-10">
+    <div className="w-full bg-gradient-to-b from-[#0a0f1f] via-[#0b1328] to-[#0d1530] p-6 md:p-10 rounded-lg">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl md:text-3xl font-semibold text-white">Sheet Insights</h1>
-          <div className="flex gap-2">
-             <Button variant="ghost" className="text-white/80 hover:bg-white/10" onClick={() => window.location.reload()}>Upload New File</Button>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <StatCard
             title="Total Animals"

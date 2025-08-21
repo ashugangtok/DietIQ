@@ -108,7 +108,60 @@ export default function Home() {
   };
 
   if (data.length > 0) {
-    return <DashboardMockup data={data} />;
+    return (
+      <div className="flex flex-col min-h-screen bg-muted/40">
+        <header className="py-4 px-6 border-b bg-card flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-bold text-primary font-headline">Sheet Insights</h1>
+                <Link href="/kitchen">
+                    <Button variant="outline">
+                        <ChefHat className="mr-2 h-4 w-4" />
+                        Go to Kitchen
+                    </Button>
+                </Link>
+            </div>
+            <Button variant="ghost" onClick={() => {
+                setData([]);
+                setError(null);
+            }}>Upload New File</Button>
+        </header>
+        <main className="flex-1 p-4 md:p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-6 mb-6">
+                    <TabsTrigger value="live-dashboard"><BarChart2 className="mr-2 h-4 w-4"/>Live Dashboard</TabsTrigger>
+                    <TabsTrigger value="data-table"><Table className="mr-2 h-4 w-4"/>Data Table</TabsTrigger>
+                    <TabsTrigger value="summary-table"><TrendingUp className="mr-2 h-4 w-4"/>Summary</TabsTrigger>
+                    <TabsTrigger value="breakup-table"><Spline className="mr-2 h-4 w-4"/>Ingredient Breakup</TabsTrigger>
+                    <TabsTrigger value="meal-group-breakup"><Group className="mr-2 h-4 w-4"/>Meal Group Breakup</TabsTrigger>
+                    <TabsTrigger value="table-report"><ClipboardList className="mr-2 h-4 w-4"/>Diet Plan</TabsTrigger>
+                </TabsList>
+                <TabsContent value="live-dashboard">
+                   <DashboardMockup data={data} />
+                </TabsContent>
+                <TabsContent value="data-table">
+                    <DataTable data={data} initialFilters={filters} onFiltersChange={setFilters} />
+                </TabsContent>
+                <TabsContent value="summary-table">
+                    <SummaryTable data={data} />
+                </TabsContent>
+                <TabsContent value="breakup-table">
+                  <div className="space-y-6">
+                    <BreakupTable data={data} />
+                  </div>
+                </TabsContent>
+                <TabsContent value="meal-group-breakup">
+                  <div className="space-y-6">
+                    <MealGroupBreakupTable data={data} />
+                    <MealGroupBreakupWithIngredientsTable data={data} />
+                  </div>
+                </TabsContent>
+                <TabsContent value="table-report">
+                  <TableReport data={data} />
+                </TabsContent>
+            </Tabs>
+        </main>
+      </div>
+    );
   }
 
   return (
