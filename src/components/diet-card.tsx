@@ -40,32 +40,57 @@ export function DietCard({ data }: DietCardProps) {
                 mealMap.set(time, []);
             }
 
-            const amount = `${row.ingredient_qty.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            })} ${row.base_uom_name}`;
-
-            let item = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
-            let details = "";
-             if (row.type === 'Recipe' || row.type === 'Combo') {
-                const ingredients = data.filter(d => d.type_name === row.type_name);
-                const totalWeight = ingredients.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
-                if (totalWeight > 0) {
-                     details = ingredients.map(ing => {
-                        const percentage = ((ing.ingredient_qty_gram / totalWeight) * 100).toFixed(0);
-                        return `${percentage}% ${ing.ingredient_name}`;
-                    }).join(', ');
-                }
-             }
-             if (row.cut_size_name) {
-                details += `${details ? ', ' : ''}cutting size ${row.cut_size_name}`;
-             }
-
-            // Avoid adding duplicate recipe/combo line items for each ingredient
             const existingItems = mealMap.get(time)!;
-            if (!existingItems.some(i => i.item === item)) {
-                 existingItems.push({
-                    item,
+
+            if (row.type === 'Recipe' || row.type === 'Combo') {
+                const itemIdentifier = row.type_name;
+                
+                // If this recipe/combo is not yet in the list for this mealtime, add it.
+                if (!existingItems.some(i => i.item === itemIdentifier)) {
+                    const ingredientsForRecipe = data.filter(
+                      (d) => d.type_name === itemIdentifier && d.meal_start_time === time
+                    );
+
+                    const totalQty = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
+                    const totalGram = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
+
+                    const amount = `${totalQty.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })} ${row.base_uom_name}`;
+
+                    const totalWeightForPercentage = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
+                    
+                    let details = "";
+                    if (totalWeightForPercentage > 0) {
+                         details = ingredientsForRecipe.map(ing => {
+                            const percentage = ((ing.ingredient_qty_gram / totalWeightForPercentage) * 100).toFixed(0);
+                            return `${percentage}% ${ing.ingredient_name}`;
+                        }).join(', ');
+                    }
+                    if (row.cut_size_name) {
+                        details += `${details ? ', ' : ''}cutting size ${row.cut_size_name}`;
+                    }
+
+                    existingItems.push({
+                        item: itemIdentifier,
+                        details: details ? `(${details})` : undefined,
+                        amount,
+                    });
+                }
+            } else { // Handle single ingredients
+                const amount = `${row.ingredient_qty.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                })} ${row.base_uom_name}`;
+
+                let details = "";
+                if (row.cut_size_name) {
+                    details = `cutting size ${row.cut_size_name}`;
+                }
+
+                existingItems.push({
+                    item: row.ingredient_name,
                     details: details ? `(${details})` : undefined,
                     amount,
                 });
