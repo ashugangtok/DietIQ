@@ -47,7 +47,12 @@ const formatAmount = (quantity: number, uom: string) => {
 export function DietCard({ data }: DietCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const animalName = data.length > 0 ? data[0].common_name : "";
-    const dietName = data.length > 0 ? data[0]['Feed type name'] : "Diet";
+    
+    // Use diet_name and diet_no for the subheading
+    const dietName = data.length > 0 ? (data[0] as any).diet_name : "Diet";
+    const dietNo = data.length > 0 ? (data[0] as any).diet_no : "";
+    const subheading = dietNo ? `${dietName} (${dietNo})` : dietName;
+
 
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
@@ -169,7 +174,7 @@ export function DietCard({ data }: DietCardProps) {
                 </div>
             </div>
 
-            <h3 className="text-xl font-semibold mb-4" style={{color: '#166534'}}>{dietName}</h3>
+            <h3 className="text-xl font-semibold mb-4" style={{color: '#166534'}}>{subheading}</h3>
 
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
