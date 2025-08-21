@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -23,12 +22,20 @@ type MealItem = {
 
 const formatAmount = (quantity: number, uom: string) => {
     if (!uom) return `${quantity}`;
+
+    // Handle cases where quantity is less than 1 kg
+    if ((uom.toLowerCase() === 'kg' || uom.toLowerCase() === 'kilogram') && quantity > 0 && quantity < 1) {
+        const grams = quantity * 1000;
+        return `${grams.toLocaleString(undefined, { maximumFractionDigits: 0 })} gram`;
+    }
+    
     const formattedQty = quantity.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
     return `${formattedQty} ${uom}`;
 };
+
 
 export function DietCard({ data }: DietCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
@@ -53,8 +60,9 @@ export function DietCard({ data }: DietCardProps) {
         return Array.from(mealMap.entries()).map(([time, rows]) => {
             const processedItems = new Map<string, MealItem>();
             const comboMap = new Map<string, SheetDataRow[]>();
+            const singleItemMap = new Map<string, SheetDataRow[]>();
 
-            // Separate combos from single ingredients
+            // Separate combos and single ingredients
             rows.forEach(row => {
                 if (row.type === 'Recipe' || row.type === 'Combo') {
                     const comboKey = row.type_name;
@@ -64,27 +72,30 @@ export function DietCard({ data }: DietCardProps) {
                     comboMap.get(comboKey)!.push(row);
                 } else {
                     const singleItemKey = row.ingredient_name;
-                    let existing = processedItems.get(singleItemKey);
-                    if (!existing) {
-                        const detailsParts: string[] = [];
-                        if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
-                        if (row.preparation_type_name) detailsParts.push(row.preparation_type_name);
-                        
-                        processedItems.set(singleItemKey, {
-                            isCombo: false,
-                            item: row.ingredient_name,
-                            typeName: row.type_name,
-                            details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                            amount: formatAmount(row.ingredient_qty, row.base_uom_name)
-                        });
-                    } else {
-                        // This assumes uom is the same; if not, more complex logic is needed.
-                        const currentQty = parseFloat(existing.amount.split(' ')[0]);
-                        const newQty = currentQty + row.ingredient_qty;
-                        existing.amount = formatAmount(newQty, row.base_uom_name);
+                     if (!singleItemMap.has(singleItemKey)) {
+                        singleItemMap.set(singleItemKey, []);
                     }
+                    singleItemMap.get(singleItemKey)!.push(row);
                 }
             });
+            
+            // Process single items (summing duplicates)
+            singleItemMap.forEach((itemRows, itemName) => {
+                const totalQty = itemRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
+                const firstRow = itemRows[0];
+                const detailsParts: string[] = [];
+                if (firstRow.cut_size_name) detailsParts.push(`cut: ${firstRow.cut_size_name}`);
+                if (firstRow.preparation_type_name) detailsParts.push(firstRow.preparation_type_name);
+
+                processedItems.set(itemName, {
+                    isCombo: false,
+                    item: itemName,
+                    typeName: firstRow.type_name,
+                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                    amount: formatAmount(totalQty, firstRow.base_uom_name)
+                });
+            });
+
 
             // Process combos
             comboMap.forEach((comboRows, comboName) => {
@@ -165,6 +176,10 @@ export function DietCard({ data }: DietCardProps) {
         }
     };
 
+    if (data.length === 0) {
+        return null; // Don't render anything if there's no data
+    }
+
     return (
         <div className="border rounded-lg p-6 bg-white diet-card" ref={cardRef}>
             <div className="flex flex-col md:flex-row justify-between items-start mb-6">
@@ -202,7 +217,7 @@ export function DietCard({ data }: DietCardProps) {
                                  {item.details && <div className="item-details text-sm text-gray-600">{item.details}</div>}
                                </td>
                                <td className="align-top">{item.typeName}</td>
-                               <td className="text-right align-top">{item.amount}</td>
+                               <td className="text-right align-top font-bold">{item.amount}</td>
                              </tr>
                            ))}
                          </React.Fragment>
@@ -223,4 +238,4 @@ export function DietCard({ data }: DietCardProps) {
             </div>
         </div>
     );
-}
+    
