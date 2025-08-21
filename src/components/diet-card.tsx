@@ -14,13 +14,14 @@ interface DietCardProps {
 }
 
 type MealItem = {
-    item: string;
+    isCombo: boolean;
+    item: string; // Ingredient name or Combo name
     typeName: string;
-    details?: string;
-    amount: string;
+    details?: string; // Prep details for single items, ingredient breakdown for combos
+    amount: string; // Total amount for this line item
 };
 
-const formatIngredientAmount = (quantity: number, uom: string) => {
+const formatAmount = (quantity: number, uom: string) => {
     if (!uom) return `${quantity}`;
     const formattedQty = quantity.toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -37,48 +38,73 @@ export function DietCard({ data }: DietCardProps) {
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
         
-        const mealMap = new Map<string, Map<string, SheetDataRow[]>>();
+        const mealMap = new Map<string, SheetDataRow[]>();
 
-        // Group rows by time, then by ingredient name
+        // 1. Group all rows by mealtime
         data.forEach(row => {
             const time = row.meal_start_time || "N/A";
             if (!mealMap.has(time)) {
-                mealMap.set(time, new Map<string, SheetDataRow[]>());
+                mealMap.set(time, []);
             }
-            const timeGroup = mealMap.get(time)!;
-            
-            const ingredientKey = row.ingredient_name;
-            if (!timeGroup.has(ingredientKey)) {
-                timeGroup.set(ingredientKey, []);
-            }
-            timeGroup.get(ingredientKey)!.push(row);
+            mealMap.get(time)!.push(row);
         });
 
-        // Process the grouped data into the final structure for rendering
-        return Array.from(mealMap.entries()).map(([time, timeGroup]) => {
-            const items: MealItem[] = Array.from(timeGroup.entries()).map(([ingredientName, rows]) => {
-                
-                const totalQty = rows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-                const firstRow = rows[0];
-                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
-                
-                let detailsParts: string[] = [];
-                if (firstRow.cut_size_name) {
-                    detailsParts.push(`cut: ${firstRow.cut_size_name}`);
-                }
-                if (firstRow.preparation_type_name) {
-                    detailsParts.push(firstRow.preparation_type_name);
-                }
+        // 2. Process each meal group
+        return Array.from(mealMap.entries()).map(([time, rows]) => {
+            const processedItems = new Map<string, MealItem>();
+            const comboMap = new Map<string, SheetDataRow[]>();
 
-                return {
-                    item: ingredientName,
-                    typeName: firstRow.type_name,
-                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                    amount
-                };
+            // Separate combos from single ingredients
+            rows.forEach(row => {
+                if (row.type === 'Recipe' || row.type === 'Combo') {
+                    const comboKey = row.type_name;
+                    if (!comboMap.has(comboKey)) {
+                        comboMap.set(comboKey, []);
+                    }
+                    comboMap.get(comboKey)!.push(row);
+                } else {
+                    const singleItemKey = row.ingredient_name;
+                    let existing = processedItems.get(singleItemKey);
+                    if (!existing) {
+                        const detailsParts: string[] = [];
+                        if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
+                        if (row.preparation_type_name) detailsParts.push(row.preparation_type_name);
+                        
+                        processedItems.set(singleItemKey, {
+                            isCombo: false,
+                            item: row.ingredient_name,
+                            typeName: row.type_name,
+                            details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                            amount: formatAmount(row.ingredient_qty, row.base_uom_name)
+                        });
+                    } else {
+                        // This assumes uom is the same; if not, more complex logic is needed.
+                        const currentQty = parseFloat(existing.amount.split(' ')[0]);
+                        const newQty = currentQty + row.ingredient_qty;
+                        existing.amount = formatAmount(newQty, row.base_uom_name);
+                    }
+                }
             });
 
-            return { time, items };
+            // Process combos
+            comboMap.forEach((comboRows, comboName) => {
+                const totalAmount = comboRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
+                const firstRow = comboRows[0];
+
+                const ingredientBreakdown = comboRows.map(r => 
+                    `${r.ingredient_name} (${formatAmount(r.ingredient_qty, r.base_uom_name)})`
+                ).join(', ');
+
+                processedItems.set(comboName, {
+                    isCombo: true,
+                    item: comboName,
+                    typeName: firstRow.type_name,
+                    details: `(${ingredientBreakdown})`,
+                    amount: formatAmount(totalAmount, firstRow.base_uom_name)
+                });
+            });
+
+            return { time, items: Array.from(processedItems.values()) };
         }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
@@ -95,13 +121,20 @@ export function DietCard({ data }: DietCardProps) {
                         .diet-card { border: 1px solid #eee; padding: 16px; margin: 16px; }
                         h2, h3 { color: #2c5282; }
                         table { width: 100%; border-collapse: collapse; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
                         th { background-color: #166534; color: white; }
                         .no-print { display: none; }
+                        .item-name { font-weight: bold; }
+                        .item-details { font-size: 0.9em; color: #555; }
                     </style>
                 `);
                 printWindow.document.write('</head><body>');
-                printWindow.document.write(printContent.innerHTML);
+                // Clone the element to modify it for printing
+                const contentClone = printContent.cloneNode(true) as HTMLElement;
+                // Remove buttons from clone
+                const buttons = contentClone.querySelector('.no-print');
+                if (buttons) buttons.remove();
+                printWindow.document.write(contentClone.innerHTML);
                 printWindow.document.write('</body></html>');
                 printWindow.document.close();
                 printWindow.focus();
@@ -115,13 +148,13 @@ export function DietCard({ data }: DietCardProps) {
         const element = cardRef.current;
         if (element) {
             const buttons = element.querySelector('.no-print');
-            if (buttons) buttons.classList.add('hidden');
+            if (buttons) (buttons as HTMLElement).style.display = 'none';
             
             const canvas = await html2canvas(element, { scale: 2 });
-            const data = canvas.toDataURL('image/png');
             
-            if (buttons) buttons.classList.remove('hidden');
+            if (buttons) (buttons as HTMLElement).style.display = 'flex';
 
+            const data = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgProperties = pdf.getImageProperties(data);
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -150,10 +183,10 @@ export function DietCard({ data }: DietCardProps) {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4">Time</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6">Time</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Item</th>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Type Name</th>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4 text-right">Daily Amount (data per animal)</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/4">Type Name</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Daily Amount (per animal)</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -164,12 +197,12 @@ export function DietCard({ data }: DietCardProps) {
                                {itemIndex === 0 && (
                                  <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
                                )}
-                               <td>
-                                 <div className="font-bold">{item.item}</div>
-                                 {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
+                               <td className="align-top">
+                                 <div className="item-name font-bold">{item.item}</div>
+                                 {item.details && <div className="item-details text-sm text-gray-600">{item.details}</div>}
                                </td>
-                               <td>{item.typeName}</td>
-                               <td className="text-right">{item.amount}</td>
+                               <td className="align-top">{item.typeName}</td>
+                               <td className="text-right align-top">{item.amount}</td>
                              </tr>
                            ))}
                          </React.Fragment>
