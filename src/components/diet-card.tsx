@@ -35,70 +35,49 @@ export function DietCard({ data }: DietCardProps) {
 
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
+        
+        const mealMap = new Map<string, Map<string, SheetDataRow[]>>();
 
-        const aggregatedMealMap = new Map<string, MealItem[]>();
-
+        // Group rows by time, then by ingredient name
         data.forEach(row => {
             const time = row.meal_start_time || "N/A";
-            if (!aggregatedMealMap.has(time)) {
-                aggregatedMealMap.set(time, []);
+            if (!mealMap.has(time)) {
+                mealMap.set(time, new Map<string, SheetDataRow[]>());
             }
-            const itemsForTime = aggregatedMealMap.get(time)!;
-
-            if (row.type === 'Recipe' || row.type === 'Combo') {
-                if (itemsForTime.some(i => i.item === row.type_name)) return;
-
-                const ingredientsForRecipe = data.filter(d => d.type_name === row.type_name && d.meal_start_time === time);
-                const totalQty = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
-                const amount = formatIngredientAmount(totalQty, row.base_uom_name);
-
-                const details = ingredientsForRecipe
-                    .map(ing => `${ing.ingredient_name} (${formatIngredientAmount(ing.ingredient_qty, ing.base_uom_name)})`)
-                    .join(', ');
-
-                itemsForTime.push({
-                    item: row.type_name,
-                    details: details ? `(${details})` : undefined,
-                    amount
-                });
-
-            } else {
-                if (itemsForTime.some(i => i.item === row.ingredient_name)) return;
-
-                const ingredientRows = data.filter(d => 
-                    d.meal_start_time === time && 
-                    d.ingredient_name === row.ingredient_name && 
-                    d.type !== 'Recipe' && 
-                    d.type !== 'Combo'
-                );
-                
-                if (ingredientRows.length === 0) return;
-
-                const totalQty = ingredientRows.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
-                const firstRow = ingredientRows[0];
-                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
-                
-                let details = "";
-                 if (firstRow.cut_size_name) {
-                    details += `cutting size ${firstRow.cut_size_name}`;
-                }
-                if (firstRow.preparation_type_name) {
-                    details += `${details ? ', ' : ''}${firstRow.preparation_type_name}`;
-                }
-
-                itemsForTime.push({
-                    item: firstRow.ingredient_name,
-                    details: details ? `(${details})` : undefined,
-                    amount
-                });
+            const timeGroup = mealMap.get(time)!;
+            
+            const ingredientKey = row.ingredient_name;
+            if (!timeGroup.has(ingredientKey)) {
+                timeGroup.set(ingredientKey, []);
             }
+            timeGroup.get(ingredientKey)!.push(row);
         });
 
+        // Process the grouped data into the final structure for rendering
+        return Array.from(mealMap.entries()).map(([time, timeGroup]) => {
+            const items: MealItem[] = Array.from(timeGroup.entries()).map(([ingredientName, rows]) => {
+                
+                const totalQty = rows.reduce((sum, r) => sum + r.ingredient_qty, 0);
+                const firstRow = rows[0];
+                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
+                
+                let detailsParts: string[] = [];
+                if (firstRow.cut_size_name) {
+                    detailsParts.push(`cutting size ${firstRow.cut_size_name}`);
+                }
+                if (firstRow.preparation_type_name) {
+                    detailsParts.push(firstRow.preparation_type_name);
+                }
 
-        return Array.from(aggregatedMealMap.entries()).map(([time, items]) => ({
-            time,
-            items,
-        })).sort((a,b) => a.time.localeCompare(b.time));
+                return {
+                    item: ingredientName,
+                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                    amount
+                };
+            });
+
+            return { time, items };
+        }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
 
