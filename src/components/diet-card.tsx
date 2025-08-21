@@ -32,64 +32,6 @@ export function DietCard({ data }: DietCardProps) {
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
 
-        const mealMap = new Map<string, MealItem[]>();
-
-        data.forEach(row => {
-            const time = row.meal_start_time || "N/A";
-            if (!mealMap.has(time)) {
-                mealMap.set(time, []);
-            }
-            
-            const existingItems = mealMap.get(time)!;
-
-            if (row.type === 'Recipe' || row.type === 'Combo') {
-                const itemIdentifier = row.type_name;
-                
-                if (!existingItems.some(i => i.item === itemIdentifier)) {
-                    const ingredientsForRecipe = data.filter(
-                      (d) => d.type_name === itemIdentifier && d.meal_start_time === time
-                    );
-
-                    const totalQty = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
-                    
-                    const amount = `${totalQty.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                    })} ${row.base_uom_name}`;
-
-                    const totalWeightForPercentage = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
-                    
-                    let details = "";
-                    if (totalWeightForPercentage > 0) {
-                         details = ingredientsForRecipe.map(ing => {
-                            const percentage = ((ing.ingredient_qty_gram / totalWeightForPercentage) * 100).toFixed(0);
-                            return `${percentage}% ${ing.ingredient_name}`;
-                        }).join(', ');
-                    }
-                    if (row.cut_size_name) {
-                        details += `${details ? ', ' : ''}cutting size ${row.cut_size_name}`;
-                    }
-
-                    existingItems.push({
-                        item: itemIdentifier,
-                        details: details ? `(${details})` : undefined,
-                        amount,
-                    });
-                }
-            } else { // Handle single ingredients by aggregating them
-                const itemIdentifier = row.ingredient_name;
-                const existingItem = existingItems.find(i => i.item === itemIdentifier);
-                
-                if (existingItem) {
-                    // Item already exists, so we need to update its amount
-                    // This is complex because amount is a string. Let's rebuild the map with aggregated data first.
-                } else {
-                     // This simple push creates duplicates. We need to aggregate first.
-                }
-            }
-        });
-        
-        // New aggregation logic for single ingredients
         const aggregatedMealMap = new Map<string, MealItem[]>();
 
         data.forEach(row => {
@@ -99,47 +41,63 @@ export function DietCard({ data }: DietCardProps) {
             }
             const itemsForTime = aggregatedMealMap.get(time)!;
 
-            // Handle recipes/combos (we can keep this simple as it was mostly correct)
-             if (row.type === 'Recipe' || row.type === 'Combo') {
-                if (itemsForTime.some(i => i.item === row.type_name)) return; // Already processed
-                
+            // Handle recipes/combos
+            if (row.type === 'Recipe' || row.type === 'Combo') {
+                if (itemsForTime.some(i => i.item === row.type_name)) return; // Already processed this recipe for this time slot
+
                 const ingredientsForRecipe = data.filter(d => d.type_name === row.type_name && d.meal_start_time === time);
                 const totalQty = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
                 const amount = `${totalQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${row.base_uom_name}`;
                 const totalWeightForPercentage = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
+                
                 let details = "";
-                 if (totalWeightForPercentage > 0) {
+                if (totalWeightForPercentage > 0) {
                     details = ingredientsForRecipe.map(ing => {
                         const percentage = ((ing.ingredient_qty_gram / totalWeightForPercentage) * 100).toFixed(0);
                         return `${percentage}% ${ing.ingredient_name}`;
                     }).join(', ');
                 }
-                if (row.cut_size_name) {
-                    details += `${details ? ', ' : ''}cutting size ${row.cut_size_name}`;
-                }
                 
+                // Use the preparation details from the first ingredient of the recipe
+                const firstIngredient = ingredientsForRecipe[0];
+                if (firstIngredient.cut_size_name) {
+                    details += `${details ? ', ' : ''}cutting size ${firstIngredient.cut_size_name}`;
+                }
+                 if (firstIngredient.preparation_type_name) {
+                    details += `${details ? ', ' : ''}${firstIngredient.preparation_type_name}`;
+                }
+
                 itemsForTime.push({
                     item: row.type_name,
                     details: details ? `(${details})` : undefined,
                     amount
                 });
 
-            } else {
-                 // Handle single ingredients aggregation
-                const ingredientRows = data.filter(d => d.meal_start_time === time && d.ingredient_name === row.ingredient_name && d.type !== 'Recipe' && d.type !== 'Combo');
-                if (ingredientRows.length === 0) return;
-                
-                // Check if already processed
+            } else { // Handle single ingredients
+                // Check if this single ingredient has already been aggregated
                 if (itemsForTime.some(i => i.item === row.ingredient_name)) return;
+
+                const ingredientRows = data.filter(d => 
+                    d.meal_start_time === time && 
+                    d.ingredient_name === row.ingredient_name && 
+                    d.type !== 'Recipe' && 
+                    d.type !== 'Combo'
+                );
+                
+                if (ingredientRows.length === 0) return;
 
                 const totalQty = ingredientRows.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
                 const firstRow = ingredientRows[0];
                 const amount = `${totalQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, })} ${firstRow.base_uom_name}`;
                 
                 let details = "";
-                if (firstRow.cut_size_name) {
-                    details = `cutting size ${firstRow.cut_size_name}`;
+                 if (firstRow.cut_size_name) {
+                    details += `cutting size ${firstRow.cut_size_name}`;
                 }
+                if (firstRow.preparation_type_name) {
+                    details += `${details ? ', ' : ''}${firstRow.preparation_type_name}`;
+                }
+
 
                 itemsForTime.push({
                     item: firstRow.ingredient_name,
