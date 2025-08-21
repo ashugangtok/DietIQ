@@ -186,7 +186,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
   }
 
   return (
-    <div className="w-full bg-gradient-to-b from-[#0a0f1f] via-[#0b1328] to-[#0d1530] p-0 md:p-0 rounded-lg">
+    <div className="w-full h-full bg-gradient-to-b from-[#0a0f1f] via-[#0b1328] to-[#0d1530] p-6 rounded-lg">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <StatCard
