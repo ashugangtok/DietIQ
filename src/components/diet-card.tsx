@@ -61,7 +61,6 @@ export function DietCard({ data }: DietCardProps) {
         
         const mealMap = new Map<string, SheetDataRow[]>();
 
-        // 1. Group all rows by mealtime
         data.forEach(row => {
             const timeKey = `${row.meal_start_time || "N/A"}|${row.meal_end_time || "N/A"}`;
             if (!mealMap.has(timeKey)) {
@@ -70,38 +69,52 @@ export function DietCard({ data }: DietCardProps) {
             mealMap.get(timeKey)!.push(row);
         });
 
-        // 2. Process each meal group
         return Array.from(mealMap.entries()).map(([timeKey, rows]) => {
             const [startTime, endTime] = timeKey.split('|');
             const timeDisplay = (startTime !== "N/A" && endTime !== "N/A" && startTime !== endTime)
                 ? `${startTime} - ${endTime}`
                 : (startTime !== "N/A" ? startTime : "N/A");
 
-            const processedItems = new Map<string, MealItem>();
+            const typeNameGroup = new Map<string, { ingredients: SheetDataRow[], totalQty: number, uom: string }>();
 
-            // Sum up quantities for duplicate ingredients within the same mealtime
-            const summedItems = new Map<string, SheetDataRow>();
             rows.forEach(row => {
-                const key = row.ingredient_name;
-                if (summedItems.has(key)) {
-                    const existing = summedItems.get(key)!;
-                    existing.ingredient_qty += row.ingredient_qty;
-                    existing.ingredient_qty_gram += row.ingredient_qty_gram;
-                } else {
-                    summedItems.set(key, { ...row });
+                const groupKey = row.type_name || row.ingredient_name; // Fallback to ingredient name if type_name is missing
+                if (!typeNameGroup.has(groupKey)) {
+                    typeNameGroup.set(groupKey, { ingredients: [], totalQty: 0, uom: row.base_uom_name });
                 }
+                const group = typeNameGroup.get(groupKey)!;
+                group.ingredients.push(row);
+                group.totalQty += row.ingredient_qty;
             });
 
-            const items: MealItem[] = Array.from(summedItems.values()).map(row => {
-                const detailsParts: string[] = [];
-                if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
-                if (row.preparation_type_name) detailsParts.push(row.preparation_type_name);
+            const items = Array.from(typeNameGroup.values()).map(group => {
+                const mainItem = group.ingredients[0];
+                let itemName;
+                let itemDetails = "";
+
+                if (group.ingredients.length > 1) {
+                    itemName = mainItem.type_name;
+                    itemDetails = `(${group.ingredients.map(ing => {
+                        const detailsParts: string[] = [];
+                        if (ing.cut_size_name) detailsParts.push(`cut: ${ing.cut_size_name}`);
+                        if (ing.preparation_type_name) detailsParts.push(ing.preparation_type_name);
+                        const detailsString = detailsParts.length > 0 ? ` (${detailsParts.join(', ')})` : "";
+                        return `${ing.ingredient_name}${detailsString}`;
+                    }).join(', ')})`;
+                } else {
+                    itemName = mainItem.ingredient_name;
+                    const detailsParts: string[] = [];
+                    if (mainItem.cut_size_name) detailsParts.push(`cut: ${mainItem.cut_size_name}`);
+                    if (mainItem.preparation_type_name) detailsParts.push(mainItem.preparation_type_name);
+                    itemDetails = detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : "";
+                }
 
                 return {
-                    ingredient_name: row.ingredient_name,
-                    type_name: row.type_name,
-                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : "",
-                    amount: formatAmount(row.ingredient_qty, row.base_uom_name)
+                    id: mainItem.type_name || mainItem.ingredient_name,
+                    item_name: itemName,
+                    item_details: itemDetails,
+                    type_name: mainItem.type_name,
+                    amount: formatAmount(group.totalQty, group.uom)
                 };
             });
 
@@ -197,13 +210,13 @@ export function DietCard({ data }: DietCardProps) {
                        {dietData.map((mealGroup, groupIndex) => (
                          <React.Fragment key={groupIndex}>
                            {mealGroup.items.map((item, itemIndex) => (
-                             <tr key={`${groupIndex}-${itemIndex}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
+                             <tr key={`${groupIndex}-${item.id}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
                                {itemIndex === 0 && (
                                  <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
                                )}
                                <td className="align-top">
-                                 <div className="font-bold">{item.ingredient_name}</div>
-                                 {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
+                                 <div className="font-bold">{item.item_name}</div>
+                                 {item.item_details && <div className="text-sm text-gray-600">{item.item_details}</div>}
                                </td>
                                <td className="align-top">{item.type_name}</td>
                                <td className="text-right align-top font-bold">{item.amount}</td>
