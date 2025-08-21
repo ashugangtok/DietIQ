@@ -14,13 +14,6 @@ interface DietCardProps {
     data: SheetDataRow[];
 }
 
-type MealItem = {
-    ingredient_name: string;
-    type_name: string;
-    details: string;
-    amount: string;
-};
-
 const formatAmount = (quantity: number, uom: string) => {
     if (!uom) return `${quantity}`;
     const uomLower = uom.toLowerCase();
@@ -78,7 +71,9 @@ export function DietCard({ data }: DietCardProps) {
             const typeNameGroup = new Map<string, { ingredients: SheetDataRow[], totalQty: number, uom: string }>();
 
             rows.forEach(row => {
-                const groupKey = row.type_name || row.ingredient_name; // Fallback to ingredient name if type_name is missing
+                const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
+                const groupKey = isCombo ? row.type_name : row.ingredient_name;
+
                 if (!typeNameGroup.has(groupKey)) {
                     typeNameGroup.set(groupKey, { ingredients: [], totalQty: 0, uom: row.base_uom_name });
                 }
@@ -91,16 +86,32 @@ export function DietCard({ data }: DietCardProps) {
                 const mainItem = group.ingredients[0];
                 let itemName;
                 let itemDetails = "";
+                const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
-                if (group.ingredients.length > 1) {
+
+                if (isCombo) {
                     itemName = mainItem.type_name;
-                    itemDetails = `(${group.ingredients.map(ing => {
-                        const detailsParts: string[] = [];
-                        if (ing.cut_size_name) detailsParts.push(`cut: ${ing.cut_size_name}`);
-                        if (ing.preparation_type_name) detailsParts.push(ing.preparation_type_name);
-                        const detailsString = detailsParts.length > 0 ? ` (${detailsParts.join(', ')})` : "";
-                        return `${ing.ingredient_name}${detailsString}`;
-                    }).join(', ')})`;
+                    
+                    // Aggregate ingredients within the combo
+                    const ingredientAggregator = new Map<string, { totalQty: number, uom: string, details: Set<string> }>();
+                    group.ingredients.forEach(ing => {
+                        const ingKey = ing.ingredient_name;
+                        if (!ingredientAggregator.has(ingKey)) {
+                            ingredientAggregator.set(ingKey, { totalQty: 0, uom: ing.base_uom_name, details: new Set() });
+                        }
+                        const entry = ingredientAggregator.get(ingKey)!;
+                        entry.totalQty += ing.ingredient_qty;
+                        if (ing.cut_size_name) entry.details.add(`cut: ${ing.cut_size_name}`);
+                        if (ing.preparation_type_name) entry.details.add(ing.preparation_type_name);
+                    });
+
+                    const breakdown = Array.from(ingredientAggregator.entries()).map(([name, data]) => {
+                        const detailsString = data.details.size > 0 ? ` (${Array.from(data.details).join(', ')})` : "";
+                        return `${name} ${formatAmount(data.totalQty, data.uom)}${detailsString}`;
+                    }).join(', ');
+
+                    itemDetails = `(${breakdown})`;
+
                 } else {
                     itemName = mainItem.ingredient_name;
                     const detailsParts: string[] = [];
