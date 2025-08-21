@@ -13,17 +13,10 @@ interface DietPlanProps {
     data: SheetDataRow[];
 }
 
-type Ingredient = {
+type MealItem = {
     item: string;
     details?: string;
     amount: string;
-};
-
-type MealItem = {
-    isCombo: boolean;
-    comboName?: string;
-    comboTotal?: string;
-    ingredients: Ingredient[];
 };
 
 const formatIngredientAmount = (quantity: number, uom: string) => {
@@ -35,14 +28,6 @@ const formatIngredientAmount = (quantity: number, uom: string) => {
     return `${formattedQty} ${uom}`;
 };
 
-const formatIngredientBreakdown = (name: string, quantity: number, uom: string) => {
-    const formattedQty = quantity.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    return `${name} (${formattedQty} ${uom})`;
-}
-
 export function DietPlan({ data }: DietPlanProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const animalName = data.length > 0 ? data[0].common_name : "";
@@ -53,85 +38,47 @@ export function DietPlan({ data }: DietPlanProps) {
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
         
-        const mealMap = new Map<string, SheetDataRow[]>();
+        const mealMap = new Map<string, Map<string, SheetDataRow[]>>();
 
-        // 1. Group all data rows by their meal time
+        // Group rows by time, then by ingredient name to sum up duplicates
         data.forEach(row => {
             const time = row.meal_start_time || "N/A";
             if (!mealMap.has(time)) {
-                mealMap.set(time, []);
+                mealMap.set(time, new Map<string, SheetDataRow[]>());
             }
-            mealMap.get(time)!.push(row);
+            const timeGroup = mealMap.get(time)!;
+            
+            const ingredientKey = row.ingredient_name;
+            if (!timeGroup.has(ingredientKey)) {
+                timeGroup.set(ingredientKey, []);
+            }
+            timeGroup.get(ingredientKey)!.push(row);
         });
 
-        // 2. Process each meal group
-        return Array.from(mealMap.entries()).map(([time, rows]) => {
-            const mealItems: MealItem[] = [];
-            const processedRecipeNames = new Set<string>();
-            const singleIngredientMap = new Map<string, { totalQty: number, rows: SheetDataRow[] }>();
-
-            // Separate combos from single ingredients
-            rows.forEach(row => {
-                if (row.type === 'Recipe' || row.type === 'Combo') {
-                    const comboName = row.type_name;
-                    if (processedRecipeNames.has(comboName)) return;
-
-                    const comboRows = rows.filter(r => r.type_name === comboName);
-                    const totalQty = comboRows.reduce((sum, r) => sum + r.ingredient_qty, 0);
-
-                    const ingredientBreakdown = comboRows.map(ing => 
-                        formatIngredientBreakdown(ing.ingredient_name, ing.ingredient_qty, ing.base_uom_name)
-                    ).join(', ');
-
-                    const prepDetails = new Set(comboRows.map(r => {
-                        let parts = [];
-                        if (r.cut_size_name) parts.push(`cut: ${r.cut_size_name}`);
-                        if (r.preparation_type_name) parts.push(`prep: ${r.preparation_type_name}`);
-                        return parts.join(', ');
-                    }).filter(Boolean));
-
-
-                    mealItems.push({
-                        isCombo: true,
-                        ingredients: [{
-                            item: comboName,
-                            details: `(${ingredientBreakdown}) ${Array.from(prepDetails).join(', ')}`.trim(),
-                            amount: formatIngredientAmount(totalQty, comboRows[0]?.base_uom_name || '')
-                        }]
-                    });
-
-                    processedRecipeNames.add(comboName);
-                } else {
-                    // It's a single ingredient, group them for summation
-                    const key = row.ingredient_name;
-                    if (!singleIngredientMap.has(key)) {
-                        singleIngredientMap.set(key, { totalQty: 0, rows: [] });
-                    }
-                    const entry = singleIngredientMap.get(key)!;
-                    entry.totalQty += row.ingredient_qty;
-                    entry.rows.push(row);
+        // Process the grouped data into the final structure for rendering
+        return Array.from(mealMap.entries()).map(([time, timeGroup]) => {
+            const items: MealItem[] = Array.from(timeGroup.entries()).map(([ingredientName, rows]) => {
+                
+                const totalQty = rows.reduce((sum, r) => sum + r.ingredient_qty, 0);
+                const firstRow = rows[0];
+                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
+                
+                let detailsParts: string[] = [];
+                if (firstRow.cut_size_name) {
+                    detailsParts.push(`cut: ${firstRow.cut_size_name}`);
                 }
+                if (firstRow.preparation_type_name) {
+                    detailsParts.push(`prep: ${firstRow.preparation_type_name}`);
+                }
+
+                return {
+                    item: ingredientName,
+                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                    amount
+                };
             });
 
-            // Process the summed single ingredients
-            singleIngredientMap.forEach((value, key) => {
-                const firstRow = value.rows[0];
-                 let detailsParts: string[] = [];
-                if (firstRow.cut_size_name) detailsParts.push(`cut: ${firstRow.cut_size_name}`);
-                if (firstRow.preparation_type_name) detailsParts.push(`prep: ${firstRow.preparation_type_name}`);
-
-                mealItems.push({
-                    isCombo: false,
-                    ingredients: [{
-                        item: key,
-                        details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                        amount: formatIngredientAmount(value.totalQty, firstRow.base_uom_name)
-                    }]
-                });
-            });
-
-
-            return { time, items: mealItems };
+            return { time, items };
         }).sort((a, b) => a.time.localeCompare(b.time));
 
     }, [data]);
@@ -209,25 +156,22 @@ export function DietPlan({ data }: DietPlanProps) {
                         </tr>
                     </thead>
                     <tbody className="bg-white">
-                       {dietData.map((mealGroup, groupIndex) => {
-                           const totalRowsForTime = mealGroup.items.length;
-                           return (
-                               <React.Fragment key={groupIndex}>
-                                   {mealGroup.items.map((mealItem, itemIndex) => (
-                                       <tr key={itemIndex} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
-                                           {itemIndex === 0 && (
-                                               <td rowSpan={totalRowsForTime} className="align-top font-medium">{mealGroup.time}</td>
-                                           )}
-                                           <td>
-                                               <div className="font-bold">{mealItem.ingredients[0].item}</div>
-                                               {mealItem.ingredients[0].details && <div className="text-sm text-gray-600">{mealItem.ingredients[0].details}</div>}
-                                           </td>
-                                           <td className="text-right">{mealItem.ingredients[0].amount}</td>
-                                       </tr>
-                                   ))}
-                               </React.Fragment>
-                           )
-                       })}
+                       {dietData.map((mealGroup, groupIndex) => (
+                         <React.Fragment key={groupIndex}>
+                           {mealGroup.items.map((item, itemIndex) => (
+                             <tr key={`${groupIndex}-${itemIndex}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
+                               {itemIndex === 0 && (
+                                 <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
+                               )}
+                               <td>
+                                 <div className="font-bold">{item.item}</div>
+                                 {item.details && <div className="text-sm text-gray-600">{item.details}</div>}
+                               </td>
+                               <td className="text-right">{item.amount}</td>
+                             </tr>
+                           ))}
+                         </React.Fragment>
+                       ))}
                     </tbody>
                 </table>
             </div>
