@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -11,19 +12,36 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { DietCard } from "./diet-card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "./ui/button";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 
 export function TableReport({ data }: { data: SheetDataRow[] }) {
     const [selectedAnimal, setSelectedAnimal] = useState<string>("");
+    const [open, setOpen] = useState(false)
 
     const animalOptions = useMemo(() => {
         const uniqueAnimals = [...new Set(data.map(row => row.common_name))];
-        return uniqueAnimals.sort();
+        return uniqueAnimals.sort().map(animal => ({ value: animal.toLowerCase(), label: animal }));
     }, [data]);
 
     const animalData = useMemo(() => {
         if (!selectedAnimal) return [];
-        return data.filter(row => row.common_name === selectedAnimal);
+        return data.filter(row => row.common_name.toLowerCase() === selectedAnimal);
     }, [data, selectedAnimal]);
 
     return (
@@ -36,18 +54,49 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
             </CardHeader>
             <CardContent className="space-y-6">
                  <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-                    <Select value={selectedAnimal} onValueChange={setSelectedAnimal}>
-                        <SelectTrigger className="w-full sm:w-[280px] bg-background">
-                            <SelectValue placeholder="Select an animal to view its diet plan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {animalOptions.map(animal => (
-                                <SelectItem key={animal} value={animal}>
-                                    {animal}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={open}
+                          className="w-[280px] justify-between"
+                        >
+                          {selectedAnimal
+                            ? animalOptions.find((animal) => animal.value === selectedAnimal)?.label
+                            : "Select an animal..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search animal..." />
+                          <CommandList>
+                            <CommandEmpty>No animal found.</CommandEmpty>
+                            <CommandGroup>
+                              {animalOptions.map((animal) => (
+                                <CommandItem
+                                  key={animal.value}
+                                  value={animal.value}
+                                  onSelect={(currentValue) => {
+                                    setSelectedAnimal(currentValue === selectedAnimal ? "" : currentValue)
+                                    setOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedAnimal === animal.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {animal.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                 </div>
                 
                 {selectedAnimal ? (
