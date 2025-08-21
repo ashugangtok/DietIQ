@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useMemo, useRef } from "react";
 import { type SheetDataRow } from "@/types";
 import { Button } from "./ui/button";
