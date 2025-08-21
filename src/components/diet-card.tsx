@@ -19,9 +19,13 @@ type MealItem = {
     amount: string;
 };
 
-type MealGroup = {
-    time: string;
-    items: MealItem[];
+const formatIngredientAmount = (quantity: number, uom: string) => {
+    if (!uom) return `${quantity}`;
+    const formattedQty = quantity.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `${formattedQty} ${uom}`;
 };
 
 export function DietCard({ data }: DietCardProps) {
@@ -41,31 +45,16 @@ export function DietCard({ data }: DietCardProps) {
             }
             const itemsForTime = aggregatedMealMap.get(time)!;
 
-            // Handle recipes/combos
             if (row.type === 'Recipe' || row.type === 'Combo') {
-                if (itemsForTime.some(i => i.item === row.type_name)) return; // Already processed this recipe for this time slot
+                if (itemsForTime.some(i => i.item === row.type_name)) return;
 
                 const ingredientsForRecipe = data.filter(d => d.type_name === row.type_name && d.meal_start_time === time);
                 const totalQty = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
-                const amount = `${totalQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${row.base_uom_name}`;
-                const totalWeightForPercentage = ingredientsForRecipe.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
-                
-                let details = "";
-                if (totalWeightForPercentage > 0) {
-                    details = ingredientsForRecipe.map(ing => {
-                        const percentage = ((ing.ingredient_qty_gram / totalWeightForPercentage) * 100).toFixed(0);
-                        return `${percentage}% ${ing.ingredient_name}`;
-                    }).join(', ');
-                }
-                
-                // Use the preparation details from the first ingredient of the recipe
-                const firstIngredient = ingredientsForRecipe[0];
-                if (firstIngredient.cut_size_name) {
-                    details += `${details ? ', ' : ''}cutting size ${firstIngredient.cut_size_name}`;
-                }
-                 if (firstIngredient.preparation_type_name) {
-                    details += `${details ? ', ' : ''}${firstIngredient.preparation_type_name}`;
-                }
+                const amount = formatIngredientAmount(totalQty, row.base_uom_name);
+
+                const details = ingredientsForRecipe
+                    .map(ing => `${ing.ingredient_name} (${formatIngredientAmount(ing.ingredient_qty, ing.base_uom_name)})`)
+                    .join(', ');
 
                 itemsForTime.push({
                     item: row.type_name,
@@ -73,8 +62,7 @@ export function DietCard({ data }: DietCardProps) {
                     amount
                 });
 
-            } else { // Handle single ingredients
-                // Check if this single ingredient has already been aggregated
+            } else {
                 if (itemsForTime.some(i => i.item === row.ingredient_name)) return;
 
                 const ingredientRows = data.filter(d => 
@@ -88,7 +76,7 @@ export function DietCard({ data }: DietCardProps) {
 
                 const totalQty = ingredientRows.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
                 const firstRow = ingredientRows[0];
-                const amount = `${totalQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2, })} ${firstRow.base_uom_name}`;
+                const amount = formatIngredientAmount(totalQty, firstRow.base_uom_name);
                 
                 let details = "";
                  if (firstRow.cut_size_name) {
@@ -97,7 +85,6 @@ export function DietCard({ data }: DietCardProps) {
                 if (firstRow.preparation_type_name) {
                     details += `${details ? ', ' : ''}${firstRow.preparation_type_name}`;
                 }
-
 
                 itemsForTime.push({
                     item: firstRow.ingredient_name,
@@ -121,7 +108,6 @@ export function DietCard({ data }: DietCardProps) {
             const printWindow = window.open('', '', 'height=800,width=800');
             if (printWindow) {
                 printWindow.document.write('<html><head><title>Print Diet</title>');
-                // Simple styling for print
                 printWindow.document.write(`
                     <style>
                         body { font-family: sans-serif; }
@@ -147,7 +133,6 @@ export function DietCard({ data }: DietCardProps) {
     const handleDownloadPdf = async () => {
         const element = cardRef.current;
         if (element) {
-            // Temporarily remove buttons from the element to be captured
             const buttons = element.querySelector('.no-print');
             if (buttons) buttons.classList.add('hidden');
             
