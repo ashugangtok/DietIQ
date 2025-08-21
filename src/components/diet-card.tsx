@@ -117,9 +117,12 @@ export function DietCard({ data }: DietCardProps) {
                     
                     totalAmountForAllAnimals = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
                     uomForTotals = 'gram';
+                    const totalAmountPerAnimal = totalAmountForAllAnimals / animalCount;
 
                     const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
-                        return `${name} ${formatAmount(ingData.totalGram, 'gram')}`;
+                        const ingredientAmountPerAnimal = ingData.totalGram / animalCount;
+                        const percentage = totalAmountPerAnimal > 0 ? (ingredientAmountPerAnimal / totalAmountPerAnimal) * 100 : 0;
+                        return `${percentage.toFixed(0)}% ${name}`;
                     }).join(', ');
 
                     itemDetails = `(${breakdown})`;
@@ -133,7 +136,6 @@ export function DietCard({ data }: DietCardProps) {
 
                 const amountPerAnimal = totalAmountForAllAnimals / animalCount;
                 
-                // For total required, use kilogram if original unit was gram
                 const totalUom = uomForTotals === 'gram' ? 'kilogram' : uomForTotals;
                 const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimals / 1000 : totalAmountForAllAnimals;
 
