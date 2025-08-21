@@ -48,6 +48,12 @@ export function DietCard({ data }: DietCardProps) {
         ? `Diet Name: ${dietName} and Diet_Number: ${dietNo}` 
         : `Diet Name: ${dietName}`;
 
+    const animalCount = useMemo(() => {
+        if (data.length === 0) return 0;
+        const animalIds = new Set(data.map(row => row.animal_id));
+        return animalIds.size;
+    }, [data]);
+
 
     const dietData = useMemo(() => {
         if (data.length === 0) return [];
@@ -114,19 +120,22 @@ export function DietCard({ data }: DietCardProps) {
                     itemDetails = "";
                 }
 
+                const amountPerAnimal = group.totalQty;
+                const totalAmount = amountPerAnimal * animalCount;
+
                 return {
                     id: mainItem.type_name || mainItem.ingredient_name,
                     item_name: itemName,
                     item_details: itemDetails,
-                    type_name: mainItem.type_name,
-                    amount: formatAmount(group.totalQty, group.uom)
+                    amount_per_animal: formatAmount(amountPerAnimal, group.uom),
+                    total_amount_required: formatAmount(totalAmount, group.uom)
                 };
             });
 
             return { time: timeDisplay, items };
         }).sort((a, b) => a.time.localeCompare(b.time));
 
-    }, [data]);
+    }, [data, animalCount]);
 
     const handlePrint = async () => {
         const element = cardRef.current;
@@ -207,7 +216,8 @@ export function DietCard({ data }: DietCardProps) {
                         <tr>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6">Time</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Item</th>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Daily Amount (per animal)</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Qty Required (per animal)</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Total Qty Required</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -222,7 +232,8 @@ export function DietCard({ data }: DietCardProps) {
                                  <div className="font-bold">{item.item_name}</div>
                                  {item.item_details && <div className="text-sm text-gray-600">{item.item_details}</div>}
                                </td>
-                               <td className="text-right align-top font-bold">{item.amount}</td>
+                               <td className="text-right align-top font-bold">{item.amount_per_animal}</td>
+                               <td className="text-right align-top font-bold">{item.total_amount_required}</td>
                              </tr>
                            ))}
                          </React.Fragment>
@@ -244,3 +255,5 @@ export function DietCard({ data }: DietCardProps) {
         </div>
     );
 }
+
+    
