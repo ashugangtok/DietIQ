@@ -50,6 +50,7 @@ export function DietCard({ data }: DietCardProps) {
     
     const dietName = data.length > 0 ? (data[0] as any).diet_name : "";
     const dietNo = data.length > 0 ? (data[0] as any).diet_no : "";
+    const latinName = data.length > 0 ? (data[0] as any).latin_name : "";
     const subheading = dietNo 
         ? `Diet Name: ${dietName} and Diet_Number: ${dietNo}` 
         : `Diet Name: ${dietName}`;
@@ -161,7 +162,7 @@ export function DietCard({ data }: DietCardProps) {
             <div className="flex flex-col md:flex-row justify-between items-start mb-6">
                 <div>
                     <h2 className="text-3xl font-bold capitalize text-gray-800">{animalName}</h2>
-                    <p className="text-lg text-gray-500">({(data[0] as any).latin_name || "Psittacus erithacus"})</p>
+                    <p className="text-lg text-gray-500">({latinName})</p>
                 </div>
                 <div className="w-full md:w-1/3 mt-4 md:mt-0">
                     <Image 
