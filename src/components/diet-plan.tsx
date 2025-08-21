@@ -22,6 +22,15 @@ type MealItem = {
 
 const formatIngredientAmount = (quantity: number, uom: string) => {
     if (!uom) return `${quantity}`;
+
+    // Handle grams specifically for the ingredient breakdown
+    if (uom.toLowerCase() === 'gram' || uom.toLowerCase() === 'g') {
+        const formattedQty = quantity.toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+        });
+        return `${formattedQty} ${uom}`;
+    }
+
     const formattedQty = quantity.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -50,9 +59,8 @@ export function DietPlan({ data }: DietPlanProps) {
         
         return Array.from(mealMap.entries()).map(([time, rows]) => {
             const comboMap = new Map<string, SheetDataRow[]>();
-            const singleItems: MealItem[] = [];
+            const singleIngredientMap = new Map<string, { totalQty: number, totalGram: number, row: SheetDataRow }>();
 
-            // First, separate combos from single items
             rows.forEach(row => {
                 if ((row.type === 'Recipe' || row.type === 'Combo') && row.type_name) {
                     if (!comboMap.has(row.type_name)) {
@@ -60,41 +68,46 @@ export function DietPlan({ data }: DietPlanProps) {
                     }
                     comboMap.get(row.type_name)!.push(row);
                 } else {
-                    // Group and sum single items
-                    const existingItem = singleItems.find(item => item.itemName === row.ingredient_name);
-                    if (existingItem) {
-                        // This part is tricky if units are different. Assuming same unit for simplicity.
-                        const currentQty = parseFloat(existingItem.amount.split(' ')[0]);
-                        const newQty = currentQty + row.ingredient_qty;
-                        existingItem.amount = formatIngredientAmount(newQty, row.base_uom_name);
+                    const key = row.ingredient_name;
+                    if (singleIngredientMap.has(key)) {
+                        const existing = singleIngredientMap.get(key)!;
+                        existing.totalQty += row.ingredient_qty;
+                        existing.totalGram += row.ingredient_qty_gram;
                     } else {
-                        let detailsParts: string[] = [];
-                        if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
-                        if (row.preparation_type_name) detailsParts.push(`prep: ${row.preparation_type_name}`);
-                        
-                        singleItems.push({
-                            isCombo: false,
-                            itemName: row.ingredient_name,
-                            details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
-                            amount: formatIngredientAmount(row.ingredient_qty, row.base_uom_name)
-                        });
+                        singleIngredientMap.set(key, { totalQty: row.ingredient_qty, totalGram: row.ingredient_qty_gram, row: row });
                     }
                 }
             });
 
             const comboItems: MealItem[] = Array.from(comboMap.entries()).map(([comboName, ingredients]) => {
-                const totalAmount = ingredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
+                const totalAmountQty = ingredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
+                const totalAmountGram = ingredients.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
                 const firstIngredient = ingredients[0];
 
                 const ingredientDetails = ingredients.map(ing => {
-                    return `${ing.ingredient_name} (${formatIngredientAmount(ing.ingredient_qty, ing.base_uom_name)})`;
+                    const uomLower = ing.base_uom_name_gram.toLowerCase();
+                    const amountInGrams = formatIngredientAmount(ing.ingredient_qty_gram, uomLower);
+                    return `${ing.ingredient_name} ${amountInGrams}`;
                 }).join(', ');
                 
                 return {
                     isCombo: true,
                     itemName: comboName,
                     details: `(${ingredientDetails})`,
-                    amount: formatIngredientAmount(totalAmount, firstIngredient.base_uom_name)
+                    amount: formatIngredientAmount(totalAmountQty, firstIngredient.base_uom_name)
+                };
+            });
+            
+            const singleItems: MealItem[] = Array.from(singleIngredientMap.values()).map(({totalQty, totalGram, row}) => {
+                let detailsParts: string[] = [];
+                if (row.cut_size_name) detailsParts.push(`cut: ${row.cut_size_name}`);
+                if (row.preparation_type_name) detailsParts.push(`prep: ${row.preparation_type_name}`);
+                
+                return {
+                    isCombo: false,
+                    itemName: row.ingredient_name,
+                    details: detailsParts.length > 0 ? `(${detailsParts.join(', ')})` : undefined,
+                    amount: formatIngredientAmount(totalQty, row.base_uom_name)
                 };
             });
 
@@ -217,3 +230,5 @@ export function DietPlan({ data }: DietPlanProps) {
         </div>
     );
 }
+
+    
