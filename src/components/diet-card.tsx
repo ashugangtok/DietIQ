@@ -133,6 +133,11 @@ export function DietCard({ data }: DietCardProps) {
                     totalAmountForAllAnimals = group.totalGram > 0 ? group.totalGram : group.totalQty;
                     uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
                 }
+                
+                const prepDetails = [mainItem.cut_size_name, mainItem.preparation_type_name].filter(Boolean).join(', ');
+                if (prepDetails) {
+                    itemName += ` (${prepDetails})`;
+                }
 
                 const amountPerAnimal = totalAmountForAllAnimals / animalCount;
                 
