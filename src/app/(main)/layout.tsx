@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Book,
+  BookCopy,
 } from 'lucide-react';
 
 import {
@@ -248,6 +249,14 @@ export default function MainLayout({
                     <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
                         <Book />
                         <span>Summary Report</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <Link href="/overall-report" passHref>
+                    <SidebarMenuButton tooltip="Overall Report" isActive={isActive('/overall-report')}>
+                        <BookCopy />
+                        <span>Overall Report</span>
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
