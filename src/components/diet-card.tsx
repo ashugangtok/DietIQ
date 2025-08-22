@@ -103,7 +103,7 @@ export function DietCard({ data }: DietCardProps) {
                 let uomForTotals = group.uom;
 
                 if (isCombo) {
-                    itemName = mainItem.type_name;
+                    itemName = mainItem.type_name.replace(/vantara/gi, "VNX");
                     
                     const ingredientAggregator = new Map<string, { totalQty: number, totalGram: number, uom: string }>();
                     group.ingredients.forEach(ing => {
@@ -123,13 +123,14 @@ export function DietCard({ data }: DietCardProps) {
                     const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
                         const ingredientAmountPerAnimal = ingData.totalGram / animalCount;
                         const percentage = totalAmountPerAnimal > 0 ? (ingredientAmountPerAnimal / totalAmountPerAnimal) * 100 : 0;
-                        return `${percentage.toFixed(0)}% ${name}`;
+                        const cleanedName = name.replace(/vantara/gi, "VNX");
+                        return `${percentage.toFixed(0)}% ${cleanedName}`;
                     }).join(', ');
 
                     itemDetails = `(${breakdown})`;
 
                 } else {
-                    itemName = mainItem.ingredient_name;
+                    itemName = mainItem.ingredient_name.replace(/vantara/gi, "VNX");
                     itemDetails = "";
                     totalAmountForAllAnimals = group.totalGram > 0 ? group.totalGram : group.totalQty;
                     uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
