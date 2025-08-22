@@ -344,16 +344,44 @@ export function OverallReportCheck({ data }: OverallReportProps) {
     
     const handleDownloadPdf = async () => {
         const element = cardRef.current;
-        if (element) {
-            const canvas = await html2canvas(element, { scale: 2 });
-            const data = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProperties = pdf.getImageProperties(data);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
-            pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`${selectedGroup}-overall-report-check.pdf`);
+        if (!element) return;
+
+        const canvas = await html2canvas(element, {
+            scale: 2, // Use a reasonable scale
+            useCORS: true,
+            width: element.scrollWidth,
+            height: element.scrollHeight,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight,
+        });
+
+        // Use JPEG for better compression
+        const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the quality level
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = imgWidth / imgHeight;
+        
+        const canvasPdfWidth = pdfWidth;
+        const canvasPdfHeight = canvasPdfWidth / ratio;
+        
+        let heightLeft = canvasPdfHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'JPEG', 0, position, canvasPdfWidth, canvasPdfHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - canvasPdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, canvasPdfWidth, canvasPdfHeight);
+            heightLeft -= pdfHeight;
         }
+
+        pdf.save(`${selectedGroup}-overall-report-check.pdf`);
     };
 
     return (
