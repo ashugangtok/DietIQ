@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "./ui/badge";
 
 interface RecipeBreakdown {
   ingredientName: string;
@@ -75,14 +76,20 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
   );
 
   const recipeData = useMemo(() => {
-    if (!selectedRecipe) return { breakdown: [], grandTotalGrams: 0 };
+    if (!selectedRecipe) return { breakdown: [], grandTotalGrams: 0, usedByGroups: [] };
     
     const recipeRows = data.filter(row => row.type_name === selectedRecipe);
     
     const ingredientMap = new Map<string, { qty: number; qty_gram: number; uom: string }>();
+    const groupSet = new Set<string>();
 
     recipeRows.forEach(row => {
-      const { ingredient_name, ingredient_qty, ingredient_qty_gram, base_uom_name } = row;
+      const { ingredient_name, ingredient_qty, ingredient_qty_gram, base_uom_name, group_name } = row;
+      
+      if (group_name) {
+        groupSet.add(group_name);
+      }
+
       if (!ingredientMap.has(ingredient_name)) {
         ingredientMap.set(ingredient_name, { qty: 0, qty_gram: 0, uom: base_uom_name });
       }
@@ -101,8 +108,9 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
     ).sort((a,b) => b.totalQtyGram - a.totalQtyGram);
 
     const grandTotalGrams = breakdown.reduce((sum, item) => sum + item.totalQtyGram, 0);
+    const usedByGroups = Array.from(groupSet).sort();
 
-    return { breakdown, grandTotalGrams };
+    return { breakdown, grandTotalGrams, usedByGroups };
 
   }, [data, selectedRecipe]);
 
@@ -124,7 +132,7 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+        <div className="flex flex-col gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
           <Select
             value={selectedRecipe}
             onValueChange={setSelectedRecipe}
@@ -140,6 +148,15 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
               ))}
             </SelectContent>
           </Select>
+          
+          {selectedRecipe && recipeData.usedByGroups.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Used by Groups:</span>
+                {recipeData.usedByGroups.map(group => (
+                    <Badge key={group} variant="secondary">{group}</Badge>
+                ))}
+            </div>
+          )}
         </div>
 
         <div className="relative overflow-x-auto rounded-md border">
