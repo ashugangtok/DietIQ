@@ -232,8 +232,8 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
                   <SelectValue placeholder="Select a site" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#0f172a] text-white border-white/10">
-                  {data.filters.sites.map((s: string) => (
-                    <SelectItem key={s} value={s}>
+                  {data.filters.sites.map((s: string, index: number) => (
+                    <SelectItem key={`${s}-${index}`} value={s}>
                       {s}
                     </SelectItem>
                   ))}
@@ -248,8 +248,8 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
                   <SelectValue placeholder="Select a feed type" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#0f172a] text-white border-white/10">
-                  {data.filters.feedTypes.map((t: string) => (
-                    <SelectItem key={t} value={t}>
+                  {data.filters.feedTypes.map((t: string, index: number) => (
+                    <SelectItem key={`${t}-${index}`} value={t}>
                       {t}
                     </SelectItem>
                   ))}
