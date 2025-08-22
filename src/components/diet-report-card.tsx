@@ -209,16 +209,16 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                             <h4 className="text-xl font-semibold mb-4 text-green-700 bg-green-100 p-2 rounded-md">Meal Time: {meal.time}</h4>
                             {meal.diets.map((diet, dietIndex) => (
                                 <div key={dietIndex} className="mb-6 border-b pb-4 last:border-b-0 last:pb-0">
-                                    <div className="flex justify-between items-baseline mb-3">
+                                    <div className="grid grid-cols-2 items-baseline mb-3">
                                         <div>
                                             {diet.animals.map((animal, animalIndex) => (
                                                 <div key={animalIndex} className="mb-1">
-                                                    <h4 className="text-xl font-bold">{animal.name} ({animal.count})</h4>
-                                                    <p className="text-md italic text-gray-500">{animal.scientificName}</p>
+                                                    <h4 className="text-lg font-bold">{animal.name} ({animal.count})</h4>
+                                                    <p className="text-sm italic text-gray-500">{animal.scientificName}</p>
                                                 </div>
                                             ))}
                                         </div>
-                                        <p className="text-sm text-gray-600 text-right flex-shrink-0 ml-4">Diet: {diet.dietName}<br/>(No: {diet.dietNo})</p>
+                                        <p className="text-sm text-gray-600 text-right">Diet: {diet.dietName}<br/>(No: {diet.dietNo})</p>
                                     </div>
                                     <table className="w-full text-left border-collapse">
                                         <thead>
