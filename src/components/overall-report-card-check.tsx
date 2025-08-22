@@ -408,7 +408,12 @@ export function OverallReportCheck({ data }: OverallReportProps) {
 
         const imgData = canvas.toDataURL('image/jpeg', 0.8);
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
@@ -485,5 +490,7 @@ export function OverallReportCheck({ data }: OverallReportProps) {
     );
 }
 
+
+    
 
     
