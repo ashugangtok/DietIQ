@@ -63,26 +63,30 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
 
     const handleDownloadAll = async () => {
         const pdf = new jsPDF('p', 'mm', 'a4');
-        
-        for (let i = 0; i < dietCardRefs.current.length; i++) {
-            const element = dietCardRefs.current[i];
+        const validRefs = dietCardRefs.current.filter(el => el !== null);
+
+        for (let i = 0; i < validRefs.length; i++) {
+            const element = validRefs[i];
             if (element) {
                 const buttons = element.querySelectorAll('.no-print');
-                buttons.forEach(btn => (btn as HTMLElement).style.display = 'none');
+                buttons.forEach(btn => ((btn as HTMLElement).style.display = 'none'));
 
-                const canvas = await html2canvas(element, { scale: 2 });
-                
-                buttons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+                try {
+                    const canvas = await html2canvas(element, { scale: 2 });
+                    const data = canvas.toDataURL('image/png');
+                    const imgProperties = pdf.getImageProperties(data);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
 
-                const data = canvas.toDataURL('image/png');
-                const imgProperties = pdf.getImageProperties(data);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
-
-                if (i > 0) {
-                    pdf.addPage();
+                    if (i > 0) {
+                        pdf.addPage();
+                    }
+                    pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                } catch (error) {
+                    console.error("Error generating canvas for element:", element, error);
+                } finally {
+                    buttons.forEach(btn => ((btn as HTMLElement).style.display = 'flex'));
                 }
-                pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
             }
         }
         pdf.save(`diet-plans-${new Date().toISOString().split('T')[0]}.pdf`);
