@@ -398,7 +398,7 @@ export function OverallReportCheck({ data }: OverallReportProps) {
         if (!element) return;
 
         const canvas = await html2canvas(element, {
-            scale: 2, // Use a reasonable scale
+            scale: 2,
             useCORS: true,
             width: element.scrollWidth,
             height: element.scrollHeight,
@@ -406,29 +406,30 @@ export function OverallReportCheck({ data }: OverallReportProps) {
             windowHeight: element.scrollHeight,
         });
 
-        // Use JPEG for better compression
-        const imgData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 is the quality level
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
 
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
+        
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgWidth = imgProps.width;
+        const imgHeight = imgProps.height;
+
         const ratio = imgWidth / imgHeight;
+        let newImgWidth = pdfWidth;
+        let newImgHeight = newImgWidth / ratio;
         
-        const canvasPdfWidth = pdfWidth;
-        const canvasPdfHeight = canvasPdfWidth / ratio;
-        
-        let heightLeft = canvasPdfHeight;
+        let heightLeft = newImgHeight;
         let position = 0;
 
-        pdf.addImage(imgData, 'JPEG', 0, position, canvasPdfWidth, canvasPdfHeight);
+        pdf.addImage(imgData, 'JPEG', 0, position, newImgWidth, newImgHeight);
         heightLeft -= pdfHeight;
 
         while (heightLeft > 0) {
-            position = heightLeft - canvasPdfHeight;
+            position -= pdfHeight;
             pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, canvasPdfWidth, canvasPdfHeight);
+            pdf.addImage(imgData, 'JPEG', 0, position, newImgWidth, newImgHeight);
             heightLeft -= pdfHeight;
         }
 
@@ -484,3 +485,5 @@ export function OverallReportCheck({ data }: OverallReportProps) {
     );
 }
 
+
+    
