@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { type SheetDataRow } from "@/types";
 import {
   Select,
@@ -13,22 +13,11 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { DietCard } from "./diet-card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import { Button } from "./ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Download } from "lucide-react";
+import { MultiSelect } from "./ui/multi-select";
+import jsPDF from "jspdf";
+import html2canvas from 'html2canvas';
 
 
 export function TableReport({ data }: { data: SheetDataRow[] }) {
@@ -36,8 +25,9 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
     const [selectedOrder, setSelectedOrder] = useState<string>("");
     const [selectedFamily, setSelectedFamily] = useState<string>("");
     const [selectedGenus, setSelectedGenus] = useState<string>("");
-    const [selectedAnimal, setSelectedAnimal] = useState<string>("");
-    const [open, setOpen] = useState(false)
+    const [selectedAnimals, setSelectedAnimals] = useState<string[]>([]);
+    
+    const dietCardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const filteredOptions = useMemo(() => {
         let filteredData = data;
@@ -47,31 +37,56 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
         if (selectedGenus) filteredData = filteredData.filter(row => row.genus_name === selectedGenus);
 
         const classOptions = [...new Set(data.map(row => row.class_name).filter(Boolean))].sort();
-
         const orderOptions = [...new Set(data.filter(row => !selectedClass || row.class_name === selectedClass).map(row => row.order_name).filter(Boolean))].sort();
-
         const familyOptions = [...new Set(filteredData.map(row => row.family_name).filter(Boolean))].sort();
-
         const genusOptions = [...new Set(filteredData.map(row => row.genus_name).filter(Boolean))].sort();
-        
         const animalOptions = [...new Set(filteredData.map(row => row.common_name))]
             .sort()
-            .map(animal => ({ value: animal.toLowerCase(), label: animal }));
+            .map(animal => ({ value: animal, label: animal }));
             
         return { classOptions, orderOptions, familyOptions, genusOptions, animalOptions };
     }, [data, selectedClass, selectedOrder, selectedFamily, selectedGenus]);
 
     const animalData = useMemo(() => {
-        if (!selectedAnimal) return [];
-        return data.filter(row => row.common_name.toLowerCase() === selectedAnimal);
-    }, [data, selectedAnimal]);
+        if (selectedAnimals.length === 0) return [];
+        return selectedAnimals.map(animalName => ({
+            name: animalName,
+            data: data.filter(row => row.common_name === animalName)
+        }));
+    }, [data, selectedAnimals]);
     
     // Reset dependent filters when a parent filter changes
-    React.useEffect(() => { setSelectedOrder(""); setSelectedFamily(""); setSelectedGenus(""); setSelectedAnimal(""); }, [selectedClass]);
-    React.useEffect(() => { setSelectedFamily(""); setSelectedGenus(""); setSelectedAnimal(""); }, [selectedOrder]);
-    React.useEffect(() => { setSelectedGenus(""); setSelectedAnimal(""); }, [selectedFamily]);
-    React.useEffect(() => { setSelectedAnimal(""); }, [selectedGenus]);
+    React.useEffect(() => { setSelectedOrder(""); setSelectedFamily(""); setSelectedGenus(""); setSelectedAnimals([]); }, [selectedClass]);
+    React.useEffect(() => { setSelectedFamily(""); setSelectedGenus(""); setSelectedAnimals([]); }, [selectedOrder]);
+    React.useEffect(() => { setSelectedGenus(""); setSelectedAnimals([]); }, [selectedFamily]);
+    React.useEffect(() => { setSelectedAnimals([]); }, [selectedGenus]);
 
+    const handleDownloadAll = async () => {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        for (let i = 0; i < dietCardRefs.current.length; i++) {
+            const element = dietCardRefs.current[i];
+            if (element) {
+                const buttons = element.querySelectorAll('.no-print');
+                buttons.forEach(btn => (btn as HTMLElement).style.display = 'none');
+
+                const canvas = await html2canvas(element, { scale: 2 });
+                
+                buttons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+
+                const data = canvas.toDataURL('image/png');
+                const imgProperties = pdf.getImageProperties(data);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
+
+                if (i > 0) {
+                    pdf.addPage();
+                }
+                pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            }
+        }
+        pdf.save(`diet-plans-${new Date().toISOString().split('T')[0]}.pdf`);
+    };
 
     return (
         <Card className="shadow-lg">
@@ -108,61 +123,44 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
                         </SelectContent>
                     </Select>
 
-                    <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={open}
-                          className="w-[280px] justify-between"
-                          disabled={!selectedGenus}
-                        >
-                          {selectedAnimal
-                            ? filteredOptions.animalOptions.find((animal) => animal.value === selectedAnimal)?.label
-                            : "Select an animal..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <MultiSelect
+                        options={filteredOptions.animalOptions}
+                        selectedValues={selectedAnimals}
+                        onChange={setSelectedAnimals}
+                        placeholder="Select animals..."
+                        className="w-full sm:w-[280px]"
+                        disabled={!selectedGenus}
+                    />
+
+                    {animalData.length > 1 && (
+                        <Button onClick={handleDownloadAll}>
+                            <Download className="mr-2" />
+                            Download All ({animalData.length}) as PDF
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[280px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search animal..." />
-                          <CommandList>
-                            <CommandEmpty>No animal found.</CommandEmpty>
-                            <CommandGroup>
-                              {filteredOptions.animalOptions.map((animal, index) => (
-                                <CommandItem
-                                  key={`${animal.value}-${index}`}
-                                  value={animal.value}
-                                  onSelect={(currentValue) => {
-                                    setSelectedAnimal(currentValue === selectedAnimal ? "" : currentValue)
-                                    setOpen(false)
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedAnimal === animal.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {animal.label}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    )}
                 </div>
                 
-                {selectedAnimal ? (
-                    <DietCard data={animalData} />
-                ) : (
-                    <div className="text-center p-12 border-2 border-dashed rounded-lg">
-                        <p className="text-muted-foreground">
-                           Please select an animal from the dropdown to see its diet plan.
-                        </p>
-                    </div>
-                )}
+                <div className="space-y-4">
+                    {animalData.length > 0 ? (
+                        animalData.map((animal, index) => (
+                            <DietCard 
+                                key={animal.name} 
+                                data={animal.data} 
+                                ref={el => {
+                                    if (dietCardRefs.current) {
+                                        dietCardRefs.current[index] = el;
+                                    }
+                                }}
+                            />
+                        ))
+                    ) : (
+                        <div className="text-center p-12 border-2 border-dashed rounded-lg">
+                            <p className="text-muted-foreground">
+                               Please select an animal from the dropdown to see its diet plan.
+                            </p>
+                        </div>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
