@@ -47,13 +47,12 @@ interface SiteReport {
 
 interface Meal {
     time: string;
-    diets: AnimalDiet[];
+    diets: ConsolidatedDiet[];
 }
 
-interface AnimalDiet {
-    dietName: string;
-    dietNo: string | number;
-    animals: { name: string; scientificName: string; count: number }[];
+interface ConsolidatedDiet {
+    dietSignature: string;
+    animals: { name: string; scientificName: string; count: number, dietName: string, dietNo: string | number }[];
     totalAnimalCount: number;
     items: DietItem[];
 }
@@ -68,7 +67,7 @@ interface DietItem {
 
 const processReportData = (data: SheetDataRow[]): SiteReport[] => {
     if (data.length === 0) return [];
-    
+
     const siteMap = new Map<string, SheetDataRow[]>();
     data.forEach(row => {
         if (!siteMap.has(row.site_name)) siteMap.set(row.site_name, []);
@@ -88,22 +87,61 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
         const meals: Meal[] = [];
         
         mealMap.forEach((mealRows, time) => {
-            const dietMap = new Map<string, SheetDataRow[]>();
+            const dietSignatureMap = new Map<string, SheetDataRow[]>();
+
+            // First, group rows by animal to determine diet signatures
+            const animalMealData = new Map<string, SheetDataRow[]>();
             mealRows.forEach(row => {
-                const dietKey = `${row.diet_name}|${row.diet_no}`;
-                if (!dietMap.has(dietKey)) dietMap.set(dietKey, []);
-                dietMap.get(dietKey)!.push(row);
+                if (!animalMealData.has(row.animal_id)) animalMealData.set(row.animal_id, []);
+                animalMealData.get(row.animal_id)!.push(row);
             });
 
-            const diets: AnimalDiet[] = [];
+            // For each animal, calculate its diet signature
+            animalMealData.forEach((animalRows, animalId) => {
+                const itemQuantities = new Map<string, number>();
+                animalRows.forEach(row => {
+                    const key = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
+                    itemQuantities.set(key, (itemQuantities.get(key) || 0) + (row.ingredient_qty_gram || row.ingredient_qty));
+                });
+                
+                const signature = Array.from(itemQuantities.entries())
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
+                    .join(';');
 
-            dietMap.forEach((dietRows, dietKey) => {
-                const [dietName, dietNo] = dietKey.split('|');
+                if (!dietSignatureMap.has(signature)) dietSignatureMap.set(signature, []);
+                // We only need one representative set of rows for the diet, not all rows for all animals
+                if (dietSignatureMap.get(signature)!.length === 0) {
+                    dietSignatureMap.set(signature, animalRows);
+                }
+            });
 
-                const animalGroups = new Map<string, { scientificName: string, ids: Set<string> }>();
-                dietRows.forEach(r => {
+            const diets: ConsolidatedDiet[] = [];
+
+            dietSignatureMap.forEach((representativeRows, dietSignature) => {
+                // Find all animals that match this diet signature for this meal
+                const matchingAnimalIds = new Set<string>();
+                animalMealData.forEach((rows, animalId) => {
+                    const itemQuantities = new Map<string, number>();
+                    rows.forEach(row => {
+                        const key = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
+                        itemQuantities.set(key, (itemQuantities.get(key) || 0) + (row.ingredient_qty_gram || row.ingredient_qty));
+                    });
+                    const currentSignature = Array.from(itemQuantities.entries())
+                        .sort((a, b) => a[0].localeCompare(b[0]))
+                        .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
+                        .join(';');
+                    if (currentSignature === dietSignature) {
+                        matchingAnimalIds.add(animalId);
+                    }
+                });
+
+                const allRowsForDiet = mealRows.filter(r => matchingAnimalIds.has(r.animal_id));
+
+                const animalGroups = new Map<string, { scientificName: string, ids: Set<string>, dietName: string, dietNo: string | number }>();
+                allRowsForDiet.forEach(r => {
                     if (!animalGroups.has(r.common_name)) {
-                        animalGroups.set(r.common_name, { scientificName: r.scientific_name, ids: new Set() });
+                        animalGroups.set(r.common_name, { scientificName: r.scientific_name, ids: new Set(), dietName: r.diet_name, dietNo: r.diet_no });
                     }
                     animalGroups.get(r.common_name)!.ids.add(r.animal_id);
                 });
@@ -112,12 +150,14 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     name,
                     scientificName: data.scientificName,
                     count: data.ids.size,
+                    dietName: data.dietName,
+                    dietNo: data.dietNo
                 })).sort((a,b) => a.name.localeCompare(b.name));
                 
                 const totalAnimalCount = animals.reduce((sum, animal) => sum + animal.count, 0);
 
                 const itemMap = new Map<string, { ingredients: SheetDataRow[], totalQty: number, totalGram: number, uom: string }>();
-                dietRows.forEach(row => {
+                allRowsForDiet.forEach(row => {
                     const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
                     const groupKey = isCombo ? row.type_name : row.ingredient_name;
 
@@ -183,9 +223,10 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     };
                 });
                 
-                diets.push({ dietName, dietNo, animals, totalAnimalCount, items });
+                diets.push({ dietSignature, animals, totalAnimalCount, items });
             });
-            meals.push({ time, diets: diets.sort((a,b) => a.dietName.localeCompare(b.dietName)) });
+
+            meals.push({ time, diets });
         });
         sites.push({ siteName, meals: meals.sort((a,b) => a.time.localeCompare(b.time)) });
     });
@@ -208,7 +249,7 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                          <div key={mealIndex} className="mb-8 last:mb-0 pl-4 border-l-2 border-primary/20">
                             <h4 className="text-xl font-semibold mb-4 text-green-700 bg-green-100 p-2 rounded-md">Meal Time: {meal.time}</h4>
                             {meal.diets.map((diet, dietIndex) => (
-                                <div key={dietIndex} className="mb-6 border rounded-md p-4">
+                                <div key={`${diet.dietSignature}-${dietIndex}`} className="mb-6 border rounded-md p-4">
                                     <div className="grid grid-cols-[1fr_auto] items-start mb-3">
                                         <div>
                                             {diet.animals.map((animal, animalIndex) => (
@@ -218,9 +259,13 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="text-xs text-gray-600 text-right">
-                                            <p>Diet: {diet.dietName}</p>
-                                            <p>(No: {diet.dietNo})</p>
+                                         <div className="text-xs text-gray-600 text-right space-y-1">
+                                            {diet.animals.map((animal, animalIndex) => (
+                                                <div key={animalIndex}>
+                                                    <p>Diet: {animal.dietName}</p>
+                                                    <p>(No: {animal.dietNo})</p>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                     <table className="w-full text-left border-collapse">
@@ -233,7 +278,7 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                                         </thead>
                                         <tbody>
                                             {diet.items.map((item, itemIndex) => (
-                                                <tr key={itemIndex} className="[&>td]:border [&>td]:p-2">
+                                                <tr key={`${item.id}-${itemIndex}`} className="[&>td]:border [&>td]:p-2">
                                                     <td>
                                                         <div className="font-medium">{item.itemName}</div>
                                                         {item.itemDetails && <div className="text-xs text-gray-500">{item.itemDetails}</div>}
