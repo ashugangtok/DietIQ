@@ -44,7 +44,8 @@ export function DietCard({ data }: DietCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const animalName = data.length > 0 ? data[0].common_name : "";
     
-    const dietName = data.length > 0 ? (data[0] as any).diet_name : "";
+    const dietNameRaw = data.length > 0 ? (data[0] as any).diet_name : "";
+    const dietName = dietNameRaw.replace(/vantara/gi, "VNX");
     const dietNo = data.length > 0 ? (data[0] as any).diet_no : "";
     const scientificName = data.length > 0 ? (data[0] as any).scientific_name : "";
     const subheading = dietNo 
