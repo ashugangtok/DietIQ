@@ -190,6 +190,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <StatCard
+            key="total-animals"
             title="Total Animals"
             value={filteredData.kpis.totalAnimals}
             subtitle="Unique animals recorded"
@@ -197,6 +198,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
             bg={BG.animals}
           />
           <StatCard
+            key="total-sites"
             title="Total Sites"
             value={filteredData.kpis.totalSites}
             subtitle="Locations providing data"
@@ -204,6 +206,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
             bg={BG.sites}
           />
           <StatCard
+            key="unique-ingredients"
             title="Unique Ingredients"
             value={filteredData.kpis.uniqueIngredients}
             subtitle="Different ingredients used"
@@ -211,6 +214,7 @@ export default function DashboardMockup({ data: rawData }: { data: SheetDataRow[
             bg={BG.ingredients}
           />
           <StatCard
+            key="feed-types"
             title="Feed Types"
             value={filteredData.kpis.feedTypes}
             subtitle="Distinct feed categories"
