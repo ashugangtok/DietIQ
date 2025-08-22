@@ -73,8 +73,8 @@ export default function MainLayout({
           const worksheet = workbook.Sheets[sheetName];
           
           const requiredColumns = [
-            'site_name', 'animal_id', 'common_name', 'section_name', 'user_enclosure_name', 
-            'Feed type name', 'ingredient_name', 'type', 'type_name', 'group_name',
+            'site_name', 'animal_id', 'common_name', 'scientific_name', 'section_name', 'user_enclosure_name', 
+            'Feed type name', 'diet_name', 'diet_no', 'ingredient_name', 'type', 'type_name', 'group_name',
             'ingredient_qty', 'base_uom_name', 'ingredient_qty_gram', 'base_uom_name_gram',
             'preparation_type_name', 'meal_start_time', 'cut_size_name'
           ];

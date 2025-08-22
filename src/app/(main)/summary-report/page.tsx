@@ -3,9 +3,9 @@
 
 import { useContext } from "react";
 import { DataContext } from "@/context/data-context";
-import { PivotTableReport } from "@/components/pivot-table-report";
+import { DietReport } from "@/components/diet-report-card";
 
 export default function SummaryReportPage() {
   const { data } = useContext(DataContext);
-  return <PivotTableReport data={data} />;
+  return <DietReport data={data} />;
 }

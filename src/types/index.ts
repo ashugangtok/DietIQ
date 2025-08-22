@@ -2,9 +2,12 @@ export interface SheetDataRow {
   site_name: string;
   animal_id: string;
   common_name: string;
+  scientific_name: string;
   section_name: string;
   user_enclosure_name: string;
   'Feed type name': string;
+  diet_name: string;
+  diet_no: number | string;
   ingredient_name: string;
   type: string;
   type_name: string;
