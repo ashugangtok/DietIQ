@@ -74,9 +74,9 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
                           <CommandList>
                             <CommandEmpty>No animal found.</CommandEmpty>
                             <CommandGroup>
-                              {animalOptions.map((animal) => (
+                              {animalOptions.map((animal, index) => (
                                 <CommandItem
-                                  key={animal.value}
+                                  key={`${animal.value}-${index}`}
                                   value={animal.value}
                                   onSelect={(currentValue) => {
                                     setSelectedAnimal(currentValue === selectedAnimal ? "" : currentValue)
