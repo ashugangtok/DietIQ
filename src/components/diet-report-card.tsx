@@ -208,24 +208,27 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                          <div key={mealIndex} className="mb-8 last:mb-0 pl-4 border-l-2 border-primary/20">
                             <h4 className="text-xl font-semibold mb-4 text-green-700 bg-green-100 p-2 rounded-md">Meal Time: {meal.time}</h4>
                             {meal.diets.map((diet, dietIndex) => (
-                                <div key={dietIndex} className="mb-6 border-b pb-4 last:border-b-0 last:pb-0">
-                                    <div className="grid grid-cols-2 items-baseline mb-3">
+                                <div key={dietIndex} className="mb-6 border rounded-md p-4">
+                                    <div className="grid grid-cols-2 items-start mb-3">
                                         <div>
                                             {diet.animals.map((animal, animalIndex) => (
                                                 <div key={animalIndex} className="mb-1">
-                                                    <h4 className="text-lg font-bold">{animal.name} ({animal.count})</h4>
-                                                    <p className="text-sm italic text-gray-500">{animal.scientificName}</p>
+                                                    <h4 className="text-base font-bold">{animal.name} ({animal.count})</h4>
+                                                    <p className="text-xs italic text-gray-500">{animal.scientificName}</p>
                                                 </div>
                                             ))}
                                         </div>
-                                        <p className="text-sm text-gray-600 text-right">Diet: {diet.dietName}<br/>(No: {diet.dietNo})</p>
+                                        <div className="text-xs text-gray-600 text-right">
+                                            <p>Diet: {diet.dietName}</p>
+                                            <p>(No: {diet.dietNo})</p>
+                                        </div>
                                     </div>
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-gray-100">
-                                                <th className="p-2 font-semibold border w-2/5">Item</th>
-                                                <th className="p-2 font-semibold border text-right">Qty/Animal</th>
-                                                <th className="p-2 font-semibold border text-right">Total Qty</th>
+                                                <th className="p-2 font-bold border w-2/5">Item</th>
+                                                <th className="p-2 font-bold border text-right">Qty/Animal</th>
+                                                <th className="p-2 font-bold border text-right">Total Qty</th>
                                             </tr>
                                         </thead>
                                         <tbody>
