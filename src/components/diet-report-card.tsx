@@ -89,15 +89,13 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
         mealMap.forEach((mealRows, time) => {
             const dietSignatureMap = new Map<string, SheetDataRow[]>();
 
-            // First, group rows by animal to determine diet signatures
             const animalMealData = new Map<string, SheetDataRow[]>();
             mealRows.forEach(row => {
                 if (!animalMealData.has(row.animal_id)) animalMealData.set(row.animal_id, []);
                 animalMealData.get(row.animal_id)!.push(row);
             });
 
-            // For each animal, calculate its diet signature
-            animalMealData.forEach((animalRows, animalId) => {
+            animalMealData.forEach((animalRows) => {
                 const itemQuantities = new Map<string, number>();
                 animalRows.forEach(row => {
                     const key = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
@@ -109,9 +107,7 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
                     .join(';');
 
-                if (!dietSignatureMap.has(signature)) dietSignatureMap.set(signature, []);
-                // We only need one representative set of rows for the diet, not all rows for all animals
-                if (dietSignatureMap.get(signature)!.length === 0) {
+                if (!dietSignatureMap.has(signature) || dietSignatureMap.get(signature)!.length === 0) {
                     dietSignatureMap.set(signature, animalRows);
                 }
             });
@@ -119,7 +115,6 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
             const diets: ConsolidatedDiet[] = [];
 
             dietSignatureMap.forEach((representativeRows, dietSignature) => {
-                // Find all animals that match this diet signature for this meal
                 const matchingAnimalIds = new Set<string>();
                 animalMealData.forEach((rows, animalId) => {
                     const itemQuantities = new Map<string, number>();
@@ -236,7 +231,7 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
 
 const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[] }>(({ groupName, reportData }, ref) => {
     return (
-        <div className="border rounded-lg p-6 bg-white" ref={ref}>
+        <div className="border rounded-lg p-6 bg-white font-sans" ref={ref} style={{ fontFamily: "'Poppins', sans-serif" }}>
             <div className="text-center mb-6">
                 <h2 className="text-3xl font-bold capitalize text-gray-800">{groupName}</h2>
                 <p className="text-lg text-gray-500">Diet Report</p>
@@ -244,10 +239,10 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
             </div>
             {reportData.map((site, siteIndex) => (
                 <div key={siteIndex} className="mb-8 last:mb-0 page-break-before">
-                    <h3 className="text-2xl font-semibold mb-4 text-primary bg-primary/10 p-2 rounded-md">{site.siteName}</h3>
+                    <h3 className="text-2xl font-semibold mb-4 text-primary bg-primary/10 p-3 rounded-md">{site.siteName}</h3>
                     {site.meals.map((meal, mealIndex) => (
-                         <div key={mealIndex} className="mb-8 last:mb-0 pl-4 border-l-2 border-primary/20">
-                            <h4 className="text-xl font-semibold mb-4 text-green-700 bg-green-100 p-2 rounded-md">Meal Time: {meal.time}</h4>
+                         <div key={mealIndex} className="mb-8 last:mb-0 pl-4">
+                            <h4 className="text-xl font-semibold mb-4 text-green-800 bg-green-100 p-3 rounded-md" style={{backgroundColor: '#E6F4EA', color: '#166534'}}>Meal Time: {meal.time}</h4>
                             {meal.diets.map((diet, dietIndex) => (
                                 <div key={`${diet.dietSignature}-${dietIndex}`} className="mb-6 border rounded-md p-4">
                                     <div className="grid grid-cols-[1fr_auto] items-start mb-3">
@@ -270,7 +265,7 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                                     </div>
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-100">
+                                            <tr style={{ backgroundColor: '#f2f2f2' }}>
                                                 <th className="p-2 font-bold border w-2/5">Item</th>
                                                 <th className="p-2 font-bold border text-right">Qty/Animal</th>
                                                 <th className="p-2 font-bold border text-right">Total Qty</th>
@@ -404,7 +399,3 @@ export function DietReport({ data }: DietReportProps) {
         </Card>
     );
 }
-
-    
-
-    
