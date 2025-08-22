@@ -5,12 +5,15 @@ import * as React from "react";
 import { useMemo, useRef, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import { Button } from "./ui/button";
-import { Download, Printer, Check, X } from "lucide-react";
+import { Download, Printer, Check, X, MessageSquare } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
 
 
 interface OverallReportProps {
@@ -187,12 +190,32 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
 };
 
 type VerificationStatus = 'unchecked' | 'ok' | 'not-ok';
+interface VerificationState {
+    status: VerificationStatus;
+    reason: string;
+}
 
 const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[]; reportDate: string | null }>(({ groupName, reportData, reportDate }, ref) => {
-    const [verification, setVerification] = useState<Record<string, VerificationStatus>>({});
+    const [verification, setVerification] = useState<Record<string, VerificationState>>({});
+    const [reason, setReason] = useState("");
+    const [currentKey, setCurrentKey] = useState("");
 
-    const handleStatusChange = (key: string, status: VerificationStatus) => {
-        setVerification(prev => ({ ...prev, [key]: status }));
+    const handleStatusChange = (key: string, status: VerificationStatus, reason: string = "") => {
+        setVerification(prev => ({ 
+            ...prev, 
+            [key]: { status, reason }
+        }));
+    };
+    
+    const handleOpenDialog = (key: string) => {
+        setCurrentKey(key);
+        setReason(verification[key]?.reason || "");
+    }
+    
+    const handleSaveReason = () => {
+        handleStatusChange(currentKey, 'not-ok', reason);
+        setCurrentKey("");
+        setReason("");
     };
 
     return (
@@ -214,7 +237,7 @@ const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; repo
                             <h4 className="text-xl font-semibold mb-4 text-green-800 bg-green-100 p-3 rounded-md" style={{backgroundColor: '#E6F4EA', color: '#166534'}}>Meal Time: {meal.time}</h4>
                             {meal.diets.map((diet, dietIndex) => {
                                 const verificationKey = `${site.siteName}|${meal.time}|${diet.dietSignature}`;
-                                const status = verification[verificationKey] || 'unchecked';
+                                const { status, reason: savedReason } = verification[verificationKey] || { status: 'unchecked', reason: '' };
 
                                 return (
                                     <div key={`${diet.dietSignature}-${dietIndex}`} className="mb-6 border rounded-md p-4">
@@ -257,13 +280,41 @@ const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; repo
                                                 ))}
                                             </tbody>
                                         </table>
+                                        
+                                        {status === 'not-ok' && savedReason && (
+                                            <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-400">
+                                                <p className="text-sm font-semibold text-red-800">Reason:</p>
+                                                <p className="text-sm text-red-700 whitespace-pre-wrap">{savedReason}</p>
+                                            </div>
+                                        )}
+                                        
                                         <div className="flex justify-end gap-2 mt-4 no-print">
                                             <Button size="sm" variant={status === 'ok' ? 'default' : 'outline'} className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleStatusChange(verificationKey, 'ok')}>
                                                 <Check className="mr-2 h-4 w-4" /> OK
                                             </Button>
-                                            <Button size="sm" variant={status === 'not-ok' ? 'destructive' : 'outline'} onClick={() => handleStatusChange(verificationKey, 'not-ok')}>
-                                                <X className="mr-2 h-4 w-4" /> Not OK
-                                            </Button>
+                                            <Dialog onOpenChange={(open) => !open && setCurrentKey("")}>
+                                                <DialogTrigger asChild>
+                                                    <Button size="sm" variant={status === 'not-ok' ? 'destructive' : 'outline'} onClick={() => handleOpenDialog(verificationKey)}>
+                                                        <X className="mr-2 h-4 w-4" /> Not OK
+                                                    </Button>
+                                                </DialogTrigger>
+                                                {currentKey === verificationKey && (
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Provide Reason</DialogTitle>
+                                                        </DialogHeader>
+                                                        <div className="grid gap-4 py-4">
+                                                            <Label htmlFor="reason">Why is this report not okay?</Label>
+                                                            <Textarea id="reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={4} />
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <DialogClose asChild>
+                                                                <Button type="button" onClick={handleSaveReason}>Save Reason</Button>
+                                                            </DialogClose>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                )}
+                                            </Dialog>
                                         </div>
                                     </div>
                                 )
