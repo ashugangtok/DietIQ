@@ -59,6 +59,7 @@ const formatAmount = (quantity: number, quantityGram: number, uom: string) => {
 
 export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
   const [selectedRecipe, setSelectedRecipe] = useState<string>("");
+  const [selectedGroup, setSelectedGroup] = useState<string>("");
 
   const recipeOptions = useMemo(
     () =>
@@ -75,21 +76,35 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
     [data]
   );
 
+  const groupOptionsForSelectedRecipe = useMemo(() => {
+    if (!selectedRecipe) return [];
+    return [
+      ...new Set(
+        data
+          .filter(row => row.type_name === selectedRecipe && row.group_name)
+          .map(row => row.group_name)
+      )
+    ].sort();
+  }, [data, selectedRecipe]);
+  
+  // Reset selected group when recipe changes
+  React.useEffect(() => {
+    setSelectedGroup("");
+  }, [selectedRecipe]);
+
   const recipeData = useMemo(() => {
     if (!selectedRecipe) return { breakdown: [], grandTotalGrams: 0, usedByGroups: [] };
     
-    const recipeRows = data.filter(row => row.type_name === selectedRecipe);
+    const recipeRows = data.filter(row => 
+      row.type_name === selectedRecipe &&
+      (!selectedGroup || row.group_name === selectedGroup)
+    );
     
     const ingredientMap = new Map<string, { qty: number; qty_gram: number; uom: string }>();
-    const groupSet = new Set<string>();
-
+    
     recipeRows.forEach(row => {
-      const { ingredient_name, ingredient_qty, ingredient_qty_gram, base_uom_name, group_name } = row;
+      const { ingredient_name, ingredient_qty, ingredient_qty_gram, base_uom_name } = row;
       
-      if (group_name) {
-        groupSet.add(group_name);
-      }
-
       if (!ingredientMap.has(ingredient_name)) {
         ingredientMap.set(ingredient_name, { qty: 0, qty_gram: 0, uom: base_uom_name });
       }
@@ -108,11 +123,10 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
     ).sort((a,b) => b.totalQtyGram - a.totalQtyGram);
 
     const grandTotalGrams = breakdown.reduce((sum, item) => sum + item.totalQtyGram, 0);
-    const usedByGroups = Array.from(groupSet).sort();
 
-    return { breakdown, grandTotalGrams, usedByGroups };
+    return { breakdown, grandTotalGrams, usedByGroups: groupOptionsForSelectedRecipe };
 
-  }, [data, selectedRecipe]);
+  }, [data, selectedRecipe, selectedGroup, groupOptionsForSelectedRecipe]);
 
   const formatGrandTotal = (grams: number) => {
     if (grams < 1000) {
@@ -133,23 +147,44 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-          <Select
-            value={selectedRecipe}
-            onValueChange={setSelectedRecipe}
-          >
-            <SelectTrigger className="w-full sm:w-[280px] bg-background">
-              <SelectValue placeholder="Select a Recipe or Combo..." />
-            </SelectTrigger>
-            <SelectContent>
-              {recipeOptions.map((option, index) => (
-                <SelectItem key={`${option}-${index}`} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-4">
+            <Select
+              value={selectedRecipe}
+              onValueChange={setSelectedRecipe}
+            >
+              <SelectTrigger className="w-full sm:w-[280px] bg-background">
+                <SelectValue placeholder="Select a Recipe or Combo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {recipeOptions.map((option, index) => (
+                  <SelectItem key={`${option}-${index}`} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedRecipe && (
+              <Select
+                value={selectedGroup}
+                onValueChange={(value) => setSelectedGroup(value === 'all' ? '' : value)}
+              >
+                <SelectTrigger className="w-full sm:w-[280px] bg-background">
+                  <SelectValue placeholder="Filter by Group..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  {groupOptionsForSelectedRecipe.map((option, index) => (
+                    <SelectItem key={`${option}-${index}`} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
           
-          {selectedRecipe && recipeData.usedByGroups.length > 0 && (
+          {selectedRecipe && !selectedGroup && recipeData.usedByGroups.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Used by Groups:</span>
                 {recipeData.usedByGroups.map(group => (
@@ -183,7 +218,7 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
                     colSpan={2}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    {selectedRecipe ? "No data for this recipe." : "Please select a recipe to see its breakdown."}
+                    {selectedRecipe ? "No data for this recipe/group combination." : "Please select a recipe to see its breakdown."}
                   </TableCell>
                 </TableRow>
               )}
