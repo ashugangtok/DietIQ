@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Book,
   BookCopy,
+  ClipboardCheck,
 } from 'lucide-react';
 
 import {
@@ -257,6 +258,14 @@ export default function MainLayout({
                     <SidebarMenuButton tooltip="Overall Report" isActive={isActive('/overall-report')}>
                         <BookCopy />
                         <span>Overall Report</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <Link href="/overall-report-check" passHref>
+                    <SidebarMenuButton tooltip="Overall Report Check" isActive={isActive('/overall-report-check')}>
+                        <ClipboardCheck />
+                        <span>Overall Report Check</span>
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
