@@ -106,9 +106,9 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     .sort((a, b) => a[0].localeCompare(b[0]))
                     .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
                     .join(';');
-
-                if (!dietSignatureMap.has(signature) || dietSignatureMap.get(signature)!.length === 0) {
-                    dietSignatureMap.set(signature, animalRows);
+                
+                if (!dietSignatureMap.has(signature)) {
+                     dietSignatureMap.set(signature, animalRows);
                 }
             });
 
@@ -229,13 +229,17 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
     return sites.sort((a, b) => a.siteName.localeCompare(b.siteName));
 }
 
-const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[] }>(({ groupName, reportData }, ref) => {
+const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[]; reportDate: string | null }>(({ groupName, reportData, reportDate }, ref) => {
     return (
         <div className="border rounded-lg p-6 bg-white font-sans" ref={ref} style={{ fontFamily: "'Poppins', sans-serif" }}>
             <div className="text-center mb-6">
                 <h2 className="text-3xl font-bold capitalize text-gray-800">{groupName}</h2>
                 <p className="text-lg text-gray-500">Diet Report</p>
-                <p className="text-sm text-gray-400">Generated on: {new Date().toLocaleDateString()}</p>
+                {reportDate ? (
+                    <p className="text-sm text-gray-400">Date: {reportDate}</p>
+                ) : (
+                    <p className="text-sm text-gray-400">Generated on: {new Date().toLocaleDateString()}</p>
+                )}
             </div>
             {reportData.map((site, siteIndex) => (
                 <div key={siteIndex} className="mb-8 last:mb-0 page-break-before">
@@ -318,6 +322,27 @@ export function DietReport({ data }: DietReportProps) {
     
     const reportData = useMemo(() => processReportData(groupData), [groupData]);
     
+    const reportDate = useMemo(() => {
+        if (groupData.length === 0) return null;
+        const dateStr = groupData[0].feeding_date;
+        if (!dateStr) return null;
+        try {
+            // Handles various date formats from Excel, including numeric ones
+            const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+            let date;
+            if (typeof dateStr === 'number' && dateStr > 1) {
+                date = new Date(excelEpoch.getTime() + dateStr * 86400000);
+            } else {
+                 date = new Date(dateStr);
+            }
+            if (isNaN(date.getTime())) return null;
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        } catch (e) {
+            console.error("Error parsing date:", e);
+            return null;
+        }
+    }, [groupData]);
+
     const handlePrint = async () => {
         const element = cardRef.current;
         if (element) {
@@ -387,7 +412,7 @@ export function DietReport({ data }: DietReportProps) {
                 </div>
                 
                 {selectedGroup ? (
-                    <DietReportCard groupName={selectedGroup} reportData={reportData} ref={cardRef} />
+                    <DietReportCard groupName={selectedGroup} reportData={reportData} reportDate={reportDate} ref={cardRef} />
                 ) : (
                     <div className="text-center p-12 border-2 border-dashed rounded-lg">
                         <p className="text-muted-foreground">
@@ -399,3 +424,5 @@ export function DietReport({ data }: DietReportProps) {
         </Card>
     );
 }
+
+    
