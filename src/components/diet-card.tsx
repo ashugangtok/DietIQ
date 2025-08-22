@@ -226,8 +226,8 @@ export function DietCard({ data }: DietCardProps) {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr>
-                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6">Time</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700">Item</th>
+                            <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6">Time</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Qty Required (per animal)</th>
                             <th className="p-3 font-bold uppercase bg-green-800 text-white border border-green-700 w-1/6 text-right">Total Qty Required</th>
                         </tr>
@@ -237,13 +237,13 @@ export function DietCard({ data }: DietCardProps) {
                          <React.Fragment key={groupIndex}>
                            {mealGroup.items.map((item, itemIndex) => (
                              <tr key={`${groupIndex}-${item.id}`} className="[&>td]:border [&>td]:border-gray-300 [&>td]:p-3">
-                               {itemIndex === 0 && (
-                                 <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
-                               )}
                                <td className="align-top">
                                  <div className="font-bold">{item.item_name}</div>
                                  {item.item_details && <div className="text-sm text-gray-600">{item.item_details}</div>}
                                </td>
+                               {itemIndex === 0 && (
+                                 <td rowSpan={mealGroup.items.length} className="align-top font-medium">{mealGroup.time}</td>
+                               )}
                                <td className="text-right align-top font-bold">{item.amount_per_animal}</td>
                                <td className="text-right align-top font-bold">{item.total_amount_required}</td>
                              </tr>
