@@ -5,13 +5,13 @@ import * as React from "react";
 import { useMemo, useRef, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import { Button } from "./ui/button";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, Check, X } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Checkbox } from "./ui/checkbox";
-import { Label } from "./ui/label";
+import { cn } from "@/lib/utils";
+
 
 interface OverallReportProps {
     data: SheetDataRow[];
@@ -186,8 +186,15 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
     return sites.sort((a, b) => a.siteName.localeCompare(b.siteName));
 };
 
+type VerificationStatus = 'unchecked' | 'ok' | 'not-ok';
 
 const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[]; reportDate: string | null }>(({ groupName, reportData, reportDate }, ref) => {
+    const [verification, setVerification] = useState<Record<string, VerificationStatus>>({});
+
+    const handleStatusChange = (key: string, status: VerificationStatus) => {
+        setVerification(prev => ({ ...prev, [key]: status }));
+    };
+
     return (
         <div className="border rounded-lg p-6 bg-white font-poppins" ref={ref}>
             <div className="text-center mb-6">
@@ -204,52 +211,63 @@ const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; repo
                     <h3 className="text-2xl font-semibold mb-4 text-primary bg-primary/10 p-3 rounded-md">{site.siteName}</h3>
                     {site.meals.map((meal, mealIndex) => (
                          <div key={mealIndex} className="mb-8 last:mb-0 pl-4">
-                            <div className="flex items-center justify-between bg-green-100 p-3 rounded-md mb-4">
-                                <h4 className="text-xl font-semibold text-green-800" style={{color: '#166534'}}>Meal Time: {meal.time}</h4>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox id={`check-${site.siteName}-${meal.time}`} />
-                                    <Label htmlFor={`check-${site.siteName}-${meal.time}`}>OK</Label>
-                                </div>
-                            </div>
-                            {meal.diets.map((diet, dietIndex) => (
-                                <div key={`${diet.dietSignature}-${dietIndex}`} className="mb-6 border rounded-md p-4">
-                                    <div className="grid grid-cols-[1fr_auto] items-start mb-3">
-                                        <div>
-                                            {diet.animals.map((animal, animalIndex) => (
-                                                <div key={animalIndex} className="mb-1">
-                                                    <h4 className="text-base font-bold">{animal.name} ({animal.count})</h4>
-                                                    <p className="text-xs italic text-gray-500">{animal.scientificName}</p>
-                                                </div>
-                                            ))}
+                            <h4 className="text-xl font-semibold mb-4 text-green-800 bg-green-100 p-3 rounded-md" style={{backgroundColor: '#E6F4EA', color: '#166534'}}>Meal Time: {meal.time}</h4>
+                            {meal.diets.map((diet, dietIndex) => {
+                                const verificationKey = `${site.siteName}|${meal.time}|${diet.dietSignature}`;
+                                const status = verification[verificationKey] || 'unchecked';
+
+                                return (
+                                    <div key={`${diet.dietSignature}-${dietIndex}`} className="mb-6 border rounded-md p-4">
+                                        <div className={cn(
+                                            "grid grid-cols-[1fr_auto] items-start mb-3 p-2 rounded-md transition-colors",
+                                            status === 'ok' && 'bg-green-100',
+                                            status === 'not-ok' && 'bg-red-100'
+                                        )}>
+                                            <div>
+                                                {diet.animals.map((animal, animalIndex) => (
+                                                    <div key={animalIndex} className="mb-1">
+                                                        <h4 className="text-base font-bold">{animal.name} ({animal.count})</h4>
+                                                        <p className="text-xs italic text-gray-500">{animal.scientificName}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                             <div className="text-xs text-gray-600 text-right space-y-1">
+                                                <p>Diet: {diet.dietName}</p>
+                                                <p>(No: {diet.dietNo})</p>
+                                            </div>
                                         </div>
-                                         <div className="text-xs text-gray-600 text-right space-y-1">
-                                            <p>Diet: {diet.dietName}</p>
-                                            <p>(No: {diet.dietNo})</p>
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr style={{ backgroundColor: '#f2f2f2' }}>
+                                                    <th className="p-2 font-bold border w-2/5">Item</th>
+                                                    <th className="p-2 font-bold border text-right">Qty/Animal</th>
+                                                    <th className="p-2 font-bold border text-right">Total Qty</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {diet.items.map((item, itemIndex) => (
+                                                    <tr key={`${item.id}-${itemIndex}`} className="[&>td]:border [&>td]:p-2">
+                                                        <td>
+                                                            <div className="font-medium">{item.itemName}</div>
+                                                            {item.itemDetails && <div className="text-xs text-gray-500">{item.itemDetails}</div>}
+                                                        </td>
+                                                        <td className="text-right font-mono">{item.amountPerAnimal}</td>
+                                                        <td className="text-right font-mono">{item.totalAmountRequired}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        <div className="flex justify-end gap-2 mt-4 no-print">
+                                            <Button size="sm" variant={status === 'ok' ? 'default' : 'outline'} className="bg-green-500 hover:bg-green-600 text-white" onClick={() => handleStatusChange(verificationKey, 'ok')}>
+                                                <Check className="mr-2 h-4 w-4" /> OK
+                                            </Button>
+                                            <Button size="sm" variant={status === 'not-ok' ? 'destructive' : 'outline'} onClick={() => handleStatusChange(verificationKey, 'not-ok')}>
+                                                <X className="mr-2 h-4 w-4" /> Not OK
+                                            </Button>
                                         </div>
                                     </div>
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr style={{ backgroundColor: '#f2f2f2' }}>
-                                                <th className="p-2 font-bold border w-2/5">Item</th>
-                                                <th className="p-2 font-bold border text-right">Qty/Animal</th>
-                                                <th className="p-2 font-bold border text-right">Total Qty</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {diet.items.map((item, itemIndex) => (
-                                                <tr key={`${item.id}-${itemIndex}`} className="[&>td]:border [&>td]:p-2">
-                                                    <td>
-                                                        <div className="font-medium">{item.itemName}</div>
-                                                        {item.itemDetails && <div className="text-xs text-gray-500">{item.itemDetails}</div>}
-                                                    </td>
-                                                    <td className="text-right font-mono">{item.amountPerAnimal}</td>
-                                                    <td className="text-right font-mono">{item.totalAmountRequired}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     ))}
                 </div>
@@ -386,3 +404,4 @@ export function OverallReportCheck({ data }: OverallReportProps) {
         </Card>
     );
 }
+
