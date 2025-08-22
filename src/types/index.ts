@@ -1,3 +1,4 @@
+
 export interface SheetDataRow {
   site_name: string;
   animal_id: string;
@@ -21,4 +22,8 @@ export interface SheetDataRow {
   meal_end_time: string;
   cut_size_name: string;
   feeding_date: string; // Added for date filtering
+  class_name?: string;
+  order_name?: string;
+  family_name?: string;
+  genus_name?: string;
 }
