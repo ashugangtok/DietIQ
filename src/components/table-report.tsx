@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { useMemo, useState, useRef } from "react";
+import * as ReactDOM from "react-dom/client";
 import { type SheetDataRow } from "@/types";
 import {
   Select,
@@ -63,32 +64,56 @@ export function TableReport({ data }: { data: SheetDataRow[] }) {
 
     const handleDownloadAll = async () => {
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const validRefs = dietCardRefs.current.filter(el => el !== null);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
 
-        for (let i = 0; i < validRefs.length; i++) {
-            const element = validRefs[i];
-            if (element) {
-                const buttons = element.querySelectorAll('.no-print');
-                buttons.forEach(btn => ((btn as HTMLElement).style.display = 'none'));
+        // Create a temporary, off-screen container for rendering
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.width = '800px'; // A fixed, reasonable width
+        document.body.appendChild(container);
+        
+        const root = ReactDOM.createRoot(container);
 
-                try {
-                    const canvas = await html2canvas(element, { scale: 2 });
-                    const data = canvas.toDataURL('image/png');
-                    const imgProperties = pdf.getImageProperties(data);
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
+        for (let i = 0; i < animalData.length; i++) {
+            const animal = animalData[i];
+            
+            // Render the component off-screen
+            await new Promise<void>(resolve => {
+                 root.render(
+                    <React.StrictMode>
+                        <div id={`pdf-render-container-${i}`}>
+                            <DietCard data={animal.data} />
+                        </div>
+                    </React.StrictMode>
+                );
+                // Give it a moment to render
+                setTimeout(resolve, 500);
+            });
+            
+            const elementToCapture = container.querySelector(`#pdf-render-container-${i}`) as HTMLElement;
+            if (elementToCapture) {
+                 const buttons = elementToCapture.querySelectorAll('.no-print');
+                 buttons.forEach(btn => ((btn as HTMLElement).style.display = 'none'));
 
-                    if (i > 0) {
-                        pdf.addPage();
-                    }
-                    pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                } catch (error) {
-                    console.error("Error generating canvas for element:", element, error);
-                } finally {
-                    buttons.forEach(btn => ((btn as HTMLElement).style.display = 'flex'));
+                const canvas = await html2canvas(elementToCapture, { scale: 2 });
+                const data = canvas.toDataURL('image/png');
+                const imgProperties = pdf.getImageProperties(data);
+                const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
+
+                if (i > 0) {
+                    pdf.addPage();
                 }
+                pdf.addImage(data, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+                buttons.forEach(btn => ((btn as HTMLElement).style.display = 'flex'));
             }
         }
+
+        // Cleanup
+        root.unmount();
+        document.body.removeChild(container);
+
         pdf.save(`diet-plans-${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
