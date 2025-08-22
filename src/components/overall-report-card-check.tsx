@@ -53,9 +53,10 @@ interface Meal {
 }
 
 interface ConsolidatedDiet {
-    dietSignature: string;
-    animals: { name: string; scientificName: string; count: number, dietName: string, dietNo: string | number }[];
-    totalAnimalCount: number;
+    dietSignature: string; // Unique key for a diet plan (name + number)
+    animals: { name: string; scientificName: string; count: number }[];
+    dietName: string;
+    dietNo: string | number;
     items: DietItem[];
 }
 
@@ -89,144 +90,82 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
         const meals: Meal[] = [];
         
         mealMap.forEach((mealRows, time) => {
-            const dietSignatureMap = new Map<string, SheetDataRow[]>();
-
-            const animalMealData = new Map<string, SheetDataRow[]>();
+            // Group rows by diet name and number to define a diet plan
+            const dietPlanMap = new Map<string, SheetDataRow[]>();
             mealRows.forEach(row => {
-                if (!animalMealData.has(row.animal_id)) animalMealData.set(row.animal_id, []);
-                animalMealData.get(row.animal_id)!.push(row);
-            });
-
-            animalMealData.forEach((animalRows) => {
-                const itemQuantities = new Map<string, number>();
-                animalRows.forEach(row => {
-                    const key = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
-                    itemQuantities.set(key, (itemQuantities.get(key) || 0) + (row.ingredient_qty_gram || row.ingredient_qty));
-                });
-                
-                const signature = Array.from(itemQuantities.entries())
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
-                    .join(';');
-                
-                if (!dietSignatureMap.has(signature)) {
-                     dietSignatureMap.set(signature, animalRows);
-                } else {
-                    const existingRows = dietSignatureMap.get(signature)!;
-                    dietSignatureMap.set(signature, [...existingRows, ...animalRows]);
+                const dietSignature = `${row.diet_name}|${row.diet_no}`;
+                if (!dietPlanMap.has(dietSignature)) {
+                    dietPlanMap.set(dietSignature, []);
                 }
+                dietPlanMap.get(dietSignature)!.push(row);
             });
 
             const diets: ConsolidatedDiet[] = [];
 
-            dietSignatureMap.forEach((representativeRows, dietSignature) => {
-                const matchingAnimalIds = new Set<string>();
-                animalMealData.forEach((rows, animalId) => {
-                    const itemQuantities = new Map<string, number>();
-                    rows.forEach(row => {
-                        const key = row.type === 'Recipe' || row.type === 'Combo' ? row.type_name : row.ingredient_name;
-                        itemQuantities.set(key, (itemQuantities.get(key) || 0) + (row.ingredient_qty_gram || row.ingredient_qty));
-                    });
-                    const currentSignature = Array.from(itemQuantities.entries())
-                        .sort((a, b) => a[0].localeCompare(b[0]))
-                        .map(([name, qty]) => `${name}:${qty.toFixed(3)}`)
-                        .join(';');
-                    if (currentSignature === dietSignature) {
-                        matchingAnimalIds.add(animalId);
-                    }
-                });
+            dietPlanMap.forEach((dietRows, dietSignature) => {
+                const [dietName, dietNo] = dietSignature.split('|');
 
-                const allRowsForDiet = mealRows.filter(r => matchingAnimalIds.has(r.animal_id));
-
-                const animalGroups = new Map<string, { scientificName: string, ids: Set<string>, dietName: string, dietNo: string | number }>();
-                allRowsForDiet.forEach(r => {
+                const animalGroups = new Map<string, { scientificName: string, ids: Set<string> }>();
+                dietRows.forEach(r => {
                     if (!animalGroups.has(r.common_name)) {
-                        animalGroups.set(r.common_name, { scientificName: r.scientific_name, ids: new Set(), dietName: r.diet_name, dietNo: r.diet_no });
+                        animalGroups.set(r.common_name, { scientificName: r.scientific_name, ids: new Set() });
                     }
                     animalGroups.get(r.common_name)!.ids.add(r.animal_id);
                 });
-                
+
                 const animals = Array.from(animalGroups.entries()).map(([name, data]) => ({
                     name,
                     scientificName: data.scientificName,
                     count: data.ids.size,
-                    dietName: data.dietName,
-                    dietNo: data.dietNo
                 })).sort((a,b) => a.name.localeCompare(b.name));
                 
                 const totalAnimalCount = animals.reduce((sum, animal) => sum + animal.count, 0);
+                const representativeAnimalId = dietRows[0].animal_id;
+                const rowsForOneAnimal = dietRows.filter(r => r.animal_id === representativeAnimalId);
 
-                const itemMap = new Map<string, { ingredients: SheetDataRow[], totalQty: number, totalGram: number, uom: string }>();
-                
-                const representativeAnimalId = Array.from(matchingAnimalIds)[0];
-                const rowsForOneAnimal = allRowsForDiet.filter(r => r.animal_id === representativeAnimalId);
-
-
+                const itemMap = new Map<string, { ingredients: SheetDataRow[] }>();
                 rowsForOneAnimal.forEach(row => {
                     const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
                     const groupKey = isCombo ? row.type_name : row.ingredient_name;
 
-                    if (!itemMap.has(groupKey)) {
-                        itemMap.set(groupKey, { ingredients: [], totalQty: 0, totalGram: 0, uom: row.base_uom_name });
-                    }
-                    const group = itemMap.get(groupKey)!;
+                    if (!itemMap.has(groupKey)) itemMap.set(groupKey, { ingredients: [] });
                     
-                    if (isCombo) {
-                        const allIngredientsForCombo = allRowsForDiet.filter(
-                            (r) => r.animal_id === representativeAnimalId && r.type_name === groupKey
-                        );
+                    const group = itemMap.get(groupKey)!;
+                     if (isCombo) {
+                        const allIngredientsForCombo = rowsForOneAnimal.filter(r => r.type_name === groupKey);
                         group.ingredients = allIngredientsForCombo;
                     } else {
                          group.ingredients.push(row);
                     }
                 });
-                
+
                 const items: DietItem[] = Array.from(itemMap.values()).map(group => {
                     const mainItem = group.ingredients[0];
-                    let itemName;
+                    let itemName = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo' ? mainItem.type_name : mainItem.ingredient_name;
                     let itemDetails = "";
-                    const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
+                    const amountPerAnimalGram = group.ingredients.reduce((sum, ing) => sum + (ing.ingredient_qty_gram || 0), 0);
+                    const amountPerAnimalQty = group.ingredients.reduce((sum, ing) => sum + (ing.ingredient_qty || 0), 0);
                     
-                    const amountPerAnimalGram = group.ingredients.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
-                    const amountPerAnimalQty = group.ingredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
-
-                    const totalAmountForAllAnimalsGram = amountPerAnimalGram * totalAnimalCount;
-                    const totalAmountForAllAnimalsQty = amountPerAnimalQty * totalAnimalCount;
-
                     const uomForTotals = amountPerAnimalGram > 0 ? 'gram' : mainItem.base_uom_name;
 
-                    if (isCombo) {
-                        itemName = mainItem.type_name;
-                        
-                        const ingredientAggregator = new Map<string, { totalQty: number, totalGram: number, uom: string }>();
-                        group.ingredients.forEach(ing => {
-                            const ingKey = ing.ingredient_name;
-                            if (!ingredientAggregator.has(ingKey)) {
-                                ingredientAggregator.set(ingKey, { totalQty: 0, totalGram: 0, uom: ing.base_uom_name });
-                            }
-                            const entry = ingredientAggregator.get(ingKey)!;
-                            entry.totalQty += ing.ingredient_qty;
-                            entry.totalGram += ing.ingredient_qty_gram;
-                        });
-                        
-                        const totalComboWeightPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
-                        
-                        const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
-                            const percentage = totalComboWeightPerAnimal > 0 ? (ingData.totalGram / totalComboWeightPerAnimal) * 100 : 0;
-                            return `${percentage.toFixed(0)}% ${name}`;
+                    if (mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo') {
+                        const totalComboWeightPerAnimal = group.ingredients.reduce((sum, ing) => sum + (ing.ingredient_qty_gram || 0), 0);
+                        const breakdown = group.ingredients.map(ing => {
+                            const percentage = totalComboWeightPerAnimal > 0 ? ((ing.ingredient_qty_gram || 0) / totalComboWeightPerAnimal) * 100 : 0;
+                            return `${percentage.toFixed(0)}% ${ing.ingredient_name}`;
                         }).join(', ');
-
                         itemDetails = `(${breakdown})`;
-                    } else {
-                        itemName = mainItem.ingredient_name;
                     }
-                    
+
                     const prepDetails = [mainItem.cut_size_name, mainItem.preparation_type_name].filter(Boolean).join(', ');
                     if (prepDetails) itemName += ` (${prepDetails})`;
 
+                    const totalAmountForDisplay = uomForTotals === 'gram' 
+                        ? (amountPerAnimalGram * totalAnimalCount) / 1000 
+                        : amountPerAnimalQty * totalAnimalCount;
+                    
                     const totalUom = uomForTotals === 'gram' ? 'kilogram' : uomForTotals;
-                    const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimalsGram / 1000 : totalAmountForAllAnimalsQty;
                     const amountPerAnimalForDisplay = uomForTotals === 'gram' ? amountPerAnimalGram : amountPerAnimalQty;
 
                     return {
@@ -237,17 +176,16 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                         totalAmountRequired: formatAmount(totalAmountForDisplay, totalUom),
                     };
                 });
-                
-                diets.push({ dietSignature, animals, totalAnimalCount, items });
-            });
 
+                diets.push({ dietSignature, animals, dietName, dietNo, items });
+            });
             meals.push({ time, diets });
         });
         sites.push({ siteName, meals: meals.sort((a,b) => a.time.localeCompare(b.time)) });
     });
-
     return sites.sort((a, b) => a.siteName.localeCompare(b.siteName));
-}
+};
+
 
 const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[]; reportDate: string | null }>(({ groupName, reportData, reportDate }, ref) => {
     return (
@@ -285,12 +223,8 @@ const ReportDisplay = React.forwardRef<HTMLDivElement, { groupName: string; repo
                                             ))}
                                         </div>
                                          <div className="text-xs text-gray-600 text-right space-y-1">
-                                            {diet.animals.map((animal, animalIndex) => (
-                                                <div key={animalIndex}>
-                                                    <p>Diet: {animal.dietName}</p>
-                                                    <p>(No: {animal.dietNo})</p>
-                                                </div>
-                                            ))}
+                                            <p>Diet: {diet.dietName}</p>
+                                            <p>(No: {diet.dietNo})</p>
                                         </div>
                                     </div>
                                     <table className="w-full text-left border-collapse">
