@@ -47,15 +47,14 @@ interface SiteReport {
 
 interface Meal {
     time: string;
-    animals: AnimalDiet[];
+    diets: AnimalDiet[];
 }
 
 interface AnimalDiet {
-    name: string;
-    scientificName: string;
     dietName: string;
     dietNo: string | number;
-    count: number;
+    animals: { name: string; scientificName: string; count: number }[];
+    totalAnimalCount: number;
     items: DietItem[];
 }
 
@@ -70,7 +69,6 @@ interface DietItem {
 const processReportData = (data: SheetDataRow[]): SiteReport[] => {
     if (data.length === 0) return [];
     
-    // Group rows by site
     const siteMap = new Map<string, SheetDataRow[]>();
     data.forEach(row => {
         if (!siteMap.has(row.site_name)) siteMap.set(row.site_name, []);
@@ -79,7 +77,6 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
 
     const sites: SiteReport[] = [];
 
-    // For each site, group by meal time
     siteMap.forEach((siteRows, siteName) => {
         const mealMap = new Map<string, SheetDataRow[]>();
         siteRows.forEach(row => {
@@ -90,24 +87,37 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
 
         const meals: Meal[] = [];
         
-        // For each meal time, group by animal
         mealMap.forEach((mealRows, time) => {
-            const animalMap = new Map<string, SheetDataRow[]>();
+            const dietMap = new Map<string, SheetDataRow[]>();
             mealRows.forEach(row => {
-                const animalKey = `${row.common_name}|${row.scientific_name}|${row.diet_name}|${row.diet_no}`;
-                if (!animalMap.has(animalKey)) animalMap.set(animalKey, []);
-                animalMap.get(animalKey)!.push(row);
+                const dietKey = `${row.diet_name}|${row.diet_no}`;
+                if (!dietMap.has(dietKey)) dietMap.set(dietKey, []);
+                dietMap.get(dietKey)!.push(row);
             });
 
-            const animals: AnimalDiet[] = [];
+            const diets: AnimalDiet[] = [];
 
-            // For each animal, process their diet items
-            animalMap.forEach((animalRows, animalKey) => {
-                const [name, scientificName, dietName, dietNo] = animalKey.split('|');
-                const animalCount = new Set(animalRows.map(r => r.animal_id)).size;
+            dietMap.forEach((dietRows, dietKey) => {
+                const [dietName, dietNo] = dietKey.split('|');
+
+                const animalGroups = new Map<string, { scientificName: string, ids: Set<string> }>();
+                dietRows.forEach(r => {
+                    if (!animalGroups.has(r.common_name)) {
+                        animalGroups.set(r.common_name, { scientificName: r.scientific_name, ids: new Set() });
+                    }
+                    animalGroups.get(r.common_name)!.ids.add(r.animal_id);
+                });
+                
+                const animals = Array.from(animalGroups.entries()).map(([name, data]) => ({
+                    name,
+                    scientificName: data.scientificName,
+                    count: data.ids.size,
+                })).sort((a,b) => a.name.localeCompare(b.name));
+                
+                const totalAnimalCount = animals.reduce((sum, animal) => sum + animal.count, 0);
 
                 const itemMap = new Map<string, { ingredients: SheetDataRow[], totalQty: number, totalGram: number, uom: string }>();
-                animalRows.forEach(row => {
+                dietRows.forEach(row => {
                     const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
                     const groupKey = isCombo ? row.type_name : row.ingredient_name;
 
@@ -126,11 +136,14 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     let itemDetails = "";
                     const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
-                    let totalAmountForAllAnimals = 0;
-                    let uomForTotals = group.uom;
+                    const totalAmountForAllAnimalsInDiet = group.totalGram > 0 ? group.totalGram : group.totalQty;
+                    const uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
+                    
+                    const amountPerAnimal = totalAmountForAllAnimalsInDiet / totalAnimalCount;
 
                     if (isCombo) {
                         itemName = mainItem.type_name;
+                        
                         const ingredientAggregator = new Map<string, { totalQty: number, totalGram: number, uom: string }>();
                         group.ingredients.forEach(ing => {
                             const ingKey = ing.ingredient_name;
@@ -142,27 +155,24 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                             entry.totalGram += ing.ingredient_qty_gram;
                         });
                         
-                        totalAmountForAllAnimals = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
-                        uomForTotals = 'gram';
-                        const totalAmountPerAnimal = totalAmountForAllAnimals / animalCount;
+                        const totalComboWeightPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0) / totalAnimalCount;
+                        
                         const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
-                            const ingredientAmountPerAnimal = ingData.totalGram / animalCount;
-                            const percentage = totalAmountPerAnimal > 0 ? (ingredientAmountPerAnimal / totalAmountPerAnimal) * 100 : 0;
+                            const ingredientAmountPerAnimal = ingData.totalGram / totalAnimalCount;
+                            const percentage = totalComboWeightPerAnimal > 0 ? (ingredientAmountPerAnimal / totalComboWeightPerAnimal) * 100 : 0;
                             return `${percentage.toFixed(0)}% ${name}`;
                         }).join(', ');
+
                         itemDetails = `(${breakdown})`;
                     } else {
                         itemName = mainItem.ingredient_name;
-                        totalAmountForAllAnimals = group.totalGram > 0 ? group.totalGram : group.totalQty;
-                        uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
                     }
                     
                     const prepDetails = [mainItem.cut_size_name, mainItem.preparation_type_name].filter(Boolean).join(', ');
                     if (prepDetails) itemName += ` (${prepDetails})`;
 
-                    const amountPerAnimal = totalAmountForAllAnimals / animalCount;
                     const totalUom = uomForTotals === 'gram' ? 'kilogram' : uomForTotals;
-                    const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimals / 1000 : totalAmountForAllAnimals;
+                    const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimalsInDiet / 1000 : totalAmountForAllAnimalsInDiet;
 
                     return {
                         id: mainItem.type_name || mainItem.ingredient_name,
@@ -173,9 +183,9 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     };
                 });
                 
-                animals.push({ name, scientificName, dietName, dietNo, count: animalCount, items });
+                diets.push({ dietName, dietNo, animals, totalAnimalCount, items });
             });
-            meals.push({ time, animals });
+            meals.push({ time, diets: diets.sort((a,b) => a.dietName.localeCompare(b.dietName)) });
         });
         sites.push({ siteName, meals: meals.sort((a,b) => a.time.localeCompare(b.time)) });
     });
@@ -192,18 +202,24 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                 <p className="text-sm text-gray-400">Generated on: {new Date().toLocaleDateString()}</p>
             </div>
             {reportData.map((site, siteIndex) => (
-                <div key={siteIndex} className="mb-8 last:mb-0">
+                <div key={siteIndex} className="mb-8 last:mb-0 page-break-before">
                     <h3 className="text-2xl font-semibold mb-4 text-primary bg-primary/10 p-2 rounded-md">{site.siteName}</h3>
                     {site.meals.map((meal, mealIndex) => (
                          <div key={mealIndex} className="mb-8 last:mb-0 pl-4 border-l-2 border-primary/20">
                             <h4 className="text-xl font-semibold mb-4 text-green-700 bg-green-100 p-2 rounded-md">Meal Time: {meal.time}</h4>
-                            {meal.animals.map((animal, animalIndex) => (
-                                <div key={animalIndex} className="mb-6 border-b pb-4 last:border-b-0 last:pb-0">
-                                    <div className="flex justify-between items-baseline mb-2">
-                                        <h4 className="text-xl font-bold">{animal.name} ({animal.count})</h4>
-                                        <p className="text-sm text-gray-600">Diet: {animal.dietName} (No: {animal.dietNo})</p>
+                            {meal.diets.map((diet, dietIndex) => (
+                                <div key={dietIndex} className="mb-6 border-b pb-4 last:border-b-0 last:pb-0">
+                                    <div className="flex justify-between items-baseline mb-3">
+                                        <div>
+                                            {diet.animals.map((animal, animalIndex) => (
+                                                <div key={animalIndex} className="mb-1">
+                                                    <h4 className="text-xl font-bold">{animal.name} ({animal.count})</h4>
+                                                    <p className="text-md italic text-gray-500">{animal.scientificName}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="text-sm text-gray-600 text-right flex-shrink-0 ml-4">Diet: {diet.dietName}<br/>(No: {diet.dietNo})</p>
                                     </div>
-                                    <p className="text-md italic text-gray-500 mb-3">{animal.scientificName}</p>
                                     <table className="w-full text-left border-collapse">
                                         <thead>
                                             <tr className="bg-gray-100">
@@ -213,7 +229,7 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {animal.items.map((item, itemIndex) => (
+                                            {diet.items.map((item, itemIndex) => (
                                                 <tr key={itemIndex} className="[&>td]:border [&>td]:p-2">
                                                     <td>
                                                         <div className="font-medium">{item.itemName}</div>
@@ -231,6 +247,13 @@ const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; rep
                     ))}
                 </div>
             ))}
+            <style jsx global>{`
+                @media print {
+                    .page-break-before {
+                        page-break-before: always;
+                    }
+                }
+            `}</style>
         </div>
     );
 });
@@ -333,3 +356,5 @@ export function DietReport({ data }: DietReportProps) {
         </Card>
     );
 }
+
+    
