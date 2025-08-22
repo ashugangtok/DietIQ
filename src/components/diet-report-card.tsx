@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -109,6 +108,9 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                 
                 if (!dietSignatureMap.has(signature)) {
                      dietSignatureMap.set(signature, animalRows);
+                } else {
+                    const existingRows = dietSignatureMap.get(signature)!;
+                    dietSignatureMap.set(signature, [...existingRows, ...animalRows]);
                 }
             });
 
@@ -152,7 +154,12 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                 const totalAnimalCount = animals.reduce((sum, animal) => sum + animal.count, 0);
 
                 const itemMap = new Map<string, { ingredients: SheetDataRow[], totalQty: number, totalGram: number, uom: string }>();
-                allRowsForDiet.forEach(row => {
+                
+                const representativeAnimalId = Array.from(matchingAnimalIds)[0];
+                const rowsForOneAnimal = allRowsForDiet.filter(r => r.animal_id === representativeAnimalId);
+
+
+                rowsForOneAnimal.forEach(row => {
                     const isCombo = row.type?.toLowerCase() === 'recipe' || row.type?.toLowerCase() === 'combo';
                     const groupKey = isCombo ? row.type_name : row.ingredient_name;
 
@@ -160,9 +167,15 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                         itemMap.set(groupKey, { ingredients: [], totalQty: 0, totalGram: 0, uom: row.base_uom_name });
                     }
                     const group = itemMap.get(groupKey)!;
-                    group.ingredients.push(row);
-                    group.totalQty += row.ingredient_qty;
-                    group.totalGram += row.ingredient_qty_gram;
+                    
+                    if (isCombo) {
+                        const allIngredientsForCombo = allRowsForDiet.filter(
+                            (r) => r.animal_id === representativeAnimalId && r.type_name === groupKey
+                        );
+                        group.ingredients = allIngredientsForCombo;
+                    } else {
+                         group.ingredients.push(row);
+                    }
                 });
                 
                 const items: DietItem[] = Array.from(itemMap.values()).map(group => {
@@ -171,10 +184,14 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     let itemDetails = "";
                     const isCombo = mainItem.type?.toLowerCase() === 'recipe' || mainItem.type?.toLowerCase() === 'combo';
 
-                    const totalAmountForAllAnimalsInDiet = group.totalGram > 0 ? group.totalGram : group.totalQty;
-                    const uomForTotals = group.totalGram > 0 ? 'gram' : group.uom;
                     
-                    const amountPerAnimal = totalAmountForAllAnimalsInDiet / totalAnimalCount;
+                    const amountPerAnimalGram = group.ingredients.reduce((sum, ing) => sum + ing.ingredient_qty_gram, 0);
+                    const amountPerAnimalQty = group.ingredients.reduce((sum, ing) => sum + ing.ingredient_qty, 0);
+
+                    const totalAmountForAllAnimalsGram = amountPerAnimalGram * totalAnimalCount;
+                    const totalAmountForAllAnimalsQty = amountPerAnimalQty * totalAnimalCount;
+
+                    const uomForTotals = amountPerAnimalGram > 0 ? 'gram' : mainItem.base_uom_name;
 
                     if (isCombo) {
                         itemName = mainItem.type_name;
@@ -190,11 +207,10 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                             entry.totalGram += ing.ingredient_qty_gram;
                         });
                         
-                        const totalComboWeightPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0) / totalAnimalCount;
+                        const totalComboWeightPerAnimal = Array.from(ingredientAggregator.values()).reduce((sum, ing) => sum + ing.totalGram, 0);
                         
                         const breakdown = Array.from(ingredientAggregator.entries()).map(([name, ingData]) => {
-                            const ingredientAmountPerAnimal = ingData.totalGram / totalAnimalCount;
-                            const percentage = totalComboWeightPerAnimal > 0 ? (ingredientAmountPerAnimal / totalComboWeightPerAnimal) * 100 : 0;
+                            const percentage = totalComboWeightPerAnimal > 0 ? (ingData.totalGram / totalComboWeightPerAnimal) * 100 : 0;
                             return `${percentage.toFixed(0)}% ${name}`;
                         }).join(', ');
 
@@ -207,13 +223,14 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
                     if (prepDetails) itemName += ` (${prepDetails})`;
 
                     const totalUom = uomForTotals === 'gram' ? 'kilogram' : uomForTotals;
-                    const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimalsInDiet / 1000 : totalAmountForAllAnimalsInDiet;
+                    const totalAmountForDisplay = uomForTotals === 'gram' ? totalAmountForAllAnimalsGram / 1000 : totalAmountForAllAnimalsQty;
+                    const amountPerAnimalForDisplay = uomForTotals === 'gram' ? amountPerAnimalGram : amountPerAnimalQty;
 
                     return {
                         id: mainItem.type_name || mainItem.ingredient_name,
                         itemName: itemName,
                         itemDetails: itemDetails,
-                        amountPerAnimal: formatAmount(amountPerAnimal, uomForTotals),
+                        amountPerAnimal: formatAmount(amountPerAnimalForDisplay, uomForTotals),
                         totalAmountRequired: formatAmount(totalAmountForDisplay, totalUom),
                     };
                 });
@@ -231,11 +248,11 @@ const processReportData = (data: SheetDataRow[]): SiteReport[] => {
 
 const DietReportCard = React.forwardRef<HTMLDivElement, { groupName: string; reportData: SiteReport[]; reportDate: string | null }>(({ groupName, reportData, reportDate }, ref) => {
     return (
-        <div className="border rounded-lg p-6 bg-white font-sans" ref={ref} style={{ fontFamily: "'Poppins', sans-serif" }}>
+        <div className="border rounded-lg p-6 bg-white font-poppins" ref={ref}>
             <div className="text-center mb-6">
                 <h2 className="text-3xl font-bold capitalize text-gray-800">{groupName}</h2>
                 <p className="text-lg text-gray-500">Diet Report</p>
-                {reportDate ? (
+                 {reportDate ? (
                     <p className="text-sm text-gray-400">Date: {reportDate}</p>
                 ) : (
                     <p className="text-sm text-gray-400">Generated on: {new Date().toLocaleDateString()}</p>
@@ -321,7 +338,7 @@ export function DietReport({ data }: DietReportProps) {
     }, [data, selectedGroup]);
     
     const reportData = useMemo(() => processReportData(groupData), [groupData]);
-    
+
     const reportDate = useMemo(() => {
         if (groupData.length === 0) return null;
         const dateStr = groupData[0].feeding_date;
@@ -342,7 +359,7 @@ export function DietReport({ data }: DietReportProps) {
             return null;
         }
     }, [groupData]);
-
+    
     const handlePrint = async () => {
         const element = cardRef.current;
         if (element) {
