@@ -15,7 +15,8 @@ import {
   Home,
   UploadCloud,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Book,
 } from 'lucide-react';
 
 import {
@@ -239,6 +240,14 @@ export default function MainLayout({
                     <SidebarMenuButton tooltip="Diet Plan" isActive={isActive('/diet-plan')}>
                         <ClipboardList />
                         <span>Diet Plan</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <Link href="/summary-report" passHref>
+                    <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
+                        <Book />
+                        <span>Summary Report</span>
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
