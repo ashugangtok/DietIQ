@@ -60,13 +60,17 @@ export function RecipeBreakupTable({ data }: { data: SheetDataRow[] }) {
   const [selectedRecipe, setSelectedRecipe] = useState<string>("");
 
   const recipeOptions = useMemo(
-    () => [
-      ...new Set(
-        data
-          .filter((item) => item.type === "Recipe" || item.type === "Combo")
-          .map((item) => item.type_name)
-      ),
-    ].sort(),
+    () =>
+      [
+        ...new Set(
+          data
+            .filter((item) => {
+              const typeLower = item.type?.toLowerCase();
+              return typeLower === "recipe" || typeLower === "combo";
+            })
+            .map((item) => item.type_name)
+        ),
+      ].sort(),
     [data]
   );
 
