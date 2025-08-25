@@ -20,6 +20,7 @@ import {
   BookCopy,
   ClipboardCheck,
   FileText,
+  Bot,
 } from 'lucide-react';
 
 import {
@@ -283,6 +284,14 @@ export default function MainLayout({
                 <SidebarMenuButton tooltip="Generate Summary" isActive={isActive('/generate-summary')}>
                   <FileSpreadsheet />
                   <span>Generate Summary</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/generate-diet" passHref>
+                <SidebarMenuButton tooltip="Generate Diet" isActive={isActive('/generate-diet')}>
+                  <Bot />
+                  <span>Generate Diet</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
