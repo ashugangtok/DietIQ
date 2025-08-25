@@ -140,7 +140,7 @@ export default function MainLayout({
             <div className="flex-1 flex flex-col items-center justify-center p-4">
               <Card className="w-full max-w-5xl shadow-lg">
                   <CardHeader>
-                  <CardTitle className="text-2xl font-headline">Upload Your Excel File</CardTitle>
+                  <CardTitle className="font-headline">Upload Your Excel File</CardTitle>
                   <CardDescription>
                       Upload your Excel and unlock instant insights.
                   </CardDescription>
