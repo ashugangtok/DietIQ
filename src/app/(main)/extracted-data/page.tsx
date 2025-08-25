@@ -16,14 +16,17 @@ export default function ExtractedDataPage() {
         <CardHeader>
           <CardTitle className="font-headline text-xl">Extracted Diet Plan</CardTitle>
           <CardDescription>
-            The diet plan extracted from your PDF will appear here.
+            A detailed, narrative summary of a diet plan extracted from a PDF will appear here.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center p-12 border-2 border-dashed rounded-lg">
             <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">
-              No data has been extracted yet. Please go to the{' '}
+              This view is for PDF data only and is not populated by Excel uploads.
+            </p>
+             <p className="mt-2 text-muted-foreground">
+              To see this report, please go to the{' '}
               <a href="/pdf-extract" className="text-primary underline">
                 Extract from PDF
               </a>{' '}
