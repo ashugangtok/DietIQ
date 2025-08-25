@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import styles from '../../reporting.module.css';
 import { generateDiet, type DietGenerateInput, type DietGenerateOutput } from '@/ai/flows/generate-diet-flow';
+import { getScientificName } from '@/ai/flows/get-scientific-name-flow';
 import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
@@ -24,6 +25,7 @@ const formSchema = z.object({
 export default function GenerateDietPage() {
   const [generatedDiet, setGeneratedDiet] = useState<DietGenerateOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,6 +58,24 @@ export default function GenerateDietPage() {
       setIsLoading(false);
     }
   }
+  
+  const handleCommonNameBlur = async () => {
+    const commonName = form.getValues('commonName');
+    if (commonName && !form.getValues('scientificName')) {
+      setIsLookingUp(true);
+      try {
+        const result = await getScientificName({ commonName });
+        if (result.scientificName) {
+          form.setValue('scientificName', result.scientificName, { shouldValidate: true });
+        }
+      } catch (err) {
+        console.error('Scientific name lookup failed:', err);
+        // Do not block user input if lookup fails, they can enter it manually
+      } finally {
+        setIsLookingUp(false);
+      }
+    }
+  };
 
   const DietDisplay = () => {
     if (!generatedDiet) return null;
@@ -128,7 +148,7 @@ export default function GenerateDietPage() {
                   <FormItem>
                     <FormLabel>Common Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Bengal Tiger" {...field} />
+                      <Input placeholder="e.g., Bengal Tiger" {...field} onBlur={handleCommonNameBlur} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +161,14 @@ export default function GenerateDietPage() {
                   <FormItem>
                     <FormLabel>Scientific Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Panthera tigris tigris" {...field} />
+                      <div className="relative">
+                        <Input placeholder="e.g., Panthera tigris tigris" {...field} />
+                        {isLookingUp && (
+                           <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <div className="h-4 w-4 border-2 border-border border-t-primary rounded-full animate-spin"></div>
+                           </div>
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
