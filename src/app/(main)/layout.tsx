@@ -309,9 +309,6 @@ export default function MainLayout({
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <SidebarTrigger className="sm:hidden"/>
-            <h1 className="text-xl font-semibold text-primary font-headline hidden md:block">
-                Animal Diet Management
-            </h1>
         </header>
         <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
       </SidebarInset>

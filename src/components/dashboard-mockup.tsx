@@ -105,7 +105,7 @@ function StatCard({ title, value, subtitle, icon: Icon, bg }: any) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="relative h-36 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/10"
+      className="relative h-44 rounded-2xl overflow-hidden shadow-lg ring-1 ring-white/10"
     >
       <div
         className="absolute inset-0 bg-cover bg-center"
