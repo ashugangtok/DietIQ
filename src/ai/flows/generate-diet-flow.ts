@@ -11,14 +11,14 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const DietGenerateInputSchema = z.object({
+const DietGenerateInputSchema = z.object({
   commonName: z.string().describe("The common name of the animal (e.g., 'Bengal Tiger')."),
   scientificName: z.string().describe("The scientific name of the animal (e.g., 'Panthera tigris tigris')."),
   dietaryNotes: z.string().optional().describe("Any specific notes or constraints for the diet, such as 'low-fat', 'pregnant female', 'focus on poultry', etc."),
 });
 export type DietGenerateInput = z.infer<typeof DietGenerateInputSchema>;
 
-export const DietGenerateOutputSchema = z.object({
+const DietGenerateOutputSchema = z.object({
   title: z.string().describe("The main title of the diet plan, usually 'Daily Diet Plan'."),
   meals: z.array(
     z.object({
