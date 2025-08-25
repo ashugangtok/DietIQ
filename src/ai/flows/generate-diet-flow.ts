@@ -18,19 +18,22 @@ const DietGenerateInputSchema = z.object({
 });
 export type DietGenerateInput = z.infer<typeof DietGenerateInputSchema>;
 
+const IngredientSchema = z.object({
+    name: z.string().describe("The name of the ingredient."),
+    quantity: z.string().describe("A plausible quantity for the ingredient for a single serving, e.g., '100g', '2 pcs'."),
+    preparation: z.string().optional().describe("Preparation notes like 'chopped', 'boiled'."),
+    days: z.array(z.enum(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])).describe("Days of the week this ingredient is served."),
+});
+
 const DietGenerateOutputSchema = z.object({
   title: z.string().describe("The main title of the diet plan, usually 'Daily Diet Plan'."),
   meals: z.array(
     z.object({
       name: z.string().describe("The name of the meal, e.g., 'Morning', 'Midday'."),
       time: z.string().describe("The plausible time range for the meal, e.g., '7:00 am – 9:00 am'."),
-      mix: z.string().describe("The type of mix for the meal, e.g., 'Meat Mix'."),
-      quantity: z.string().describe("A plausible quantity for the mix, e.g., '5-7 kg'."),
-      ingredients: z.string().describe("A comma-separated list of appropriate ingredients for the mix."),
-      nutritionalValue: z.string().describe("Plausible nutritional information for the meal."),
-      supplements: z.string().describe("A plausible list of supplements, often given in rotation."),
+      ingredients: z.array(IngredientSchema).describe("An array of ingredients for this meal."),
     })
-  ).describe("An array of meals in the diet plan."),
+  ).describe("An array of meals in the diet plan for a full week."),
   seasonalAdjustments: z.object({
     summer: z.string().describe("Plausible dietary adjustments for the summer season."),
     monsoon: z.string().describe("Plausible dietary adjustments for the monsoon season."),
@@ -49,9 +52,10 @@ const prompt = ai.definePrompt({
   input: { schema: DietGenerateInputSchema },
   output: { schema: DietGenerateOutputSchema },
   prompt: `
-    You are an expert animal nutritionist and zookeeper. Your task is to create a complete and plausible daily diet plan for a given animal.
+    You are an expert animal nutritionist and zookeeper. Your task is to create a complete and plausible daily diet plan for a given animal for a full seven-day week.
     The diet plan should be balanced, appropriate for the species, and MUST include detailed considerations for seasonal adjustments and food enrichment.
     The output must be in the structured format requested by the output schema. Generate concise, realistic, and well-researched information for all fields.
+    Ensure every meal has at least one ingredient and cover all seven days of the week across various ingredients.
 
     Animal Information:
     - Common Name: {{{commonName}}}
