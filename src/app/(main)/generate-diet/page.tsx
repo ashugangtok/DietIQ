@@ -15,6 +15,7 @@ import styles from '../../reporting.module.css';
 import { generateDiet, type DietGenerateInput, type DietGenerateOutput } from '@/ai/flows/generate-diet-flow';
 import { getScientificName } from '@/ai/flows/get-scientific-name-flow';
 import { Badge } from '@/components/ui/badge';
+import { ChefHat } from 'lucide-react';
 
 const formSchema = z.object({
   commonName: z.string().min(1, 'Common name is required.'),
@@ -200,13 +201,15 @@ export default function GenerateDietPage() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-12">
-            <div className={styles['paw-loader-lg']}>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
+            <div className={styles['chef-loader']}>
+              <ChefHat size={80} strokeWidth={1.5} className={styles['chef-hat']} />
+              <div className={styles['utensils']}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2a2.5 2.5 0 0 0-5 0v16a2.5 2.5 0 0 0 5 0V2Z"/><path d="M12 6h1.5a2.5 2.5 0 0 1 0 5H12V6Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10"/><path d="M15.24 15.24a5 5 0 0 1-7.07 0 5 5 0 0 1-7.07 0Z"/><path d="M12 10V5c0-1.66-1.34-3-3-3s-3 1.34-3 3v5"/></svg>
+              </div>
             </div>
             <p className="mt-4 text-muted-foreground font-semibold">
-              AI is crafting the new diet plan... this might take a moment.
+              Our AI chef is preparing your diet plan...
             </p>
           </div>
         ) : error ? (

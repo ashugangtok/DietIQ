@@ -91,3 +91,63 @@
                 6px 20px 0 0 hsl(var(--primary)), 
                 -10px 10px 0 0 hsl(var(--primary));
 }
+
+.chef-loader {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.chef-hat {
+    color: hsl(var(--primary));
+    animation: hat-bob 2s ease-in-out infinite;
+    z-index: 10;
+}
+
+.utensils {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.utensils svg {
+    color: hsl(var(--muted-foreground));
+    position: absolute;
+    animation: utensil-swing 2s ease-in-out infinite;
+}
+
+.utensils svg:first-child {
+    transform: rotate(-45deg);
+    animation-delay: 0.1s;
+}
+
+.utensils svg:last-child {
+    transform: rotate(45deg);
+}
+
+@keyframes hat-bob {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+@keyframes utensil-swing {
+    0%, 100% { transform: rotate(45deg) scale(1); }
+    50% { transform: rotate(35deg) scale(1.1); }
+}
+
+.utensils svg:first-child {
+    animation-name: utensil-swing-alt;
+}
+
+@keyframes utensil-swing-alt {
+    0%, 100% { transform: rotate(-45deg) scale(1); }
+    50% { transform: rotate(-35deg) scale(1.1); }
+}
