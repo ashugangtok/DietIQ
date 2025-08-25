@@ -18,14 +18,14 @@ const MealItemSchema = z.object({
     quantity: z.string().describe("The total quantity of the mix for this meal, e.g., '40–50 g'."),
 });
 
-export const DietSummaryGenerateInputSchema = z.object({
+const DietSummaryGenerateInputSchema = z.object({
   commonName: z.string().describe("The common name of the animal."),
   scientificName: z.string().describe("The scientific name of the animal."),
   dietData: z.array(MealItemSchema).describe("A list of meals with their items for the animal."),
 });
 export type DietSummaryGenerateInput = z.infer<typeof DietSummaryGenerateInputSchema>;
 
-export const DietSummaryGenerateOutputSchema = z.object({
+const DietSummaryGenerateOutputSchema = z.object({
   title: z.string().describe("The main title of the diet plan, usually 'Daily Diet Plan'."),
   meals: z.array(
     z.object({
