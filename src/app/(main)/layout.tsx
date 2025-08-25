@@ -279,10 +279,10 @@ export default function MainLayout({
               </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <Link href="/extracted-data" passHref>
-                <SidebarMenuButton tooltip="Extracted Data" isActive={isActive('/extracted-data')}>
+              <Link href="/generate-summary" passHref>
+                <SidebarMenuButton tooltip="Generate Summary" isActive={isActive('/generate-summary')}>
                   <FileSpreadsheet />
-                  <span>Extracted Data</span>
+                  <span>Generate Summary</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
