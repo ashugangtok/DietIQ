@@ -142,7 +142,7 @@ export default function MainLayout({
                   <CardHeader>
                   <CardTitle className="text-2xl font-headline">Upload Your Excel File</CardTitle>
                   <CardDescription>
-                      Select a .xlsx file to parse and visualize your data.
+                      Upload your Excel and unlock instant insights.
                   </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
