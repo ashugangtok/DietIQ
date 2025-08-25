@@ -22,6 +22,7 @@ const DietSummaryGenerateInputSchema = z.object({
   commonName: z.string().describe("The common name of the animal."),
   scientificName: z.string().describe("The scientific name of the animal."),
   dietData: z.array(MealItemSchema).describe("A list of meals with their items for the animal."),
+  generateDetailedSummary: z.boolean().optional().describe("If true, generate a more detailed narrative summary. Defaults to false for a concise summary."),
 });
 export type DietSummaryGenerateInput = z.infer<typeof DietSummaryGenerateInputSchema>;
 
@@ -58,11 +59,17 @@ const prompt = ai.definePrompt({
   prompt: `
     You are an expert animal nutritionist. Your task is to generate a structured diet plan for an animal based on the provided data.
     The output must be in the format requested by the output schema.
-    For fields like Nutritional Value, Supplements, Seasonal Adjustments, and Food Enrichment, you must generate plausible, realistic, and CONCISE information.
+    For fields like Nutritional Value, Supplements, Seasonal Adjustments, and Food Enrichment, you must generate plausible and realistic information.
+
+    {{#if generateDetailedSummary}}
+    Please provide detailed, narrative descriptions for Seasonal Adjustments and Food Enrichment. Use full sentences and paragraphs to explain the reasoning behind the dietary choices.
+    {{else}}
+    Please provide CONCISE information for all generated fields.
     - For ingredients, provide a simple comma-separated list.
     - For nutritional value, provide a single line of key metrics.
     - For supplements, provide a comma-separated list.
     - For seasonal adjustments and food enrichment, provide a brief, single-line description for each point. AVOID long paragraphs.
+    {{/if}}
 
     Animal Information:
     - Common Name: {{{commonName}}}
@@ -76,7 +83,7 @@ const prompt = ai.definePrompt({
       - Ingredients: {{#each ingredients}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
     {{/each}}
 
-    Please generate a complete, but concise, diet plan based on this data.
+    Please generate a complete diet plan based on this data.
   `,
 });
 

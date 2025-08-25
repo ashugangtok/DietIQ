@@ -10,6 +10,8 @@ import { generateDietSummary, DietSummaryGenerateInput, DietSummaryGenerateOutpu
 import styles from '../../reporting.module.css';
 import { SheetDataRow } from '@/types';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const formatAmount = (quantity: number, uom: string) => {
     if (!uom || isNaN(quantity)) return `0 ${uom || ''}`.trim();
@@ -27,6 +29,7 @@ export default function GenerateSummaryPage() {
   const [generatedSummary, setGeneratedSummary] = useState<DietSummaryGenerateOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDetailed, setIsDetailed] = useState(false);
 
   const animalOptions = useMemo(() => {
     const animalSet = new Set(data.map(row => row.common_name));
@@ -88,6 +91,7 @@ export default function GenerateSummaryPage() {
         commonName: selectedAnimal,
         scientificName: animalData[0].scientific_name,
         dietData: dietDataForFlow,
+        generateDetailedSummary: isDetailed,
       };
       
       const result = await generateDietSummary(input);
@@ -111,7 +115,7 @@ export default function GenerateSummaryPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg">
+        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg">
           <Select value={selectedAnimal} onValueChange={setSelectedAnimal}>
             <SelectTrigger className="w-full sm:w-[280px]">
               <SelectValue placeholder="Select an animal..." />
@@ -122,6 +126,10 @@ export default function GenerateSummaryPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center space-x-2">
+            <Switch id="detailed-summary" checked={isDetailed} onCheckedChange={setIsDetailed} />
+            <Label htmlFor="detailed-summary">Detailed Summary</Label>
+          </div>
           <Button onClick={handleGenerate} disabled={!selectedAnimal || isLoading}>
             {isLoading ? 'Generating...' : 'Generate Summary'}
           </Button>
