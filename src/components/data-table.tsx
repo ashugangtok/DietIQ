@@ -327,110 +327,108 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
   };
 
   return (
-    <Card className="shadow-lg">
-        <CardHeader>
-            <CardTitle className="font-headline text-xl">Extracted Data</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-                <Select value={filters.site_name} onValueChange={(value) => handleFilterChange('site_name', value === 'all' ? '' : value)}>
-                    <SelectTrigger className="w-full sm:w-[200px] bg-background">
-                        <SelectValue placeholder="Filter by Site Name" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Sites</SelectItem>
-                        {siteNameOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+    <div className="space-y-6">
+      <CardHeader>
+          <CardTitle className="font-headline text-xl">Extracted Data</CardTitle>
+      </CardHeader>
+      <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+          <Select value={filters.site_name} onValueChange={(value) => handleFilterChange('site_name', value === 'all' ? '' : value)}>
+              <SelectTrigger className="w-full sm:w-[200px] bg-background">
+                  <SelectValue placeholder="Filter by Site Name" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="all">All Sites</SelectItem>
+                  {siteNameOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+          </Select>
 
-                <Input 
-                  placeholder="Filter by Common Name..."
-                  value={filters.common_name}
-                  onChange={(e) => handleFilterChange('common_name', e.target.value)}
-                  className="w-full sm:w-[200px] bg-background"
-                />
+          <Input 
+            placeholder="Filter by Common Name..."
+            value={filters.common_name}
+            onChange={(e) => handleFilterChange('common_name', e.target.value)}
+            className="w-full sm:w-[200px] bg-background"
+          />
 
-                <Select value={filters['Feed type name']} onValueChange={(value) => handleFilterChange('Feed type name', value === 'all' ? '' : value)}>
-                    <SelectTrigger className="w-full sm:w-[200px] bg-background">
-                        <SelectValue placeholder="Filter by Feed Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Feed Types</SelectItem>
-                        {feedTypeOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                
-                <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground">
-                    <FilterX className="mr-2 h-4 w-4" />
-                    Clear Filters
-                </Button>
-                
-                <div className="flex-grow"></div>
-                
-                <Button onClick={handleDownload} disabled={filteredData.length === 0}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download CSV
-                </Button>
-            </div>
+          <Select value={filters['Feed type name']} onValueChange={(value) => handleFilterChange('Feed type name', value === 'all' ? '' : value)}>
+              <SelectTrigger className="w-full sm:w-[200px] bg-background">
+                  <SelectValue placeholder="Filter by Feed Type" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="all">All Feed Types</SelectItem>
+                  {feedTypeOptions.map((option, index) => <SelectItem key={`${option}-${index}`} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+          </Select>
+          
+          <Button variant="ghost" onClick={clearFilters} className="text-muted-foreground">
+              <FilterX className="mr-2 h-4 w-4" />
+              Clear Filters
+          </Button>
+          
+          <div className="flex-grow"></div>
+          
+          <Button onClick={handleDownload} disabled={filteredData.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Download CSV
+          </Button>
+      </div>
 
-            {isProcessing ? (
-                <div className="flex flex-col items-center justify-center p-12">
-                     <div className={styles['paw-loader-lg']}>
-                        <div className={styles.paw}></div>
-                        <div className={styles.paw}></div>
-                        <div className={styles.paw}></div>
-                    </div>
-                    <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
-                </div>
-            ) : (
-              <>
-                <div className="relative overflow-x-auto rounded-md border">
-                    <Table>
-                        <TableHeader className="bg-muted/50">
-                            <TableRow>
-                                <TableHead>Site Name</TableHead>
-                                <TableHead>Enclosure</TableHead>
-                                <TableHead>Common Name</TableHead>
-                                <TableHead>Feed Type Name</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Type Name</TableHead>
-                                <TableHead>Ingredient</TableHead>
-                                <TableHead className="text-right">Total</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {processedData.length > 0 ? (
-                                processedData.map(({ groupData, rowSpans }, index) => {
-                                    const { siteName, enclosure, commonName } = rowSpans;
-                                    const rowData = groupData;
-                                    const totalDisplay = formatTotal(rowData.total_qty, rowData.total_qty_gram, rowData.total_uom);
-                                    return (
-                                        <TableRow key={index}>
-                                            {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
-                                            {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
-                                            {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
-                                            <TableCell className="align-top">{rowData.feed_type_name}</TableCell>
-                                            <TableCell className="align-top">{rowData.type}</TableCell>
-                                            <TableCell className="align-top">{rowData.type_name}</TableCell>
-                                            <TableCell className="align-top font-bold">{rowData.ingredients}</TableCell>
-                                            <TableCell className="text-right align-top font-bold">{totalDisplay}</TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            ) : (
-                            <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                                No results found. Try adjusting your filters.
-                                </TableCell>
-                            </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                <p className="text-sm text-muted-foreground mt-4">Showing {filteredData.length.toLocaleString()} of {data.length.toLocaleString()} rows.</p>
-              </>
-            )}
-        </CardContent>
-    </Card>
+      {isProcessing ? (
+          <div className="flex flex-col items-center justify-center p-12">
+               <div className={styles['paw-loader-lg']}>
+                  <div className={styles.paw}></div>
+                  <div className={styles.paw}></div>
+                  <div className={styles.paw}></div>
+              </div>
+              <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
+          </div>
+      ) : (
+        <>
+          <div className="relative overflow-x-auto rounded-md border">
+              <Table>
+                  <TableHeader className="bg-muted/50">
+                      <TableRow>
+                          <TableHead>Site Name</TableHead>
+                          <TableHead>Enclosure</TableHead>
+                          <TableHead>Common Name</TableHead>
+                          <TableHead>Feed Type Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Type Name</TableHead>
+                          <TableHead>Ingredient</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {processedData.length > 0 ? (
+                          processedData.map(({ groupData, rowSpans }, index) => {
+                              const { siteName, enclosure, commonName } = rowSpans;
+                              const rowData = groupData;
+                              const totalDisplay = formatTotal(rowData.total_qty, rowData.total_qty_gram, rowData.total_uom);
+                              return (
+                                  <TableRow key={index}>
+                                      {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
+                                      {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
+                                      {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
+                                      <TableCell className="align-top">{rowData.feed_type_name}</TableCell>
+                                      <TableCell className="align-top">{rowData.type}</TableCell>
+                                      <TableCell className="align-top">{rowData.type_name}</TableCell>
+                                      <TableCell className="align-top font-bold">{rowData.ingredients}</TableCell>
+                                      <TableCell className="text-right align-top font-bold">{totalDisplay}</TableCell>
+                                  </TableRow>
+                              );
+                          })
+                      ) : (
+                      <TableRow>
+                          <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                          No results found. Try adjusting your filters.
+                          </TableCell>
+                      </TableRow>
+                      )}
+                  </TableBody>
+              </Table>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">Showing {filteredData.length.toLocaleString()} of {data.length.toLocaleString()} rows.</p>
+        </>
+      )}
+    </div>
   );
 }
