@@ -175,10 +175,6 @@ export default function MainLayout({
                   )}
                   </CardContent>
               </Card>
-              <div className="text-center p-12 text-muted-foreground">
-                  <FileSpreadsheet className="mx-auto h-12 w-12" />
-                  <p className="mt-4 text-lg">Your data will appear here</p>
-              </div>
             </div>
           )}
         </main>
