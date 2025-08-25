@@ -87,20 +87,10 @@ export default function GenerateDietPage() {
             question: chatInput,
         };
 
-        const stream = await answerDietQuestion(input);
+        const response = await answerDietQuestion(input);
         
-        setChatMessages((prev) => [...prev, { role: 'bot', content: '' }]);
+        setChatMessages((prev) => [...prev, { role: 'bot', content: response }]);
 
-        for await (const chunk of stream) {
-            setChatMessages((prev) => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage.role === 'bot') {
-                    lastMessage.content += chunk;
-                }
-                return newMessages;
-            });
-        }
     } catch (err) {
       console.error('Chat failed:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';

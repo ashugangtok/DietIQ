@@ -17,8 +17,7 @@ const AnswerDietQuestionInputSchema = z.object({
 export type AnswerDietQuestionInput = z.infer<typeof AnswerDietQuestionInputSchema>;
 
 export async function answerDietQuestion(input: AnswerDietQuestionInput) {
-  const stream = await answerDietQuestionFlow(input);
-  return stream;
+  return await answerDietQuestionFlow(input);
 }
 
 const answerDietQuestionFlow = ai.defineFlow(
@@ -28,7 +27,7 @@ const answerDietQuestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const { stream } = await ai.generateStream({
+    const { output } = await ai.generate({
       prompt: `You are an expert animal nutritionist. Your task is to answer the user's question based *only* on the provided diet plan context. Do not use any external knowledge. If the answer is not in the context, say that you cannot find that information in the diet plan.
 
       Diet Plan Context:
@@ -42,10 +41,6 @@ const answerDietQuestionFlow = ai.defineFlow(
       input: input,
     });
 
-    let response = '';
-    for await (const chunk of stream) {
-      response += chunk.text;
-    }
-    return response;
+    return output ?? "I'm sorry, I couldn't generate a response.";
   }
 );
