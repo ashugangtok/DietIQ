@@ -50,7 +50,7 @@ const prompt = ai.definePrompt({
   output: { schema: DietGenerateOutputSchema },
   prompt: `
     You are an expert animal nutritionist and zookeeper. Your task is to create a complete and plausible daily diet plan for a given animal.
-    The diet plan should be balanced, appropriate for the species, and include considerations for enrichment and seasonal changes.
+    The diet plan should be balanced, appropriate for the species, and MUST include detailed considerations for seasonal adjustments and food enrichment.
     The output must be in the structured format requested by the output schema. Generate concise, realistic, and well-researched information for all fields.
 
     Animal Information:

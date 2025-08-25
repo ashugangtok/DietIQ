@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -60,7 +60,7 @@ export default function GenerateDietPage() {
     if (!generatedDiet) return null;
 
     return (
-        <div className="p-6 border rounded-lg bg-background font-sans whitespace-pre-wrap">
+        <div className="p-6 border rounded-lg bg-background font-sans">
             <h1 className="font-headline text-2xl text-primary mb-4">{generatedDiet.title} for {form.getValues('commonName')}</h1>
             {generatedDiet.meals.map((meal, index) => (
             <div key={index} className="mb-6">
