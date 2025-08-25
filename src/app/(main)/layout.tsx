@@ -43,6 +43,7 @@ import { type SheetDataRow } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import styles from '../reporting.module.css';
+import Image from 'next/image';
 
 export default function MainLayout({
   children,
@@ -124,7 +125,7 @@ export default function MainLayout({
     return (
       <div className="flex flex-col min-h-screen">
         <header className="py-4 px-6 border-b bg-card">
-          <h1 className="text-2xl font-bold text-primary font-headline">Sheet Insights</h1>
+          <Image src="/logo.png" alt="Sheet Insights" width={180} height={32} />
         </header>
         <main className="flex-1 flex flex-col">
           {isLoading ? (
@@ -140,7 +141,7 @@ export default function MainLayout({
             <div className="flex-1 flex flex-col items-center justify-center p-4">
               <Card className="w-full max-w-5xl shadow-lg">
                   <CardHeader>
-                  <CardTitle className="font-headline">Upload Your Excel File</CardTitle>
+                  <CardTitle>Upload Your Excel File</CardTitle>
                   <CardDescription>
                       Upload your Excel and unlock instant insights.
                   </CardDescription>
@@ -193,8 +194,7 @@ export default function MainLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-            <Home className="w-8 h-8 text-primary" />
-            <h1 className="text-xl font-bold">Sheet Insights</h1>
+            <Image src="/logo.png" alt="Sheet Insights" width={180} height={32} />
           </div>
         </SidebarHeader>
         <SidebarContent>
