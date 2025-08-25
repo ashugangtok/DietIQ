@@ -136,15 +136,23 @@ export default function GenerateSummaryPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-12">
-            <div className={styles['paw-loader-lg']}>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
+          <div className="text-center p-12 border-2 border-dashed rounded-lg bg-background">
+            <h2 className="text-lg font-semibold text-primary">Generating Narrative Summary</h2>
+            <div className="text-sm text-muted-foreground mt-2 mb-4 space-y-1">
+              <p><span className="font-semibold">Selected Animal:</span> {selectedAnimal}</p>
+              <p><span className="font-semibold">Summary Type:</span> {isDetailed ? 'Detailed Summary' : 'Narrative Summary'}</p>
             </div>
-            <p className="mt-4 text-muted-foreground font-semibold">
-              AI is crafting the diet plan... this might take a moment.
+            <p className="text-base mb-4">
+              ✨ Hang tight! We’re carefully preparing the diet plan for the {selectedAnimal}.<br/>
+              Your customized dietary summary will be ready in just a few moments...
             </p>
+            <div className="text-xs bg-muted/50 p-2 rounded-md text-muted-foreground mb-4">
+                <p>💬 Tip: While you wait, you can explore other animals or upload new diet data.</p>
+            </div>
+             <div className="flex items-center justify-center text-sm font-semibold text-primary">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                Generating summary...
+            </div>
           </div>
         ) : error ? (
           <div className="p-4 text-red-600 bg-red-50 border border-red-200 rounded-md">
