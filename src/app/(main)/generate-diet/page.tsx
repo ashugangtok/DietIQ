@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import styles from '../../reporting.module.css';
-import { generateDiet, DietGenerateInput, DietGenerateOutput } from '@/ai/flows/generate-diet-flow';
+import { generateDiet, type DietGenerateInput, type DietGenerateOutput } from '@/ai/flows/generate-diet-flow';
+import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   commonName: z.string().min(1, 'Common name is required.'),
@@ -58,52 +59,55 @@ export default function GenerateDietPage() {
 
   const DietDisplay = () => {
     if (!generatedDiet) return null;
-
+  
     return (
-        <div className="p-6 border rounded-lg bg-background font-sans">
-            <h1 className="font-headline text-2xl text-primary mb-4">{generatedDiet.title} for {form.getValues('commonName')}</h1>
-            {generatedDiet.meals.map((meal, index) => (
-            <div key={index} className="mb-6">
-                <h2 className="text-xl font-semibold text-primary-dark">
-                {index + 1}. {meal.name} ({meal.time})
-                </h2>
-                <div className="pl-4 mt-2 space-y-2">
-                <p>
-                    <span className="font-semibold">{meal.mix} &rarr;</span> {meal.quantity}
-                </p>
-                <p className="text-muted-foreground">{meal.ingredients}</p>
-                <p className="font-medium">
-                    <span className="font-semibold">Nutritional Value:</span> {meal.nutritionalValue}
-                </p>
-                <p>
-                    <span className="font-semibold">Supplements (in rotation):</span> {meal.supplements}
-                </p>
-                </div>
+      <div className="p-6 border rounded-lg bg-background font-sans">
+        <h1 className="font-headline text-2xl text-primary mb-4">{generatedDiet.title} for {form.getValues('commonName')}</h1>
+        
+        {generatedDiet.meals.map((meal, index) => (
+          <div key={index} className="mb-6">
+            <h2 className="text-xl font-semibold text-primary-dark">
+              {index + 1}. {meal.name} ({meal.time})
+            </h2>
+            <div className="pl-4 mt-2 space-y-4">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-muted-foreground">Ingredients:</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  {meal.ingredients.map((ing, ingIndex) => (
+                    <li key={ingIndex} className="text-sm">
+                      <span className="font-semibold">{ing.name}</span>: {ing.quantity}
+                      {ing.preparation && <span className="text-xs text-muted-foreground"> ({ing.preparation})</span>}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {ing.days.map(day => <Badge key={day} variant="secondary">{day.slice(0,3)}</Badge>)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            ))}
-            <Separator className="my-6" />
-            <div className="space-y-3 mb-6">
-            <h2 className="text-xl font-semibold text-primary-dark">Seasonal Adjustments</h2>
-            <div className="pl-4 space-y-2">
-                <p>
-                <span className="font-semibold">Summer &rarr;</span> {generatedDiet.seasonalAdjustments.summer}
-                </p>
-                <p>
-                <span className="font-semibold">Monsoon &rarr;</span> {generatedDiet.seasonalAdjustments.monsoon}
-                </p>
-                <p>
-                <span className="font-semibold">Winter &rarr;</span> {generatedDiet.seasonalAdjustments.winter}
-                </p>
-            </div>
-            </div>
-            <Separator className="my-6" />
-            <div className="space-y-3">
-            <h2 className="text-xl font-semibold text-primary-dark">Food Enrichment</h2>
-            <p className="pl-4">{generatedDiet.foodEnrichment}</p>
-            </div>
+          </div>
+        ))}
+        
+        <Separator className="my-6" />
+        
+        <div className="space-y-3 mb-6">
+          <h2 className="text-xl font-semibold text-primary-dark">Seasonal Adjustments</h2>
+          <div className="pl-4 space-y-2 text-sm">
+            <p><span className="font-semibold">Summer &rarr;</span> {generatedDiet.seasonalAdjustments.summer}</p>
+            <p><span className="font-semibold">Monsoon &rarr;</span> {generatedDiet.seasonalAdjustments.monsoon}</p>
+            <p><span className="font-semibold">Winter &rarr;</span> {generatedDiet.seasonalAdjustments.winter}</p>
+          </div>
         </div>
-    )
-  }
+        
+        <Separator className="my-6" />
+        
+        <div className="space-y-3">
+          <h2 className="text-xl font-semibold text-primary-dark">Food Enrichment</h2>
+          <p className="pl-4 text-sm">{generatedDiet.foodEnrichment}</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card className="shadow-lg">
