@@ -56,9 +56,13 @@ const prompt = ai.definePrompt({
   input: { schema: DietSummaryGenerateInputSchema },
   output: { schema: DietSummaryGenerateOutputSchema },
   prompt: `
-    You are an expert animal nutritionist. Your task is to generate a detailed, narrative-style diet plan for an animal based on structured data.
+    You are an expert animal nutritionist. Your task is to generate a structured diet plan for an animal based on the provided data.
     The output must be in the format requested by the output schema.
-    For fields like Nutritional Value, Supplements, Seasonal Adjustments, and Food Enrichment, you must generate plausible and realistic information based on the animal's species and the provided ingredients.
+    For fields like Nutritional Value, Supplements, Seasonal Adjustments, and Food Enrichment, you must generate plausible, realistic, and CONCISE information.
+    - For ingredients, provide a simple comma-separated list.
+    - For nutritional value, provide a single line of key metrics.
+    - For supplements, provide a comma-separated list.
+    - For seasonal adjustments and food enrichment, provide a brief, single-line description for each point. AVOID long paragraphs.
 
     Animal Information:
     - Common Name: {{{commonName}}}
@@ -72,7 +76,7 @@ const prompt = ai.definePrompt({
       - Ingredients: {{#each ingredients}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
     {{/each}}
 
-    Please generate a complete diet plan based on this data. Be creative but realistic in the generated fields.
+    Please generate a complete, but concise, diet plan based on this data.
   `,
 });
 
