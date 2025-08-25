@@ -19,6 +19,7 @@ import {
   Book,
   BookCopy,
   ClipboardCheck,
+  FileText,
 } from 'lucide-react';
 
 import {
@@ -268,6 +269,22 @@ export default function MainLayout({
                         <span>Overall Report Check</span>
                     </SidebarMenuButton>
                 </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/pdf-extract" passHref>
+                <SidebarMenuButton tooltip="Extract from PDF" isActive={isActive('/pdf-extract')}>
+                  <FileText />
+                  <span>Extract from PDF</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/extracted-data" passHref>
+                <SidebarMenuButton tooltip="Extracted Data" isActive={isActive('/extracted-data')}>
+                  <FileSpreadsheet />
+                  <span>Extracted Data</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
