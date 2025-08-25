@@ -407,33 +407,30 @@ export function OverallReportCheck({ data }: OverallReportProps) {
         });
 
         const imgData = canvas.toDataURL('image/jpeg', 0.8);
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        
         const pdf = new jsPDF({
-            orientation: 'l', // landscape
-            unit: 'px',
-            format: [imgWidth, imgHeight] // Use image dimensions for the format
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4'
         });
 
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
         const ratio = imgWidth / imgHeight;
         
-        let pageHeight = pdfWidth / ratio;
-        let heightLeft = pdfHeight;
-        
+        const canvasHeightInPdf = pdfWidth / ratio;
         let position = 0;
+        let heightLeft = canvasHeightInPdf;
 
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, canvasHeightInPdf);
+        heightLeft -= pdfHeight;
         
         while (heightLeft > 0) {
-          position = heightLeft - pdfHeight;
+          position = heightLeft - canvasHeightInPdf;
           pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-          heightLeft -= pageHeight;
+          pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, canvasHeightInPdf);
+          heightLeft -= pdfHeight;
         }
 
         pdf.save(`${selectedGroup}-overall-report-check.pdf`);
@@ -492,4 +489,5 @@ export function OverallReportCheck({ data }: OverallReportProps) {
     
 
     
+
 
