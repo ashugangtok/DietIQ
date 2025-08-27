@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   FileText,
   Bot,
+  BookText,
 } from 'lucide-react';
 
 import {
@@ -51,7 +52,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { data, setData } = useContext(DataContext);
+  const { data, setData, addJournalEntry } = useContext(DataContext);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,16 +99,22 @@ export default function MainLayout({
           }
           
           setData(jsonData);
+          addJournalEntry("Excel File Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
+
         } catch (err) {
           console.error(err);
-          setError(err instanceof Error ? err.message : "An unexpected error occurred during file parsing.");
+          const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during file parsing.";
+          setError(errorMessage);
+          addJournalEntry("Excel File Error", `Failed to parse ${file.name}: ${errorMessage}`);
         } finally {
           setIsLoading(false);
         }
       };
       reader.onerror = () => {
-        setError("Failed to read the file.");
+        const errorMessage = "Failed to read the file.";
+        setError(errorMessage);
         setIsLoading(false);
+        addJournalEntry("Excel File Error", `Failed to read ${file.name}: An unknown error occurred.`);
       };
       reader.readAsArrayBuffer(file);
     }, 50);
@@ -266,6 +273,14 @@ export default function MainLayout({
                         <span>Overall Report Check</span>
                     </SidebarMenuButton>
                 </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/journal" passHref>
+                <SidebarMenuButton tooltip="Journal" isActive={isActive('/journal')}>
+                  <BookText />
+                  <span>Journal</span>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/pdf-extract" passHref>

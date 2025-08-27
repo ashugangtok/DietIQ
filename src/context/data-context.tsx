@@ -1,10 +1,15 @@
 
 "use client";
 
-import { createContext, useState, ReactNode, Dispatch, SetStateAction } from 'react';
+import { createContext, useState, ReactNode, Dispatch, SetStateAction, useCallback } from 'react';
 import { type SheetDataRow } from '@/types';
 import { type DietPlanExtractOutput } from '@/ai/flows/extract-diet-plan-flow';
 
+export interface JournalEntry {
+    timestamp: Date;
+    action: string;
+    details: string;
+}
 
 export interface PackingItem {
     id: string;
@@ -18,6 +23,8 @@ interface DataContextType {
     setPackingList: Dispatch<SetStateAction<PackingItem[]>>;
     extractedData: DietPlanExtractOutput | null;
     setExtractedData: Dispatch<SetStateAction<DietPlanExtractOutput | null>>;
+    journalEntries: JournalEntry[];
+    addJournalEntry: (action: string, details: string) => void;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -27,6 +34,8 @@ export const DataContext = createContext<DataContextType>({
     setPackingList: () => {},
     extractedData: null,
     setExtractedData: () => {},
+    journalEntries: [],
+    addJournalEntry: () => {},
 });
 
 interface DataProviderProps {
@@ -37,6 +46,16 @@ export function DataProvider({ children }: DataProviderProps) {
     const [data, setData] = useState<SheetDataRow[]>([]);
     const [packingList, setPackingList] = useState<PackingItem[]>([]);
     const [extractedData, setExtractedData] = useState<DietPlanExtractOutput | null>(null);
+    const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+
+    const addJournalEntry = useCallback((action: string, details: string) => {
+        const newEntry: JournalEntry = {
+            timestamp: new Date(),
+            action,
+            details,
+        };
+        setJournalEntries(prevEntries => [newEntry, ...prevEntries]);
+    }, []);
 
     const value = {
         data,
@@ -45,6 +64,8 @@ export function DataProvider({ children }: DataProviderProps) {
         setPackingList,
         extractedData,
         setExtractedData,
+        journalEntries,
+        addJournalEntry,
     };
 
     return (

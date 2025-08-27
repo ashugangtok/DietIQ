@@ -24,7 +24,7 @@ const formatAmount = (quantity: number, uom: string) => {
 };
 
 export default function GenerateSummaryPage() {
-  const { data } = useContext(DataContext);
+  const { data, addJournalEntry } = useContext(DataContext);
   const [selectedAnimal, setSelectedAnimal] = useState<string>('');
   const [generatedSummary, setGeneratedSummary] = useState<DietSummaryGenerateOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +45,8 @@ export default function GenerateSummaryPage() {
     setIsLoading(true);
     setError(null);
     setGeneratedSummary(null);
+    addJournalEntry("Summary Generation Started", `Generating a ${isDetailed ? 'detailed' : 'narrative'} summary for ${selectedAnimal}.`);
+
 
     try {
       const animalData = data.filter(row => row.common_name === selectedAnimal);
@@ -96,11 +98,13 @@ export default function GenerateSummaryPage() {
       
       const result = await generateDietSummary(input);
       setGeneratedSummary(result);
+      addJournalEntry("Summary Generation Successful", `Successfully generated summary titled "${result.title}" for ${selectedAnimal}.`);
 
     } catch (err) {
       console.error('Generation failed:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(errorMessage);
+      addJournalEntry("Summary Generation Failed", `Error generating summary for ${selectedAnimal}: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

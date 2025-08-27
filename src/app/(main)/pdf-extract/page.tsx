@@ -17,7 +17,7 @@ export default function PdfExtractPage() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { setExtractedData } = useContext(DataContext);
+  const { setExtractedData, addJournalEntry } = useContext(DataContext);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -64,6 +64,7 @@ export default function PdfExtractPage() {
 
     setIsLoading(true);
     setError(null);
+    addJournalEntry("PDF Extraction Started", `Starting data extraction from ${file.name}.`);
 
     try {
       const reader = new FileReader();
@@ -73,6 +74,7 @@ export default function PdfExtractPage() {
         
         const result = await extractDietPlan({ pdfDataUri });
         setExtractedData(result);
+        addJournalEntry("PDF Extraction Successful", `Successfully extracted diet plan titled "${result.title}" from ${file.name}.`);
         
         router.push('/extracted-data');
       };
@@ -83,6 +85,7 @@ export default function PdfExtractPage() {
         console.error('Extraction failed:', err);
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred during extraction.';
         setError(errorMessage);
+        addJournalEntry("PDF Extraction Failed", `Error extracting data from ${file.name}: ${errorMessage}`);
         setIsLoading(false);
     }
   };

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ import { generateDiet, type DietGenerateInput, type DietGenerateOutput } from '@
 import { getScientificName } from '@/ai/flows/get-scientific-name-flow';
 import { Badge } from '@/components/ui/badge';
 import { ChefHat } from 'lucide-react';
+import { DataContext } from '@/context/data-context';
 
 const formSchema = z.object({
   commonName: z.string().min(1, 'Common name is required.'),
@@ -28,6 +29,7 @@ export default function GenerateDietPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addJournalEntry } = useContext(DataContext);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,6 +44,7 @@ export default function GenerateDietPage() {
     setIsLoading(true);
     setError(null);
     setGeneratedDiet(null);
+    addJournalEntry("Diet Generation Started", `Generating a new diet for ${values.commonName}.`);
 
     try {
       const input: DietGenerateInput = {
@@ -51,10 +54,12 @@ export default function GenerateDietPage() {
       };
       const result = await generateDiet(input);
       setGeneratedDiet(result);
+      addJournalEntry("Diet Generation Successful", `Successfully generated diet plan titled "${result.title}" for ${values.commonName}.`);
     } catch (err) {
       console.error('Generation failed:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(errorMessage);
+      addJournalEntry("Diet Generation Failed", `Error generating diet for ${values.commonName}: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
