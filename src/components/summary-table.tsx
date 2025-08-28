@@ -144,7 +144,18 @@ export function SummaryTable({ data }: {data: SheetDataRow[]}) {
 
 
   const feedTypeOptions = useMemo(() => [...new Set(data.map(item => item['Feed type name']))].sort(), [data]);
-  const ingredientOptions = useMemo(() => [...new Set(data.map(item => item.ingredient_name))].sort(), [data]);
+  
+  const ingredientOptions = useMemo(() => {
+    let relevantData = data;
+    if (feedTypeFilter) {
+      relevantData = data.filter(item => item['Feed type name'] === feedTypeFilter);
+    }
+    return [...new Set(relevantData.map(item => item.ingredient_name))].sort();
+  }, [data, feedTypeFilter]);
+
+  React.useEffect(() => {
+    setIngredientFilter([]);
+  }, [feedTypeFilter]);
 
   const filteredData = useMemo(() => {
     return data.filter(row => {
