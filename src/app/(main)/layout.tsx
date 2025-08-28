@@ -155,11 +155,11 @@ export default function MainLayout({
         <main className="flex-1 flex flex-col">
           {isLoading ? (
             <div className="flex-1 flex flex-col items-center justify-center">
-              <div className={styles['paw-loader-lg']}>
-                  <div className={styles.paw}></div>
-                  <div className={styles.paw}></div>
-                  <div className={styles.paw}></div>
-              </div>
+                <div className={styles['paw-loader-lg']}>
+                    <div className={styles.paw}><span></span></div>
+                    <div className={styles.paw}><span></span></div>
+                    <div className={styles.paw}><span></span></div>
+                </div>
               <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
             </div>
           ) : (
