@@ -85,9 +85,23 @@ export default function MainLayout({
             'preparation_type_name', 'meal_start_time', 'cut_size_name'
           ];
           
-          const headers = (XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[]) || [];
-          if (headers.length === 0) {
-            throw new Error("The Excel sheet is empty or does not contain a valid header row.");
+          const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+          
+          let headerRowIndex = -1;
+          let headers: string[] = [];
+
+          for (let i = 0; i < rowsAsArrays.length; i++) {
+            const row = rowsAsArrays[i];
+            // Check if the row is not empty and contains at least one of the required columns
+            if (row && row.length > 0 && requiredColumns.some(col => row.includes(col))) {
+                headers = row;
+                headerRowIndex = i;
+                break;
+            }
+          }
+          
+          if (headerRowIndex === -1) {
+            throw new Error("A valid header row could not be found. Please ensure the required columns are present.");
           }
 
           const missingColumns = requiredColumns.filter(col => !headers.includes(col));
@@ -95,11 +109,11 @@ export default function MainLayout({
           if (missingColumns.length > 0) {
             throw new Error(`The following required columns are missing: ${missingColumns.join(', ')}`);
           }
-
-          const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet);
+          
+          const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet, { range: headerRowIndex });
 
           if (jsonData.length === 0) {
-            throw new Error("The Excel sheet is empty or in an invalid format.");
+            throw new Error("The Excel sheet contains headers but no data rows.");
           }
           
           setData(jsonData);
