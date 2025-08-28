@@ -99,16 +99,6 @@ export default function MainLayout({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const MAX_FILE_SIZE_MB = 20;
-    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        setError(`File size exceeds ${MAX_FILE_SIZE_MB} MB. Please upload a smaller file.`);
-        addJournalEntry("Excel File Error", `Upload failed: File size is larger than ${MAX_FILE_SIZE_MB} MB.`);
-        if (event.target) {
-            event.target.value = "";
-        }
-        return;
-    }
-
     setIsLoading(true);
     setError(null);
     setData([]);
