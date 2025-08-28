@@ -73,9 +73,11 @@ export default function MainLayout({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFactIndex, setCurrentFactIndex] = useState(0);
 
+  const isShowingLoadingScreen = data.length === 0 || isLoading;
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isLoading) {
+    if (isShowingLoadingScreen) {
       interval = setInterval(() => {
         setCurrentFactIndex((prevIndex) => (prevIndex + 1) % dietFacts.length);
       }, 3000); // Change fact every 3 seconds
@@ -85,7 +87,7 @@ export default function MainLayout({
         clearInterval(interval);
       }
     };
-  }, [isLoading]);
+  }, [isShowingLoadingScreen]);
 
 
   const isActive = (path: string) => {
@@ -123,7 +125,6 @@ export default function MainLayout({
 
           for (let i = 0; i < rowsAsArrays.length; i++) {
             const row = rowsAsArrays[i];
-            // Check if the row is not empty and contains at least one of the required columns
             if (row && row.length > 0 && requiredColumns.some(col => row.includes(col))) {
                 headers = row;
                 headerRowIndex = i;
@@ -382,6 +383,3 @@ export default function MainLayout({
     </SidebarProvider>
   );
 }
-
-
-    
