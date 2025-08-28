@@ -22,6 +22,7 @@ import {
   FileText,
   Bot,
   BookText,
+  Lightbulb,
 } from 'lucide-react';
 
 import {
@@ -190,10 +191,13 @@ export default function MainLayout({
                     <div className={styles.paw}></div>
                     <div className={styles.paw}></div>
                 </div>
-              <span className="text-muted-foreground mt-4 font-semibold text-center">We’re crunching the numbers for your animals</span>
-              <p className="text-muted-foreground mt-4 text-center max-w-md h-10">
-                {dietFacts[currentFactIndex]}
-              </p>
+              <span className="text-muted-foreground mt-4 font-semibold text-center">Transforming diet data into animal intelligence</span>
+              <div className="text-muted-foreground mt-4 text-center max-w-md h-12 flex items-center justify-center p-2 bg-muted/50 rounded-lg">
+                 <Lightbulb className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
+                 <p>
+                    <span className="font-semibold text-primary/80">Tip:</span> {dietFacts[currentFactIndex]}
+                 </p>
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-4">
@@ -378,3 +382,6 @@ export default function MainLayout({
     </SidebarProvider>
   );
 }
+
+
+    
