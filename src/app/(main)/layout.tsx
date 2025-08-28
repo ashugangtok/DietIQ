@@ -38,13 +38,27 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { DataContext } from '@/context/data-context';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useRef, useState, useEffect } from 'react';
 import * as XLSX from "xlsx";
 import { type SheetDataRow } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import styles from '../reporting.module.css';
 import Image from 'next/image';
+
+const dietFacts = [
+    "A balanced carnivore diet should mimic prey: muscle, bone, and organs.",
+    "Herbivores have complex digestive systems to break down tough plant cellulose.",
+    "Omnivores, like bears, adapt their diet to available plants and animals.",
+    "Insects are a crucial protein source for many species (insectivory).",
+    "A giraffe's long neck allows it to browse on leaves others can't reach.",
+    "Pandas almost exclusively eat bamboo, despite having a carnivore's digestive system.",
+    "Foraging enrichment, making animals search for food, is vital for their well-being.",
+    "Seasonal diet changes help animals build fat for winter and eat lighter in summer.",
+    "Koalas specialize in eucalyptus leaves, which are toxic to most other animals.",
+    "Vultures have highly acidic stomachs to safely consume carcasses.",
+];
+
 
 export default function MainLayout({
   children,
@@ -56,6 +70,22 @@ export default function MainLayout({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentFactIndex, setCurrentFactIndex] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      interval = setInterval(() => {
+        setCurrentFactIndex((prevIndex) => (prevIndex + 1) % dietFacts.length);
+      }, 3000); // Change fact every 3 seconds
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isLoading]);
+
 
   const isActive = (path: string) => {
     return pathname === path;
@@ -154,13 +184,16 @@ export default function MainLayout({
         </header>
         <main className="flex-1 flex flex-col">
           {isLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
                 <div className={styles['paw-loader-lg']}>
                     <div className={styles.paw}></div>
                     <div className={styles.paw}></div>
                     <div className={styles.paw}></div>
                 </div>
-              <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
+              <span className="text-muted-foreground mt-4 font-semibold text-center">We’re crunching the numbers for your animals</span>
+              <p className="text-muted-foreground mt-4 text-center max-w-md h-10">
+                {dietFacts[currentFactIndex]}
+              </p>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-4">
