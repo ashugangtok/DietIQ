@@ -85,7 +85,11 @@ export default function MainLayout({
             'preparation_type_name', 'meal_start_time', 'cut_size_name'
           ];
           
-          const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];
+          const headers = (XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[]) || [];
+          if (headers.length === 0) {
+            throw new Error("The Excel sheet is empty or does not contain a valid header row.");
+          }
+
           const missingColumns = requiredColumns.filter(col => !headers.includes(col));
 
           if (missingColumns.length > 0) {
