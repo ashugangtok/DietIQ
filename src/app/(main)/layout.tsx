@@ -23,6 +23,7 @@ import {
   Bot,
   BookText,
   Lightbulb,
+  ListTodo,
 } from 'lucide-react';
 
 import {
@@ -98,6 +99,16 @@ export default function MainLayout({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const MAX_FILE_SIZE_MB = 20;
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setError(`File size exceeds ${MAX_FILE_SIZE_MB} MB. Please upload a smaller file.`);
+        addJournalEntry("Excel File Error", `Upload failed: File size is larger than ${MAX_FILE_SIZE_MB} MB.`);
+        if (event.target) {
+            event.target.value = "";
+        }
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     setData([]);
@@ -125,8 +136,11 @@ export default function MainLayout({
 
           for (let i = 0; i < rowsAsArrays.length; i++) {
             const row = rowsAsArrays[i];
-            if (row && row.length > 0 && requiredColumns.some(col => row.includes(col))) {
-                headers = row;
+            if (row && row.length > 0 && requiredColumns.some(col => {
+                const normalizedRow = row.map(header => String(header).trim().toLowerCase());
+                return normalizedRow.includes(col.trim().toLowerCase());
+            })) {
+                headers = row.map(header => String(header).trim());
                 headerRowIndex = i;
                 break;
             }
@@ -136,7 +150,8 @@ export default function MainLayout({
             throw new Error("A valid header row could not be found. Please ensure the required columns are present.");
           }
 
-          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+          const normalizedHeaders = headers.map(h => h.toLowerCase());
+          const missingColumns = requiredColumns.filter(col => !normalizedHeaders.includes(col.toLowerCase()));
 
           if (missingColumns.length > 0) {
             throw new Error(`The following required columns are missing: ${missingColumns.join(', ')}`);
@@ -308,6 +323,14 @@ export default function MainLayout({
                     <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
                         <Book />
                         <span>Summary Report</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <Link href="/summary-report-check" passHref>
+                    <SidebarMenuButton tooltip="Summary Report Check" isActive={isActive('/summary-report-check')}>
+                        <ListTodo />
+                        <span>Summary Report Check</span>
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
