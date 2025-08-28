@@ -133,9 +133,9 @@ export default function PdfExtractPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-4">
             <div className={styles['paw-loader-lg']}>
-                <div className={styles.paw}><span></span></div>
-                <div className={styles.paw}><span></span></div>
-                <div className={styles.paw}><span></span></div>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
             </div>
             <p className="mt-4 text-muted-foreground font-semibold">
               AI is analyzing the document... this may take a moment.

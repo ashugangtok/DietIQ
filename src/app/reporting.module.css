@@ -3,13 +3,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
 }
 
 .paw {
     position: relative;
     width: 40px;
-    height: 40px;
+    height: 35px;
     background: hsl(var(--primary));
     border-radius: 50% 50% 45% 45%;
     animation: bounce 1.2s infinite;
@@ -17,59 +17,28 @@
 
 .paw-loader-lg .paw {
     width: 80px;
-    height: 80px;
-}
-
-.paw::before,
-.paw::after {
-    content: '';
-    position: absolute;
-    background: hsl(var(--primary));
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-}
-
-.paw-loader-lg .paw::before,
-.paw-loader-lg .paw::after {
-    width: 28px;
-    height: 28px;
+    height: 70px;
 }
 
 .paw::before {
-    top: -10px;
-    left: 2px;
-}
-.paw-loader-lg .paw::before {
-    top: -20px;
-    left: 4px;
-}
-
-.paw::after {
-    top: -10px;
-    right: 2px;
-}
-.paw-loader-lg .paw::after {
-    top: -20px;
-    right: 4px;
-}
-
-.paw span {
+    content: "";
     position: absolute;
-    top: -14px;
+    top: -18px;
     left: 50%;
     transform: translateX(-50%);
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     background: hsl(var(--primary));
     border-radius: 50%;
-}
-.paw-loader-lg .paw span {
-    top: -28px;
-    width: 32px;
-    height: 32px;
+    box-shadow: -18px 5px 0 hsl(var(--primary)), 18px 5px 0 hsl(var(--primary));
 }
 
+.paw-loader-lg .paw::before {
+    top: -36px;
+    width: 28px;
+    height: 28px;
+    box-shadow: -36px 10px 0 hsl(var(--primary)), 36px 10px 0 hsl(var(--primary));
+}
 
 .paw:nth-child(1) { animation-delay: 0s; }
 .paw:nth-child(2) { animation-delay: 0.2s; }
@@ -77,7 +46,7 @@
 
 
 @keyframes bounce {
-    0%, 80%, 100% { transform: scale(0.9); opacity: 0.5; }
+    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
     40% { transform: scale(1.1); opacity: 1; }
 }
 
