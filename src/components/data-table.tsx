@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
-import { Download, FilterX } from "lucide-react";
+import { Download, FilterX, Loader2 } from "lucide-react";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -57,6 +57,7 @@ type AggregatedRow = {
     };
 };
 
+const ROWS_PER_PAGE = 500;
 
 export function DataTable({ data, initialFilters, onFiltersChange }: DataTableProps) {
   const [filters, setFilters] = useState<Filters>(initialFilters || {
@@ -66,12 +67,33 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
   });
   const [processedData, setProcessedData] = useState<AggregatedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(true);
+  const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastRowRef = useCallback((node: HTMLTableRowElement) => {
+    if (isProcessing) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && processedData.length > visibleRows) {
+        setIsProcessing(true);
+        setTimeout(() => {
+          setVisibleRows(prev => prev + ROWS_PER_PAGE);
+          setIsProcessing(false);
+        }, 500); // Add a small delay to show loader
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isProcessing, processedData.length, visibleRows]);
 
   useEffect(() => {
     if (initialFilters) {
         setFilters(initialFilters);
     }
   }, [initialFilters]);
+
+  useEffect(() => {
+    // Reset visible rows when filters change
+    setVisibleRows(ROWS_PER_PAGE);
+  }, [filters]);
 
   const siteNameOptions = useMemo(() => [...new Set(data.map(item => item.site_name))].sort(), [data]);
   const commonNameOptions = useMemo(() => [...new Set(data.map(item => item.common_name))].sort(), [data]);
@@ -326,6 +348,23 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
     return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
   };
 
+  const currentlyVisibleData = useMemo(() => {
+    return processedData.slice(0, visibleRows);
+  }, [processedData, visibleRows]);
+
+  if (isProcessing && processedData.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center p-12">
+               <div className={styles['paw-loader-lg']}>
+                  <div className={styles.paw}></div>
+                  <div className={styles.paw}></div>
+                  <div className={styles.paw}></div>
+              </div>
+              <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
+          </div>
+      )
+  }
+
   return (
     <div className="space-y-6">
       <CardHeader>
@@ -372,16 +411,6 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
           </Button>
       </div>
 
-      {isProcessing ? (
-          <div className="flex flex-col items-center justify-center p-12">
-               <div className={styles['paw-loader-lg']}>
-                  <div className={styles.paw}></div>
-                  <div className={styles.paw}></div>
-                  <div className={styles.paw}></div>
-              </div>
-              <span className="text-muted-foreground mt-2 font-semibold">We’re crunching the numbers for your animals</span>
-          </div>
-      ) : (
         <>
           <div className="relative overflow-x-auto rounded-md border">
               <Table>
@@ -398,13 +427,16 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {processedData.length > 0 ? (
-                          processedData.map(({ groupData, rowSpans }, index) => {
+                      {currentlyVisibleData.length > 0 ? (
+                          currentlyVisibleData.map(({ groupData, rowSpans }, index) => {
                               const { siteName, enclosure, commonName } = rowSpans;
                               const rowData = groupData;
                               const totalDisplay = formatTotal(rowData.total_qty, rowData.total_qty_gram, rowData.total_uom);
+                              
+                              const isLastRow = index === currentlyVisibleData.length - 1;
+
                               return (
-                                  <TableRow key={index}>
+                                  <TableRow key={index} ref={isLastRow ? lastRowRef : null}>
                                       {siteName > 0 && <TableCell rowSpan={siteName} className="align-top font-medium">{rowData.site_name}</TableCell>}
                                       {enclosure > 0 && <TableCell rowSpan={enclosure} className="align-top">{rowData.user_enclosure_name}</TableCell>}
                                       {commonName > 0 && <TableCell rowSpan={commonName} className="align-top">{rowData.common_name} <span className="font-bold">({rowData.animalCount})</span></TableCell>}
@@ -425,10 +457,17 @@ export function DataTable({ data, initialFilters, onFiltersChange }: DataTablePr
                       )}
                   </TableBody>
               </Table>
+              {isProcessing && currentlyVisibleData.length > 0 && (
+                <div className="flex justify-center items-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Loading more data...</span>
+                </div>
+              )}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">Showing {filteredData.length.toLocaleString()} of {data.length.toLocaleString()} rows.</p>
+          <p className="text-sm text-muted-foreground mt-4">Showing {currentlyVisibleData.length.toLocaleString()} of {processedData.length.toLocaleString()} rows.</p>
         </>
-      )}
     </div>
   );
 }
+
+    
