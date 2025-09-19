@@ -25,7 +25,6 @@ import {
   Lightbulb,
   ListTodo,
 } from 'lucide-react';
-import { motion } from "framer-motion";
 
 import {
   SidebarProvider,
@@ -245,14 +244,12 @@ export default function MainLayout({
                           disabled={isLoading}
                           />
                     </div>
-                    <div className="hero-art">
-                        <Image 
-                          src="/hero.png" 
-                          alt="Animal diet analysis illustration"
-                          width={480}
-                          height={360}
-                        />
-                    </div>
+                    <Image 
+                      src="/hero.png" 
+                      alt="Animal diet analysis illustration"
+                      width={480}
+                      height={360}
+                    />
                 </div>
             </section>
           )}

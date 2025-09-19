@@ -50,6 +50,7 @@
 /* Illustration side */
 .hero-art img {
   width: 100%;
+  height: auto;
   display: block;
   margin: 0 auto;
   margin-left: -80px;
