@@ -6,7 +6,7 @@
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.2fr;
   align-items: center;
   gap: 40px;
   max-width: 1200px;
@@ -50,7 +50,7 @@
 /* Illustration side */
 .hero-art img {
   width: 100%;
-  max-width: 600px;
+  max-width: 700px;
   display: block;
   margin: 0 auto;
   margin-left: -80px;
