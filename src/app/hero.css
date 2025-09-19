@@ -2,15 +2,18 @@
 .hero {
   background: #f8fafc; /* light gray background */
   padding: 80px 20px;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr 1.5fr;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 40px;
   max-width: 1400px;
   margin: 0 auto;
+  padding-right: 40%; /* Make space for the absolute image */
 }
 
 /* Text side */
@@ -48,13 +51,14 @@
 }
 
 /* Illustration side */
-.hero-art img {
-  width: 100%;
+.hero-image {
+  position: absolute;
+  top: 50%;
+  right: -5%; /* Position it to overlap from the right */
+  transform: translateY(-50%);
+  width: 65%; /* Make it significantly larger */
   height: auto;
-  display: block;
-  margin: 0 auto;
-  margin-left: -80px;
-  position: relative;
+  max-width: 900px; /* Control max size */
   z-index: 1;
 }
 
@@ -63,6 +67,11 @@
   .hero-grid {
     grid-template-columns: 1fr;
     text-align: center;
+    padding-right: 0;
+  }
+
+  .hero-image {
+    display: none; /* Hide the image on smaller screens to keep it simple */
   }
 
   .hero h1 {
@@ -71,10 +80,5 @@
 
   .hero p {
     font-size: 1rem;
-  }
-
-  .hero-art img {
-    margin-top: 20px;
-    margin-left: auto;
   }
 }
