@@ -249,19 +249,14 @@ export default function MainLayout({
                           disabled={isLoading}
                           />
                     </motion.div>
-                    <motion.div 
-                      className="hero-art"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    >
+                    <div className="hero-art">
                         <Image 
                           src="/hero.png" 
                           alt="Animal diet analysis illustration"
                           width={480}
                           height={360}
                         />
-                    </motion.div>
+                    </div>
                 </div>
             </section>
           )}
@@ -416,7 +411,3 @@ export default function MainLayout({
     </SidebarProvider>
   );
 }
-
-    
-
-    
