@@ -237,17 +237,17 @@ export default function MainLayout({
                            Upload your Excel file and get instant nutrition summaries,
                            macro breakdowns, and exportable reports.
                         </p>
-                        <a href="#" className="btn" onClick={(e) => { e.preventDefault(); handleUploadClick(); }}>
-                             <input 
-                              type="file" 
-                              ref={fileInputRef} 
-                              onChange={handleFileChange}
-                              className="hidden" 
-                              accept=".xlsx"
-                              disabled={isLoading}
-                              />
+                        <button className="btn" onClick={handleUploadClick}>
                             Upload now
-                        </a>
+                        </button>
+                         <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          onChange={handleFileChange}
+                          className="hidden" 
+                          accept=".xlsx"
+                          disabled={isLoading}
+                          />
                     </motion.div>
                     <motion.div 
                       className="hero-art"
@@ -417,3 +417,5 @@ export default function MainLayout({
     </SidebarProvider>
   );
 }
+
+    
