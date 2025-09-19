@@ -227,12 +227,15 @@ export default function MainLayout({
           ) : (
              <section className="hero">
                 <div className="hero-grid">
-                    <div>
-                        <h1>Turn Your Diet Data into Insights</h1>
+                    <motion.div
+                      initial={{ opacity: 0, x: -50 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    >
+                        <h1>Turn your diet data into insights</h1>
                         <p>
-                            Simply upload your Excel file to automatically generate
-                            comprehensive diet plans, track ingredients, and gain valuable
-                            insights into animal nutrition.
+                           Upload your Excel file and get instant nutrition summaries,
+                           macro breakdowns, and exportable reports.
                         </p>
                         <a href="#" className="btn" onClick={(e) => { e.preventDefault(); handleUploadClick(); }}>
                              <input 
@@ -243,12 +246,23 @@ export default function MainLayout({
                               accept=".xlsx"
                               disabled={isLoading}
                               />
-                            Upload Excel File
+                            Upload now
                         </a>
-                    </div>
-                    <div className="hero-art">
-                        <img src="/hero.png" alt="Animal diet analysis illustration" />
-                    </div>
+                    </motion.div>
+                    <motion.div 
+                      className="hero-art"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    >
+                        <Image 
+                          src="/hero.png" 
+                          alt="Animal diet analysis illustration"
+                          width={480}
+                          height={360}
+                          className="rounded-xl shadow-2xl"
+                        />
+                    </motion.div>
                 </div>
             </section>
           )}
