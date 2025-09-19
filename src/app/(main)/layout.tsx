@@ -50,6 +50,24 @@ import Image from 'next/image';
 import './../hero.css';
 import { useRouter } from 'next/navigation';
 
+function RedirectOrLoading() {
+    const router = useRouter();
+    
+    useEffect(() => {
+        router.replace('/upload');
+    }, [router]);
+
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <div className={styles['paw-loader-lg']}>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
+                <div className={styles.paw}></div>
+            </div>
+        </div>
+    );
+}
+
 
 export default function MainLayout({
   children,
@@ -69,30 +87,13 @@ export default function MainLayout({
     router.push('/upload');
   };
 
-  if (data.length === 0 && pathname !== '/upload') {
-     // If there's no data, redirect to the upload page, but allow the upload page itself to render.
-     // Using useEffect to avoid rendering inconsistencies during server/client hydration.
-    useEffect(() => {
-        router.replace('/upload');
-    }, [router]);
-
-    // Render a loading state or null while redirecting
-    return (
-        <div className="flex h-screen items-center justify-center">
-            <div className={styles['paw-loader-lg']}>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
-                <div className={styles.paw}></div>
-            </div>
-        </div>
-    );
+  if (data.length === 0) {
+    if (pathname === '/upload') {
+        return <main>{children}</main>
+    }
+    return <RedirectOrLoading />;
   }
 
-  if (data.length === 0 && pathname === '/upload') {
-      return (
-        <main>{children}</main>
-      )
-  }
 
   return (
     <SidebarProvider>
