@@ -25,6 +25,7 @@ import {
   Lightbulb,
   ListTodo,
 } from 'lucide-react';
+import { motion } from "framer-motion";
 
 import {
   SidebarProvider,
@@ -47,6 +48,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import styles from '../reporting.module.css';
 import Image from 'next/image';
+import './../hero.css';
 
 const dietFacts = [
     "A balanced carnivore diet should mimic prey: muscle, bone, and organs.",
@@ -78,7 +80,7 @@ export default function MainLayout({
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isShowingLoadingScreen) {
+    if (isLoading) {
       interval = setInterval(() => {
         setCurrentFactIndex((prevIndex) => (prevIndex + 1) % dietFacts.length);
       }, 3000); // Change fact every 3 seconds
@@ -88,7 +90,7 @@ export default function MainLayout({
         clearInterval(interval);
       }
     };
-  }, [isShowingLoadingScreen]);
+  }, [isLoading]);
 
 
   const isActive = (path: string) => {
@@ -186,8 +188,9 @@ export default function MainLayout({
   if (data.length === 0) {
     return (
       <div className="flex flex-col min-h-screen">
-        <header className="py-4 px-6 border-b bg-card">
-          <Image src="/logo.png" alt="Sheet Insights" width={180} height={32} />
+        <header className="py-4 px-6 border-b flex items-center justify-between">
+          <Image src="/logo.png" alt="Sheet Insights" width={100} height={100} />
+           <Button variant="outline" onClick={handleUploadClick}>Upload New File</Button>
         </header>
         <main className="flex-1 flex flex-col">
           {isLoading ? (
@@ -197,7 +200,7 @@ export default function MainLayout({
                     <div className={styles.paw}></div>
                     <div className={styles.paw}></div>
                 </div>
-              <span className="text-muted-foreground mt-4 font-semibold text-center">Transforming diet data into animal intelligence</span>
+              <span className="text-muted-foreground mt-4 font-semibold text-center">We’re crunching the numbers for your animals</span>
               <div className="text-muted-foreground mt-4 text-center max-w-md h-12 flex items-center justify-center p-2 bg-muted/50 rounded-lg">
                  <Lightbulb className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
                  <p>
@@ -205,45 +208,49 @@ export default function MainLayout({
                  </p>
               </div>
             </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              <Card className="w-full max-w-5xl shadow-lg">
-                  <CardHeader>
-                  <CardTitle>Upload Your Excel File</CardTitle>
-                  <CardDescription>
-                      Upload your Excel and unlock instant insights.
-                  </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                  <div 
-                      className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
-                      onClick={handleUploadClick}
-                  >
-                      <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileChange}
-                      className="hidden" 
-                      accept=".xlsx"
-                      disabled={isLoading}
-                      />
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <UploadCloud className="w-12 h-12 text-primary" />
-                      <p className="font-semibold">Click to browse or drag & drop</p>
-                      <p className="text-sm">Supports .xlsx files only</p>
-                      </div>
-                  </div>
-
-                  {error && (
-                      <Alert variant="destructive">
+          ) : error ? (
+             <div className="flex-1 flex flex-col items-center justify-center p-4">
+               <Card className="w-full max-w-md">
+                 <CardHeader>
+                   <CardTitle>Upload Error</CardTitle>
+                 </CardHeader>
+                 <CardContent>
+                    <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Error</AlertTitle>
                       <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                  )}
-                  </CardContent>
-              </Card>
+                    </Alert>
+                    <Button onClick={handleUploadClick} className="mt-4 w-full">Try Again</Button>
+                 </CardContent>
+               </Card>
             </div>
+          ) : (
+             <section className="hero">
+                <div className="hero-grid">
+                    <div>
+                        <h1>Turn Your Diet Data into Insights</h1>
+                        <p>
+                            Simply upload your Excel file to automatically generate
+                            comprehensive diet plans, track ingredients, and gain valuable
+                            insights into animal nutrition.
+                        </p>
+                        <a href="#" className="btn" onClick={(e) => { e.preventDefault(); handleUploadClick(); }}>
+                             <input 
+                              type="file" 
+                              ref={fileInputRef} 
+                              onChange={handleFileChange}
+                              className="hidden" 
+                              accept=".xlsx"
+                              disabled={isLoading}
+                              />
+                            Upload Excel File
+                        </a>
+                    </div>
+                    <div className="hero-art">
+                        <img src="/hero.png" alt="Animal diet analysis illustration" />
+                    </div>
+                </div>
+            </section>
           )}
         </main>
       </div>
