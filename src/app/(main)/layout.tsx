@@ -260,7 +260,6 @@ export default function MainLayout({
                           alt="Animal diet analysis illustration"
                           width={480}
                           height={360}
-                          className="rounded-xl shadow-2xl"
                         />
                     </motion.div>
                 </div>
@@ -417,5 +416,7 @@ export default function MainLayout({
     </SidebarProvider>
   );
 }
+
+    
 
     
