@@ -50,9 +50,12 @@
 /* Illustration side */
 .hero-art img {
   width: 100%;
-  max-width: 480px;
+  max-width: 600px;
   display: block;
   margin: 0 auto;
+  margin-left: -80px;
+  position: relative;
+  z-index: 1;
 }
 
 /* Responsive */
@@ -72,7 +75,6 @@
 
   .hero-art img {
     margin-top: 20px;
+    margin-left: auto;
   }
 }
-
-    
