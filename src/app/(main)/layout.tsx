@@ -227,11 +227,7 @@ export default function MainLayout({
           ) : (
              <section className="hero">
                 <div className="hero-grid">
-                    <motion.div
-                      initial={{ opacity: 0, x: -50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    >
+                    <div>
                         <h1>Turn your diet data into insights</h1>
                         <p>
                            Upload your Excel file and get instant nutrition summaries,
@@ -248,7 +244,7 @@ export default function MainLayout({
                           accept=".xlsx"
                           disabled={isLoading}
                           />
-                    </motion.div>
+                    </div>
                     <div className="hero-art">
                         <Image 
                           src="/hero.png" 
