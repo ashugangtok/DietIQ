@@ -54,11 +54,11 @@
 .hero-image {
   position: absolute;
   top: 50%;
-  right: -5%; /* Position it to overlap from the right */
+  right: -2%; /* Position it to overlap from the right */
   transform: translateY(-50%);
-  width: 65%; /* Make it significantly larger */
+  width: 50%; /* Make it significantly larger */
   height: auto;
-  max-width: 900px; /* Control max size */
+  max-width: 700px; /* Control max size */
   z-index: 1;
 }
 
