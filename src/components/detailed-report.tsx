@@ -75,7 +75,6 @@ export function DetailedReport({ data }: DetailedReportProps) {
         grouped[site][animal].days[day].ingredients.push(ingredientEntry);
       }
       
-      // Correctly access the Kilogram, Piece, and Litre fields.
       ingredientEntry.sumOfKilogram += Number(row.Kilogram) || 0;
       ingredientEntry.sumOfPiece += Number(row.Piece) || 0;
       ingredientEntry.sumOfLitre += Number(row.Litre) || 0;
@@ -84,10 +83,19 @@ export function DetailedReport({ data }: DetailedReportProps) {
     return grouped;
   }, [data]);
 
-  const formatNumber = (num: number) => {
-    if (num === 0) return '-';
-    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
+  const formatQuantity = (ingredient: { sumOfKilogram: number; sumOfPiece: number; sumOfLitre: number }) => {
+    const parts: string[] = [];
+    if (ingredient.sumOfKilogram > 0) {
+      parts.push(`${ingredient.sumOfKilogram.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`);
+    }
+    if (ingredient.sumOfPiece > 0) {
+        parts.push(`${ingredient.sumOfPiece.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pcs`);
+    }
+    if (ingredient.sumOfLitre > 0) {
+        parts.push(`${ingredient.sumOfLitre.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ltr`);
+    }
+    return parts.join(', ') || '-';
+  };
 
   return (
     <Card className="shadow-lg">
@@ -102,14 +110,12 @@ export function DetailedReport({ data }: DetailedReportProps) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-1/6">Site Name</TableHead>
-                <TableHead className="w-1/6">Common Name</TableHead>
-                <TableHead className="w-1/6">Total Animal</TableHead>
-                <TableHead className="w-1/6">Day</TableHead>
-                <TableHead className="w-1/6">Ingredient Name</TableHead>
-                <TableHead className="text-right">Sum of kg</TableHead>
-                <TableHead className="text-right">Sum of pcs</TableHead>
-                <TableHead className="text-right">Sum of ltr</TableHead>
+                <TableHead className="w-1/5">Site Name</TableHead>
+                <TableHead className="w-1/5">Common Name</TableHead>
+                <TableHead className="w-[10%]">Total Animal</TableHead>
+                <TableHead className="w-[10%]">Day</TableHead>
+                <TableHead className="w-1/5">Ingredient Name</TableHead>
+                <TableHead className="text-right w-1/5">Total Quantity</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -128,9 +134,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
                             </>
                           )}
                           <TableCell>{ingredient.name}</TableCell>
-                          <TableCell className="text-right">{formatNumber(ingredient.sumOfKilogram)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(ingredient.sumOfPiece)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(ingredient.sumOfLitre)}</TableCell>
+                          <TableCell className="text-right font-bold">{formatQuantity(ingredient)}</TableCell>
                         </TableRow>
                       ))
                     ))
@@ -138,7 +142,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     No data available for this report.
                   </TableCell>
                 </TableRow>
