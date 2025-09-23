@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SheetDataRow } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { PawPrint, Wheat } from 'lucide-react';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -57,6 +58,22 @@ export default function SpeciesDashboardPage() {
 
     }, [filteredData]);
 
+    const stats = useMemo(() => {
+        const animalCountMap = new Map<string, number>();
+        filteredData.forEach(row => {
+            // animal_id is used for TotalAnimal from the sheet
+            const key = `${row.site_name}-${row.common_name}`;
+            if (!animalCountMap.has(key)) {
+                animalCountMap.set(key, Number(row.animal_id) || 0);
+            }
+        });
+        const totalAnimals = Array.from(animalCountMap.values()).reduce((sum, count) => sum + count, 0);
+
+        const totalIngredientsKg = chartData.reduce((sum, item) => sum + item.totalKg, 0);
+
+        return { totalAnimals, totalIngredientsKg };
+    }, [filteredData, chartData]);
+
     if (speciesSiteData.length === 0) {
         return (
             <Card>
@@ -79,6 +96,32 @@ export default function SpeciesDashboardPage() {
 
     return (
         <div className="space-y-6">
+             <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Total Animals</CardTitle>
+                        <PawPrint className="w-5 h-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalAnimals.toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Total number of animals based on filters.
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Total Ingredients Required</CardTitle>
+                        <Wheat className="w-5 h-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalIngredientsKg.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg</div>
+                         <p className="text-xs text-muted-foreground">
+                            Total weight of all ingredients.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
             <Card>
                 <CardHeader>
                     <CardTitle>Species Site Diet Dashboard</CardTitle>
@@ -131,3 +174,5 @@ export default function SpeciesDashboardPage() {
         </div>
     )
 }
+
+    
