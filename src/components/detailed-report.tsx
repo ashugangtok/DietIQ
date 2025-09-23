@@ -133,6 +133,9 @@ export function DetailedReport({ data }: DetailedReportProps) {
     return parts.join(', ') || '-';
   };
 
+  const hasData = Object.keys(processedData).length > 0;
+
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -178,7 +181,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.keys(processedData).length > 0 ? (
+              {hasData ? (
                 Object.entries(processedData).map(([siteName, animals]) => (
                   Object.entries(animals).map(([commonName, animalData]) => (
                     Object.entries(animalData.days).map(([day, dayData]) => (
