@@ -85,18 +85,30 @@ export function DetailedReport({ data }: DetailedReportProps) {
 
   const formatQuantity = (ingredient: { sumOfKilogram: number; sumOfPiece: number; sumOfLitre: number }) => {
     const parts: string[] = [];
-    const numberFormatOptions: Intl.NumberFormatOptions = {
-        maximumFractionDigits: 2,
-    };
+    
+    const formatNumber = (num: number) => {
+        if (num % 1 === 0) {
+            return num.toLocaleString();
+        }
+        return num.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        });
+    }
 
     if (ingredient.sumOfKilogram > 0) {
-      parts.push(`${ingredient.sumOfKilogram.toLocaleString(undefined, numberFormatOptions)} kg`);
+        if (ingredient.sumOfKilogram < 1) {
+            const grams = ingredient.sumOfKilogram * 1000;
+            parts.push(`${formatNumber(grams)} g`);
+        } else {
+            parts.push(`${formatNumber(ingredient.sumOfKilogram)} kg`);
+        }
     }
     if (ingredient.sumOfPiece > 0) {
-        parts.push(`${ingredient.sumOfPiece.toLocaleString(undefined, numberFormatOptions)} pcs`);
+        parts.push(`${formatNumber(ingredient.sumOfPiece)} pcs`);
     }
     if (ingredient.sumOfLitre > 0) {
-        parts.push(`${ingredient.sumOfLitre.toLocaleString(undefined, numberFormatOptions)} ltr`);
+        parts.push(`${formatNumber(ingredient.sumOfLitre)} ltr`);
     }
     return parts.join(', ') || '-';
   };
