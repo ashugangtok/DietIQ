@@ -141,98 +141,96 @@ export default function UploadPage() {
         if (!file) return;
 
         setIsLoading(true);
-setError(null);
-setSpeciesSiteData([]); // Clear previous data
-setUploadTarget('species');
+        setError(null);
+        setSpeciesSiteData([]); // Clear previous data
+        setUploadTarget('species');
 
-setTimeout(() => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const fileData = e.target?.result;
-            const workbook = XLSX.read(fileData, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
+        setTimeout(() => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const fileData = e.target?.result;
+                    const workbook = XLSX.read(fileData, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
 
-            const requiredColumns = ['SiteName', 'ClassName', 'ScientificName', 'CommonName', 'MealStartTime', 'IngredientName', 'Kilogram'];
-            const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as (string | null)[][];
-            
-            let headerRowIndex = -1;
-            for (let i = 0; i < rowsAsArrays.length; i++) {
-                const row = rowsAsArrays[i];
-                // Skip empty or sparse rows
-                if (!row || row.filter(Boolean).length < 3) continue; 
-                
-                const trimmedRow = row.map(header => String(header || '').trim());
-                const matchCount = requiredColumns.filter(col => trimmedRow.includes(col)).length;
-                
-                // A more flexible check: if we find at least 3 of our key columns, it's likely the header.
-                if (matchCount >= 3) { 
-                    headerRowIndex = i;
-                    break;
+                    const requiredColumns = ['SiteName', 'ClassName', 'ScientificName', 'CommonName', 'MealStartTime', 'IngredientName', 'Kilogram'];
+                    const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as (string | null)[][];
+                    
+                    let headerRowIndex = -1;
+                    for (let i = 0; i < rowsAsArrays.length; i++) {
+                        const row = rowsAsArrays[i];
+                        if (!row || row.filter(Boolean).length < 3) continue;
+                        
+                        const lowerCaseRow = row.map(header => String(header || '').trim().toLowerCase());
+                        const lowerCaseRequired = requiredColumns.map(c => c.toLowerCase());
+
+                        const matchCount = lowerCaseRequired.filter(col => lowerCaseRow.includes(col)).length;
+                        
+                        if (matchCount >= 3) {
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                        throw new Error("A valid header row could not be found for the Species Site Diet Report. Please check the column names.");
+                    }
+
+                    const headerRow = rowsAsArrays[headerRowIndex]!.map(h => String(h || '').trim());
+                    const headerMapping: { [key: string]: keyof SheetDataRow } = {
+                        'SiteName': 'site_name',
+                        'ClassName': 'class_name',
+                        'ScientificName': 'scientific_name',
+                        'CommonName': 'common_name',
+                        'TotalAnimal': 'animal_id',
+                        'MealStartTime': 'meal_start_time',
+                        'MealEndTime': 'meal_end_time',
+                        'Type': 'type',
+                        'TypeName': 'type_name',
+                        'IngredientName': 'ingredient_name',
+                        'PreparationTypeName': 'preparation_type_name',
+                        'FeedTypeName': 'Feed type name',
+                        'Day': 'feeding_date',
+                        'CutSizeName': 'cut_size_name',
+                        'Kilogram': 'ingredient_qty',
+                        'GramAverage': 'ingredient_qty_gram'
+                    };
+                    
+                    const normalizedHeaders = headerRow.map(header => headerMapping[header] || header.toLowerCase());
+                    
+                    const dataRows = rowsAsArrays.slice(headerRowIndex + 1);
+                    const worksheetWithNormalizedHeaders = XLSX.utils.aoa_to_sheet([normalizedHeaders, ...dataRows]);
+                    
+                    const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheetWithNormalizedHeaders);
+
+                    if (jsonData.length === 0) {
+                        throw new Error("The Excel sheet contains headers but no data rows.");
+                    }
+                    
+                    setSpeciesSiteData(jsonData);
+                    addJournalEntry("Species Site Diet Report Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
+                    router.push('/species-dashboard');
+
+                } catch (err) {
+                    console.error(err);
+                    const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during file parsing.";
+                    setError(errorMessage);
+                    addJournalEntry("Species Site Diet Report Error", `Failed to parse ${file.name}: ${errorMessage}`);
+                } finally {
+                    setIsLoading(false);
+                    setUploadTarget(null);
                 }
-            }
-
-            if (headerRowIndex === -1) {
-                throw new Error("A valid header row could not be found for the Species Site Diet Report. Please check the column names.");
-            }
-
-            const headerRow = rowsAsArrays[headerRowIndex]!.map(h => String(h || '').trim());
-            const headerMapping: { [key: string]: keyof SheetDataRow } = {
-                'SiteName': 'site_name',
-                'ClassName': 'class_name',
-                'ScientificName': 'scientific_name',
-                'CommonName': 'common_name',
-                'TotalAnimal': 'animal_id',
-                'MealStartTime': 'meal_start_time',
-                'MealEndTime': 'meal_end_time',
-                'Type': 'type',
-                'TypeName': 'type_name',
-                'IngredientName': 'ingredient_name',
-                'PreparationTypeName': 'preparation_type_name',
-                'FeedTypeName': 'Feed type name',
-                'Day': 'feeding_date',
-                'CutSizeName': 'cut_size_name',
-                'Kilogram': 'ingredient_qty',
-                'GramAverage': 'ingredient_qty_gram'
             };
-            
-            const normalizedHeaders = headerRow.map(header => headerMapping[header] || header.toLowerCase());
-            
-            // Create a new worksheet with data from the header row downwards, but with our normalized headers
-            const dataRows = rowsAsArrays.slice(headerRowIndex + 1);
-            const worksheetWithNormalizedHeaders = XLSX.utils.aoa_to_sheet([normalizedHeaders, ...dataRows]);
-            
-            // Convert to JSON using our new worksheet
-            const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheetWithNormalizedHeaders);
-
-            if (jsonData.length === 0) {
-                throw new Error("The Excel sheet contains headers but no data rows.");
-            }
-            
-            setSpeciesSiteData(jsonData);
-            addJournalEntry("Species Site Diet Report Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
-            router.push('/species-dashboard');
-
-        } catch (err) {
-            console.error(err);
-            const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during file parsing.";
-            setError(errorMessage);
-            addJournalEntry("Species Site Diet Report Error", `Failed to parse ${file.name}: ${errorMessage}`);
-        } finally {
-            setIsLoading(false);
-            setUploadTarget(null);
-        }
-    };
-    reader.onerror = () => {
-        const errorMessage = "Failed to read the file.";
-        setError(errorMessage);
-        setIsLoading(false);
-        addJournalEntry("Species Site Diet Report Error", `Failed to read ${file.name}: An unknown error occurred.`);
-        setUploadTarget(null);
-    };
-    reader.readAsArrayBuffer(file);
-}, 50);
+            reader.onerror = () => {
+                const errorMessage = "Failed to read the file.";
+                setError(errorMessage);
+                setIsLoading(false);
+                addJournalEntry("Species Site Diet Report Error", `Failed to read ${file.name}: An unknown error occurred.`);
+                setUploadTarget(null);
+            };
+            reader.readAsArrayBuffer(file);
+        }, 50);
         
         if (event.target) {
             event.target.value = "";
