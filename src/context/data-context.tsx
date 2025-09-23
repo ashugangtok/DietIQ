@@ -16,6 +16,8 @@ export interface PackingItem {
     status: 'Pending' | 'Packed' | 'Dispatched';
 }
 
+type UploadType = 'daily' | 'species' | null;
+
 interface DataContextType {
     data: SheetDataRow[];
     setData: Dispatch<SetStateAction<SheetDataRow[]>>;
@@ -27,6 +29,8 @@ interface DataContextType {
     setExtractedData: Dispatch<SetStateAction<DietPlanExtractOutput | null>>;
     journalEntries: JournalEntry[];
     addJournalEntry: (action: string, details: string) => void;
+    uploadType: UploadType;
+    setUploadType: Dispatch<SetStateAction<UploadType>>;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -40,6 +44,8 @@ export const DataContext = createContext<DataContextType>({
     setExtractedData: () => {},
     journalEntries: [],
     addJournalEntry: () => {},
+    uploadType: null,
+    setUploadType: () => {},
 });
 
 interface DataProviderProps {
@@ -52,6 +58,8 @@ export function DataProvider({ children }: DataProviderProps) {
     const [packingList, setPackingList] = useState<PackingItem[]>([]);
     const [extractedData, setExtractedData] = useState<DietPlanExtractOutput | null>(null);
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+    const [uploadType, setUploadType] = useState<UploadType>(null);
+
 
     const addJournalEntry = useCallback((action: string, details: string) => {
         const newEntry: JournalEntry = {
@@ -73,6 +81,8 @@ export function DataProvider({ children }: DataProviderProps) {
         setExtractedData,
         journalEntries,
         addJournalEntry,
+        uploadType,
+        setUploadType,
     };
 
     return (

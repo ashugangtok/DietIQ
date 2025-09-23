@@ -77,7 +77,7 @@ export default function MainLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data, setData, speciesSiteData } = useContext(DataContext);
+  const { data, setData, speciesSiteData, setSpeciesSiteData, uploadType, setUploadType } = useContext(DataContext);
   
   const isActive = (path: string) => {
     return pathname === path;
@@ -85,10 +85,12 @@ export default function MainLayout({
   
   const handleReset = () => {
     setData([]);
+    setSpeciesSiteData([]);
+    setUploadType(null);
     router.push('/upload');
   };
 
-  if (data.length === 0 && speciesSiteData.length === 0) {
+  if (!uploadType) {
     if (pathname === '/upload') {
         return <main>{children}</main>
     }
@@ -106,135 +108,143 @@ export default function MainLayout({
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            <SidebarMenuItem>
-                <Link href="/dashboard" passHref>
-                    <SidebarMenuButton tooltip="Live Dashboard" isActive={isActive('/dashboard')}>
-                        <BarChart2 />
-                        <span>Live Dashboard</span>
+            {uploadType === 'daily' && (
+              <>
+                <SidebarMenuItem>
+                    <Link href="/dashboard" passHref>
+                        <SidebarMenuButton tooltip="Live Dashboard" isActive={isActive('/dashboard')}>
+                            <BarChart2 />
+                            <span>Live Dashboard</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/data-table" passHref>
+                        <SidebarMenuButton tooltip="Data Table" isActive={isActive('/data-table')}>
+                            <Table />
+                            <span>Data Table</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/summary" passHref>
+                        <SidebarMenuButton tooltip="Summary" isActive={isActive('/summary')}>
+                            <TrendingUp />
+                            <span>Summary</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/ingredient-breakup" passHref>
+                        <SidebarMenuButton tooltip="Ingredient Breakup" isActive={isActive('/ingredient-breakup')}>
+                            <Spline />
+                            <span>Ingredient Breakup</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/meal-group-breakup" passHref>
+                        <SidebarMenuButton tooltip="Meal Group Breakup" isActive={isActive('/meal-group-breakup')}>
+                            <Group />
+                            <span>Meal Group Breakup</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/diet-plan" passHref>
+                        <SidebarMenuButton tooltip="Diet Plan" isActive={isActive('/diet-plan')}>
+                            <ClipboardList />
+                            <span>Diet Plan</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/summary-report" passHref>
+                        <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
+                            <Book />
+                            <span>Summary Report</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/summary-report-check" passHref>
+                        <SidebarMenuButton tooltip="Summary Report Check" isActive={isActive('/summary-report-check')}>
+                            <ListTodo />
+                            <span>Summary Report Check</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/overall-report" passHref>
+                        <SidebarMenuButton tooltip="Overall Report" isActive={isActive('/overall-report')}>
+                            <BookCopy />
+                            <span>Overall Report</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/overall-report-check" passHref>
+                        <SidebarMenuButton tooltip="Overall Report Check" isActive={isActive('/overall-report-check')}>
+                            <ClipboardCheck />
+                            <span>Overall Report Check</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <Link href="/journal" passHref>
+                    <SidebarMenuButton tooltip="Journal" isActive={isActive('/journal')}>
+                      <BookText />
+                      <span>Journal</span>
                     </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/species-dashboard" passHref>
-                    <SidebarMenuButton tooltip="Species Dashboard" isActive={isActive('/species-dashboard')}>
-                        <LayoutGrid />
-                        <span>Species Dashboard</span>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/pdf-extract" passHref>
+                    <SidebarMenuButton tooltip="Extract from PDF" isActive={isActive('/pdf-extract')}>
+                      <FileText />
+                      <span>Extract from PDF</span>
                     </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/data-table" passHref>
-                    <SidebarMenuButton tooltip="Data Table" isActive={isActive('/data-table')}>
-                        <Table />
-                        <span>Data Table</span>
+                  </Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <Link href="/generate-summary" passHref>
+                    <SidebarMenuButton tooltip="Generate Summary" isActive={isActive('/generate-summary')}>
+                      <FileSpreadsheet />
+                      <span>Generate Summary</span>
                     </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/summary" passHref>
-                    <SidebarMenuButton tooltip="Summary" isActive={isActive('/summary')}>
-                        <TrendingUp />
-                        <span>Summary</span>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/generate-diet" passHref>
+                    <SidebarMenuButton tooltip="Generate Diet" isActive={isActive('/generate-diet')}>
+                      <Bot />
+                      <span>Generate Diet</span>
                     </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/ingredient-breakup" passHref>
-                    <SidebarMenuButton tooltip="Ingredient Breakup" isActive={isActive('/ingredient-breakup')}>
-                        <Spline />
-                        <span>Ingredient Breakup</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/meal-group-breakup" passHref>
-                    <SidebarMenuButton tooltip="Meal Group Breakup" isActive={isActive('/meal-group-breakup')}>
-                        <Group />
-                        <span>Meal Group Breakup</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/diet-plan" passHref>
-                    <SidebarMenuButton tooltip="Diet Plan" isActive={isActive('/diet-plan')}>
-                        <ClipboardList />
-                        <span>Diet Plan</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/summary-report" passHref>
-                    <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
-                        <Book />
-                        <span>Summary Report</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-                <Link href="/summary-report-check" passHref>
-                    <SidebarMenuButton tooltip="Summary Report Check" isActive={isActive('/summary-report-check')}>
-                        <ListTodo />
-                        <span>Summary Report Check</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-                <Link href="/overall-report" passHref>
-                    <SidebarMenuButton tooltip="Overall Report" isActive={isActive('/overall-report')}>
-                        <BookCopy />
-                        <span>Overall Report</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="/overall-report-check" passHref>
-                    <SidebarMenuButton tooltip="Overall Report Check" isActive={isActive('/overall-report-check')}>
-                        <ClipboardCheck />
-                        <span>Overall Report Check</span>
-                    </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/journal" passHref>
-                <SidebarMenuButton tooltip="Journal" isActive={isActive('/journal')}>
-                  <BookText />
-                  <span>Journal</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/pdf-extract" passHref>
-                <SidebarMenuButton tooltip="Extract from PDF" isActive={isActive('/pdf-extract')}>
-                  <FileText />
-                  <span>Extract from PDF</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/generate-summary" passHref>
-                <SidebarMenuButton tooltip="Generate Summary" isActive={isActive('/generate-summary')}>
-                  <FileSpreadsheet />
-                  <span>Generate Summary</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/generate-diet" passHref>
-                <SidebarMenuButton tooltip="Generate Diet" isActive={isActive('/generate-diet')}>
-                  <Bot />
-                  <span>Generate Diet</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
+                  </Link>
+                </SidebarMenuItem>
+              </>
+            )}
+            {uploadType === 'species' && (
+                <SidebarMenuItem>
+                    <Link href="/species-dashboard" passHref>
+                        <SidebarMenuButton tooltip="Species Dashboard" isActive={isActive('/species-dashboard')}>
+                            <LayoutGrid />
+                            <span>Species Dashboard</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-            <Link href="/kitchen" passHref>
-                <SidebarMenuButton tooltip="Go to Kitchen">
-                    <ChefHat />
-                    <span>Go to Kitchen</span>
-                </SidebarMenuButton>
-            </Link>
+            {uploadType === 'daily' && (
+              <Link href="/kitchen" passHref>
+                  <SidebarMenuButton tooltip="Go to Kitchen">
+                      <ChefHat />
+                      <span>Go to Kitchen</span>
+                  </SidebarMenuButton>
+              </Link>
+            )}
             <Button variant="ghost" onClick={handleReset}>Upload New File</Button>
         </SidebarFooter>
       </Sidebar>

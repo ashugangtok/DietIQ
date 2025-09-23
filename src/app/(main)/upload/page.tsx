@@ -30,7 +30,7 @@ const dietFacts = [
 
 
 export default function UploadPage() {
-    const { setData, setSpeciesSiteData, addJournalEntry } = useContext(DataContext);
+    const { setData, setSpeciesSiteData, addJournalEntry, setUploadType } = useContext(DataContext);
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -80,19 +80,36 @@ export default function UploadPage() {
                 'preparation_type_name', 'meal_start_time', 'cut_size_name'
             ];
             
-            const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+            const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as (string | null)[][];
             
             let headerRowIndex = -1;
             
-            for (let i = 0; i < rowsAsArrays.length; i++) {
-                const row = rowsAsArrays[i];
-                if (row && row.length > 0) {
-                    const normalizedRow = row.map(header => String(header).trim().toLowerCase().replace(/\s+/g, '_'));
-                    const matchCount = requiredColumns.filter(col => normalizedRow.includes(col.toLowerCase())).length;
-                    if (matchCount > requiredColumns.length / 2) {
-                        headerRowIndex = i;
-                        break;
+             // Pre-process by merging first few rows to handle multi-line headers
+            const maxMerge = 5;
+            const mergedRows: string[][] = [];
+            for(let i=0; i < Math.min(maxMerge, rowsAsArrays.length); i++) {
+                const mergedRow = rowsAsArrays[0].map((val, colIdx) => {
+                    let cellContent = String(val || '').trim();
+                    for (let j=1; j <= i; j++) {
+                        cellContent += String(rowsAsArrays[j][colIdx] || '').trim();
                     }
+                    return cellContent;
+                });
+                mergedRows.push(mergedRow);
+            }
+            
+            for (let i = 0; i < mergedRows.length; i++) {
+                const row = mergedRows[i];
+                if (!row || row.filter(Boolean).length < 3) continue;
+                
+                const normalizedRow = row.map(header => String(header || '').trim().toLowerCase().replace(/\s+/g, '_'));
+                const lowerCaseRequired = requiredColumns.map(c => c.toLowerCase());
+                
+                const matchCount = lowerCaseRequired.filter(col => normalizedRow.includes(col)).length;
+                
+                if (matchCount > requiredColumns.length / 2) {
+                    headerRowIndex = i;
+                    break;
                 }
             }
             
@@ -100,13 +117,48 @@ export default function UploadPage() {
                 throw new Error("A valid header row could not be found. Please ensure the required columns are present.");
             }
             
-            const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet, { range: headerRowIndex });
+            const finalHeaderRow = mergedRows[headerRowIndex];
+            const headerMapping: { [key: string]: keyof SheetDataRow } = {
+                'sitename': 'site_name',
+                'animalid': 'animal_id',
+                'commonname': 'common_name',
+                'scientificname': 'scientific_name',
+                'sectionname': 'section_name',
+                'userenclosurename': 'user_enclosure_name',
+                'feedtypename': 'Feed type name',
+                'dietname': 'diet_name',
+                'dietno': 'diet_no',
+                'ingredientname': 'ingredient_name',
+                'typename': 'type_name',
+                'groupname': 'group_name',
+                'ingredientqty': 'ingredient_qty',
+                'baseuomname': 'base_uom_name',
+                'ingredientqtygram': 'ingredient_qty_gram',
+                'baseuomnamegram': 'base_uom_name_gram',
+                'preparationtypename': 'preparation_type_name',
+                'mealstarttime': 'meal_start_time',
+                'mealendtime': 'meal_end_time',
+                'cutsizename': 'cut_size_name',
+                'feedingdate': 'feeding_date'
+            };
+
+            const normalizedHeaders = finalHeaderRow.map(header => {
+                const trimmedHeader = String(header || '').trim().replace(/\s+/g, '').toLowerCase();
+                return headerMapping[trimmedHeader] || trimmedHeader;
+            });
+            
+            const dataRows = rowsAsArrays.slice(headerRowIndex + 1);
+            const worksheetWithNormalizedHeaders = XLSX.utils.aoa_to_sheet([normalizedHeaders, ...dataRows]);
+
+            const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheetWithNormalizedHeaders);
+
 
             if (jsonData.length === 0) {
                 throw new Error("The Excel sheet contains headers but no data rows.");
             }
             
             setData(jsonData);
+            setUploadType('daily');
             addJournalEntry("Excel File Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
             router.push('/dashboard');
 
@@ -226,6 +278,7 @@ export default function UploadPage() {
                     }
                     
                     setSpeciesSiteData(jsonData);
+                    setUploadType('species');
                     addJournalEntry("Species Site Diet Report Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
                     router.push('/species-dashboard');
 
