@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useContext, useMemo } from 'react';
+import { useState, useContext, useMemo, useEffect } from 'react';
 import { DataContext } from '@/context/data-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,12 +40,12 @@ export default function SpeciesDashboardPage() {
     }, [speciesSiteData, siteFilter, speciesFilter]);
 
     // Reset dependent filters when a parent filter changes
-    React.useEffect(() => {
+    useEffect(() => {
         setSpeciesFilter('');
         setTimeFilter('');
     }, [siteFilter]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         setTimeFilter('');
     }, [speciesFilter]);
 
