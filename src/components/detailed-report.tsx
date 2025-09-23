@@ -37,6 +37,38 @@ interface GroupedData {
   };
 }
 
+const formatQuantity = (kg: number, pcs: number, ltr: number) => {
+    const parts: string[] = [];
+    
+    const formatNumber = (num: number) => {
+      // Check if the number is an integer
+      if (num % 1 === 0) {
+        return num.toLocaleString(); // Format with no decimal places
+      }
+      // For decimals, format with up to 2 decimal places
+      return num.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    if (kg > 0) {
+      if (kg < 1) {
+        const grams = kg * 1000;
+        parts.push(`${formatNumber(grams)} g`);
+      } else {
+        parts.push(`${formatNumber(kg)} kg`);
+      }
+    }
+    if (pcs > 0) {
+      parts.push(`${formatNumber(pcs)} pcs`);
+    }
+    if (ltr > 0) {
+      parts.push(`${formatNumber(ltr)} ltr`);
+    }
+    return parts.join(', ') || '-';
+};
+
 export function DetailedReport({ data }: DetailedReportProps) {
   const [siteFilter, setSiteFilter] = useState('');
   const [commonNameFilter, setCommonNameFilter] = useState('');
@@ -95,38 +127,6 @@ export function DetailedReport({ data }: DetailedReportProps) {
     return grouped;
   }, [filteredData]);
 
-  const formatQuantity = (ingredient: { sumOfKilogram: number; sumOfPiece: number; sumOfLitre: number }) => {
-    const parts: string[] = [];
-    
-    const formatNumber = (num: number) => {
-      // Check if the number is an integer
-      if (num % 1 === 0) {
-        return num.toLocaleString(); // Format with no decimal places
-      }
-      // For decimals, format with up to 2 decimal places
-      return num.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      });
-    }
-
-    if (ingredient.sumOfKilogram > 0) {
-      if (ingredient.sumOfKilogram < 1) {
-        const grams = ingredient.sumOfKilogram * 1000;
-        parts.push(`${formatNumber(grams)} g`);
-      } else {
-        parts.push(`${formatNumber(ingredient.sumOfKilogram)} kg`);
-      }
-    }
-    if (ingredient.sumOfPiece > 0) {
-      parts.push(`${formatNumber(ingredient.sumOfPiece)} pcs`);
-    }
-    if (ingredient.sumOfLitre > 0) {
-      parts.push(`${formatNumber(ingredient.sumOfLitre)} ltr`);
-    }
-    return parts.join(', ') || '-';
-  };
-
   const hasData = useMemo(() => Object.keys(processedData).length > 0 && filteredData.length > 0, [processedData, filteredData]);
 
   return (
@@ -177,6 +177,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
                 <TableHead className="w-[10%]">Total Animal</TableHead>
                 <TableHead className="w-[10%]">Day</TableHead>
                 <TableHead className="w-1/5">Ingredient Name</TableHead>
+                <TableHead className="text-right w-1/5">Qty per Animal</TableHead>
                 <TableHead className="text-right w-1/5">Total Quantity</TableHead>
               </TableRow>
             </TableHeader>
@@ -189,26 +190,38 @@ export function DetailedReport({ data }: DetailedReportProps) {
                       .sort((a, b) => a[0].localeCompare(b[0])) // Sort by Common Name
                       .map(([commonName, animalData]) =>
                         Object.entries(animalData.days).map(([day, dayData]) =>
-                          dayData.ingredients.map((ingredient, index) => (
-                            <TableRow key={`${siteName}-${commonName}-${day}-${ingredient.name}`}>
-                              {index === 0 && (
-                                <>
-                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top font-medium">{siteName}</TableCell>
-                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{commonName}</TableCell>
-                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{animalData.totalAnimal}</TableCell>
-                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{day}</TableCell>
-                                </>
-                              )}
-                              <TableCell>{ingredient.name}</TableCell>
-                              <TableCell className="text-right font-bold">{formatQuantity(ingredient)}</TableCell>
-                            </TableRow>
-                          ))
+                          dayData.ingredients.map((ingredient, index) => {
+                            const totalAnimals = animalData.totalAnimal > 0 ? animalData.totalAnimal : 1;
+                            const qtyPerAnimalKg = ingredient.sumOfKilogram / totalAnimals;
+                            const qtyPerAnimalPcs = ingredient.sumOfPiece / totalAnimals;
+                            const qtyPerAnimalLtr = ingredient.sumOfLitre / totalAnimals;
+
+                            return (
+                                <TableRow key={`${siteName}-${commonName}-${day}-${ingredient.name}`}>
+                                {index === 0 && (
+                                    <>
+                                    <TableCell rowSpan={dayData.ingredients.length} className="align-top font-medium">{siteName}</TableCell>
+                                    <TableCell rowSpan={dayData.ingredients.length} className="align-top">{commonName}</TableCell>
+                                    <TableCell rowSpan={dayData.ingredients.length} className="align-top">{animalData.totalAnimal}</TableCell>
+                                    <TableCell rowSpan={dayData.ingredients.length} className="align-top">{day}</TableCell>
+                                    </>
+                                )}
+                                <TableCell>{ingredient.name}</TableCell>
+                                <TableCell className="text-right font-semibold text-primary">
+                                    {formatQuantity(qtyPerAnimalKg, qtyPerAnimalPcs, qtyPerAnimalLtr)}
+                                </TableCell>
+                                <TableCell className="text-right font-bold">
+                                    {formatQuantity(ingredient.sumOfKilogram, ingredient.sumOfPiece, ingredient.sumOfLitre)}
+                                </TableCell>
+                                </TableRow>
+                            )
+                          })
                         )
                       )
                   )
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     No data available for the selected filters.
                   </TableCell>
                 </TableRow>
