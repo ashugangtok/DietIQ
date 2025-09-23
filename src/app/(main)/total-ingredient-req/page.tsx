@@ -105,9 +105,9 @@ export default function TotalIngredientReqPage() {
       }
 
       const current = ingredientMap.get(ingredient_name)!;
-      current.kg += Number(Kilogram) || 0;
-      current.pcs += Number(Piece) || 0;
-      current.ltr += Number(Litre) || 0;
+      current.kg += parseFloat(String(Kilogram)) || 0;
+      current.pcs += parseFloat(String(Piece)) || 0;
+      current.ltr += parseFloat(String(Litre)) || 0;
     });
 
     const result: AggregatedIngredient[] = Array.from(ingredientMap.entries()).map(
