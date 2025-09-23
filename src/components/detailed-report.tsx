@@ -96,9 +96,11 @@ export function DetailedReport({ data }: DetailedReportProps) {
     const parts: string[] = [];
     
     const formatNumber = (num: number) => {
+      // Check if the number is an integer
       if (num % 1 === 0) {
-        return num.toLocaleString();
+        return num.toLocaleString(); // Format with no decimal places
       }
+      // For decimals, format with up to 2 decimal places
       return num.toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
@@ -122,7 +124,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
     return parts.join(', ') || '-';
   };
 
-  const hasData = useMemo(() => Object.keys(processedData).length > 0, [processedData]);
+  const hasData = useMemo(() => Object.keys(processedData).length > 0 && filteredData.length > 0, [processedData, filteredData]);
 
   return (
     <Card className="shadow-lg">
@@ -170,26 +172,30 @@ export function DetailedReport({ data }: DetailedReportProps) {
             </TableHeader>
             <TableBody>
               {hasData ? (
-                Object.entries(processedData).map(([siteName, animals]) => (
-                  Object.entries(animals).map(([commonName, animalData]) => (
-                    Object.entries(animalData.days).map(([day, dayData]) => (
-                      dayData.ingredients.map((ingredient, index) => (
-                        <TableRow key={`${siteName}-${commonName}-${day}-${ingredient.name}`}>
-                          {index === 0 && (
-                            <>
-                              <TableCell rowSpan={dayData.ingredients.length} className="align-top font-medium">{siteName}</TableCell>
-                              <TableCell rowSpan={dayData.ingredients.length} className="align-top">{commonName}</TableCell>
-                              <TableCell rowSpan={dayData.ingredients.length} className="align-top">{animalData.totalAnimal}</TableCell>
-                              <TableCell rowSpan={dayData.ingredients.length} className="align-top">{day}</TableCell>
-                            </>
-                          )}
-                          <TableCell>{ingredient.name}</TableCell>
-                          <TableCell className="text-right font-bold">{formatQuantity(ingredient)}</TableCell>
-                        </TableRow>
-                      ))
-                    ))
-                  ))
-                ))
+                Object.entries(processedData)
+                  .sort((a, b) => a[0].localeCompare(b[0])) // Sort by Site Name
+                  .map(([siteName, animals]) =>
+                    Object.entries(animals)
+                      .sort((a, b) => a[0].localeCompare(b[0])) // Sort by Common Name
+                      .map(([commonName, animalData]) =>
+                        Object.entries(animalData.days).map(([day, dayData]) =>
+                          dayData.ingredients.map((ingredient, index) => (
+                            <TableRow key={`${siteName}-${commonName}-${day}-${ingredient.name}`}>
+                              {index === 0 && (
+                                <>
+                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top font-medium">{siteName}</TableCell>
+                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{commonName}</TableCell>
+                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{animalData.totalAnimal}</TableCell>
+                                  <TableCell rowSpan={dayData.ingredients.length} className="align-top">{day}</TableCell>
+                                </>
+                              )}
+                              <TableCell>{ingredient.name}</TableCell>
+                              <TableCell className="text-right font-bold">{formatQuantity(ingredient)}</TableCell>
+                            </TableRow>
+                          ))
+                        )
+                      )
+                  )
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
