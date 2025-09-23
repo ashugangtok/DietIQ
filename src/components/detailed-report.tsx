@@ -19,17 +19,6 @@ interface DetailedReportProps {
   data: SheetDataRow[];
 }
 
-interface ReportRow {
-  siteName: string;
-  commonName: string;
-  totalAnimal: number;
-  day: string;
-  ingredientName: string;
-  sumOfKilogram: number;
-  sumOfPiece: number;
-  sumOfLitre: number;
-}
-
 interface GroupedData {
   [site: string]: {
     [animal: string]: {
@@ -59,16 +48,16 @@ export function DetailedReport({ data }: DetailedReportProps) {
     const days = [...new Set(data.map(row => row.feeding_date).filter(Boolean))].sort();
     return { sites, commonNames, days };
   }, [data]);
-  
+
   const filteredData = useMemo(() => {
     return data.filter(row => {
-        const siteMatch = !siteFilter || row.site_name === siteFilter;
-        const commonNameMatch = !commonNameFilter || row.common_name === commonNameFilter;
-        const dayMatch = !dayFilter || row.feeding_date === dayFilter;
-        return siteMatch && commonNameMatch && dayMatch;
+      const siteMatch = !siteFilter || row.site_name === siteFilter;
+      const commonNameMatch = !commonNameFilter || row.common_name === commonNameFilter;
+      const dayMatch = !dayFilter || row.feeding_date === dayFilter;
+      return siteMatch && commonNameMatch && dayMatch;
     });
   }, [data, siteFilter, commonNameFilter, dayFilter]);
-
+  
   const processedData = useMemo(() => {
     const grouped: GroupedData = {};
 
@@ -107,34 +96,33 @@ export function DetailedReport({ data }: DetailedReportProps) {
     const parts: string[] = [];
     
     const formatNumber = (num: number) => {
-        if (num % 1 === 0) {
-            return num.toLocaleString();
-        }
-        return num.toLocaleString(undefined, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        });
+      if (num % 1 === 0) {
+        return num.toLocaleString();
+      }
+      return num.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
     }
 
     if (ingredient.sumOfKilogram > 0) {
-        if (ingredient.sumOfKilogram < 1) {
-            const grams = ingredient.sumOfKilogram * 1000;
-            parts.push(`${formatNumber(grams)} g`);
-        } else {
-            parts.push(`${formatNumber(ingredient.sumOfKilogram)} kg`);
-        }
+      if (ingredient.sumOfKilogram < 1) {
+        const grams = ingredient.sumOfKilogram * 1000;
+        parts.push(`${formatNumber(grams)} g`);
+      } else {
+        parts.push(`${formatNumber(ingredient.sumOfKilogram)} kg`);
+      }
     }
     if (ingredient.sumOfPiece > 0) {
-        parts.push(`${formatNumber(ingredient.sumOfPiece)} pcs`);
+      parts.push(`${formatNumber(ingredient.sumOfPiece)} pcs`);
     }
     if (ingredient.sumOfLitre > 0) {
-        parts.push(`${formatNumber(ingredient.sumOfLitre)} ltr`);
+      parts.push(`${formatNumber(ingredient.sumOfLitre)} ltr`);
     }
     return parts.join(', ') || '-';
   };
 
-  const hasData = Object.keys(processedData).length > 0;
-
+  const hasData = useMemo(() => Object.keys(processedData).length > 0, [processedData]);
 
   return (
     <Card className="shadow-lg">
