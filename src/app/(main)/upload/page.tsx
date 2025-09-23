@@ -259,7 +259,9 @@ export default function UploadPage() {
                         'FeedTypeName': 'Feed type name',
                         'Day': 'feeding_date',
                         'CutSizeName': 'cut_size_name',
-                        'Kilogram': 'ingredient_qty',
+                        'Kilogram': 'Kilogram',
+                        'Piece': 'Piece',
+                        'Litre': 'Litre',
                         'GramAverage': 'ingredient_qty_gram'
                     };
                     
@@ -406,3 +408,4 @@ export default function UploadPage() {
             </main>
         </div>
     );
+}
