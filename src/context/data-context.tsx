@@ -19,6 +19,8 @@ export interface PackingItem {
 interface DataContextType {
     data: SheetDataRow[];
     setData: Dispatch<SetStateAction<SheetDataRow[]>>;
+    speciesSiteData: SheetDataRow[];
+    setSpeciesSiteData: Dispatch<SetStateAction<SheetDataRow[]>>;
     packingList: PackingItem[];
     setPackingList: Dispatch<SetStateAction<PackingItem[]>>;
     extractedData: DietPlanExtractOutput | null;
@@ -30,6 +32,8 @@ interface DataContextType {
 export const DataContext = createContext<DataContextType>({
     data: [],
     setData: () => {},
+    speciesSiteData: [],
+    setSpeciesSiteData: () => {},
     packingList: [],
     setPackingList: () => {},
     extractedData: null,
@@ -44,6 +48,7 @@ interface DataProviderProps {
 
 export function DataProvider({ children }: DataProviderProps) {
     const [data, setData] = useState<SheetDataRow[]>([]);
+    const [speciesSiteData, setSpeciesSiteData] = useState<SheetDataRow[]>([]);
     const [packingList, setPackingList] = useState<PackingItem[]>([]);
     const [extractedData, setExtractedData] = useState<DietPlanExtractOutput | null>(null);
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -60,6 +65,8 @@ export function DataProvider({ children }: DataProviderProps) {
     const value = {
         data,
         setData,
+        speciesSiteData,
+        setSpeciesSiteData,
         packingList,
         setPackingList,
         extractedData,

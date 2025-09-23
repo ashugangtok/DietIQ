@@ -24,6 +24,7 @@ import {
   BookText,
   Lightbulb,
   ListTodo,
+  LayoutGrid,
 } from 'lucide-react';
 
 import {
@@ -76,7 +77,7 @@ export default function MainLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data, setData, addJournalEntry } = useContext(DataContext);
+  const { data, setData, speciesSiteData } = useContext(DataContext);
   
   const isActive = (path: string) => {
     return pathname === path;
@@ -87,7 +88,7 @@ export default function MainLayout({
     router.push('/upload');
   };
 
-  if (data.length === 0) {
+  if (data.length === 0 && speciesSiteData.length === 0) {
     if (pathname === '/upload') {
         return <main>{children}</main>
     }
@@ -110,6 +111,14 @@ export default function MainLayout({
                     <SidebarMenuButton tooltip="Live Dashboard" isActive={isActive('/dashboard')}>
                         <BarChart2 />
                         <span>Live Dashboard</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <Link href="/species-dashboard" passHref>
+                    <SidebarMenuButton tooltip="Species Dashboard" isActive={isActive('/species-dashboard')}>
+                        <LayoutGrid />
+                        <span>Species Dashboard</span>
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>

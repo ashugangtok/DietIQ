@@ -31,11 +31,15 @@ const dietFacts = [
 
 
 export default function UploadPage() {
-    const { setData, addJournalEntry } = useContext(DataContext);
+    const { setData, setSpeciesSiteData, addJournalEntry } = useContext(DataContext);
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadTarget, setUploadTarget] = useState<'daily' | 'species' | null>(null);
+
+    const dailyFileInputRef = useRef<HTMLInputElement>(null);
+    const speciesFileInputRef = useRef<HTMLInputElement>(null);
+    
     const [currentFactIndex, setCurrentFactIndex] = useState(0);
 
     useEffect(() => {
@@ -59,6 +63,7 @@ export default function UploadPage() {
         setIsLoading(true);
         setError(null);
         setData([]);
+        setUploadTarget('daily');
 
         setTimeout(() => {
         const reader = new FileReader();
@@ -79,29 +84,21 @@ export default function UploadPage() {
             const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
             
             let headerRowIndex = -1;
-            let headers: string[] = [];
-
+            
             for (let i = 0; i < rowsAsArrays.length; i++) {
                 const row = rowsAsArrays[i];
-                if (row && row.length > 0 && requiredColumns.some(col => {
+                if (row && row.length > 0) {
                     const normalizedRow = row.map(header => String(header).trim().toLowerCase());
-                    return normalizedRow.includes(col.trim().toLowerCase());
-                })) {
-                    headers = row.map(header => String(header).trim());
-                    headerRowIndex = i;
-                    break;
+                    const matchCount = requiredColumns.filter(col => normalizedRow.includes(col.toLowerCase())).length;
+                    if (matchCount > requiredColumns.length / 2) {
+                        headerRowIndex = i;
+                        break;
+                    }
                 }
             }
             
             if (headerRowIndex === -1) {
                 throw new Error("A valid header row could not be found. Please ensure the required columns are present.");
-            }
-
-            const normalizedHeaders = headers.map(h => h.toLowerCase());
-            const missingColumns = requiredColumns.filter(col => !normalizedHeaders.includes(col.toLowerCase()));
-
-            if (missingColumns.length > 0) {
-                throw new Error(`The following required columns are missing: ${missingColumns.join(', ')}`);
             }
             
             const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(worksheet, { range: headerRowIndex });
@@ -121,6 +118,7 @@ export default function UploadPage() {
             addJournalEntry("Excel File Error", `Failed to parse ${file.name}: ${errorMessage}`);
             } finally {
             setIsLoading(false);
+            setUploadTarget(null);
             }
         };
         reader.onerror = () => {
@@ -128,6 +126,7 @@ export default function UploadPage() {
             setError(errorMessage);
             setIsLoading(false);
             addJournalEntry("Excel File Error", `Failed to read ${file.name}: An unknown error occurred.`);
+            setUploadTarget(null);
         };
         reader.readAsArrayBuffer(file);
         }, 50);
@@ -137,15 +136,123 @@ export default function UploadPage() {
         }
     };
 
-    const handleUploadClick = () => {
-        fileInputRef.current?.click();
+    const handleSpeciesSiteFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsLoading(true);
+        setError(null);
+        setSpeciesSiteData([]);
+        setUploadTarget('species');
+
+        setTimeout(() => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const fileData = e.target?.result;
+                    const workbook = XLSX.read(fileData, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+
+                    const requiredColumns = ['ClassName', 'ScientificName', 'CommonName', 'MealStartTime', 'IngredientName', 'Kilogram'];
+                    
+                    const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as string[][];
+                    
+                    let headerRowIndex = -1;
+                    for (let i = 0; i < rowsAsArrays.length; i++) {
+                        const row = rowsAsArrays[i];
+                        if (row && row.length > 0) {
+                            const trimmedRow = row.map(header => String(header).trim());
+                            const matchCount = requiredColumns.filter(col => trimmedRow.includes(col)).length;
+                            if (matchCount >= 3) {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                        throw new Error("A valid header row could not be found for the Species Site Diet Report. Please check the column names.");
+                    }
+
+                    const headerRow = rowsAsArrays[headerRowIndex];
+                    const headerMapping: { [key: string]: keyof SheetDataRow } = {
+                        'ClassName': 'class_name',
+                        'ScientificName': 'scientific_name',
+                        'CommonName': 'common_name',
+                        'TotalAnimal': 'animal_id', // Re-using animal_id for count, can be adjusted
+                        'MealStartTime': 'meal_start_time',
+                        'MealEndTime': 'meal_end_time',
+                        'Type': 'type',
+                        'TypeName': 'type_name',
+                        'IngredientName': 'ingredient_name',
+                        'PreparationTypeName': 'preparation_type_name',
+                        'FeedTypeName': 'Feed type name',
+                        'Day': 'feeding_date',
+                        'CutSizeName': 'cut_size_name',
+                        'Kilogram': 'ingredient_qty',
+                        'GramAverage': 'ingredient_qty_gram'
+                        // Add other mappings as needed
+                    };
+                    
+                    const normalizedHeaders = headerRow.map(header => headerMapping[String(header).trim()] || String(header).trim().toLowerCase());
+                    
+                    // Replace original header row with normalized one
+                    rowsAsArrays[headerRowIndex] = normalizedHeaders;
+
+                    const newWorksheet = XLSX.utils.aoa_to_sheet(rowsAsArrays);
+                    const jsonData = XLSX.utils.sheet_to_json<SheetDataRow>(newWorksheet);
+
+                    if (jsonData.length === 0) {
+                        throw new Error("The Excel sheet contains headers but no data rows.");
+                    }
+                    
+                    setSpeciesSiteData(jsonData);
+                    addJournalEntry("Species Site Diet Report Uploaded", `Successfully loaded ${jsonData.length} rows from ${file.name}.`);
+                    router.push('/species-dashboard');
+
+                } catch (err) {
+                    console.error(err);
+                    const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during file parsing.";
+                    setError(errorMessage);
+                    addJournalEntry("Species Site Diet Report Error", `Failed to parse ${file.name}: ${errorMessage}`);
+                } finally {
+                    setIsLoading(false);
+                    setUploadTarget(null);
+                }
+            };
+            reader.onerror = () => {
+                const errorMessage = "Failed to read the file.";
+                setError(errorMessage);
+                setIsLoading(false);
+                addJournalEntry("Species Site Diet Report Error", `Failed to read ${file.name}: An unknown error occurred.`);
+                setUploadTarget(null);
+            };
+            reader.readAsArrayBuffer(file);
+        }, 50);
+        
+        if (event.target) {
+            event.target.value = "";
+        }
+    };
+
+
+    const handleDailyUploadClick = () => {
+        dailyFileInputRef.current?.click();
+    };
+
+    const handleSpeciesUploadClick = () => {
+        speciesFileInputRef.current?.click();
     };
 
     return (
         <div className="flex flex-col min-h-screen">
             <header className="py-4 px-6 border-b flex items-center justify-between">
             <Image src="/logo.png" alt="Sheet Insights" width={100} height={100} />
-            <Button variant="outline" onClick={handleUploadClick}>Upload New File</Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={handleDailyUploadClick}>Upload Daily Diet Report</Button>
+                <Button variant="outline" onClick={handleSpeciesUploadClick}>Upload Species Site Diet Report</Button>
+            </div>
             </header>
             <main className="flex-1 flex flex-col">
             {isLoading ? (
@@ -155,7 +262,9 @@ export default function UploadPage() {
                         <div className={styles.paw}></div>
                         <div className={styles.paw}></div>
                     </div>
-                <span className="text-muted-foreground mt-4 font-semibold text-center">We’re crunching the numbers for your animals</span>
+                <span className="text-muted-foreground mt-4 font-semibold text-center">
+                    We’re crunching the numbers for {uploadTarget === 'species' ? 'your new report' : 'your animals'}
+                </span>
                 <div className="text-muted-foreground mt-4 text-center max-w-md h-12 flex items-center justify-center p-2 bg-muted/50 rounded-lg">
                     <Lightbulb className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
                     <p>
@@ -175,7 +284,7 @@ export default function UploadPage() {
                         <AlertTitle>Error</AlertTitle>
                         <AlertDescription>{error}</AlertDescription>
                         </Alert>
-                        <Button onClick={handleUploadClick} className="mt-4 w-full">Try Again</Button>
+                        <Button onClick={uploadTarget === 'species' ? handleSpeciesUploadClick : handleDailyUploadClick} className="mt-4 w-full">Try Again</Button>
                     </CardContent>
                 </Card>
                 </div>
@@ -185,20 +294,33 @@ export default function UploadPage() {
                         <div>
                             <h1>Turn your diet data into insights</h1>
                             <p>
-                            Upload your Excel file and get instant nutrition summaries,
-                            macro breakdowns, and exportable reports.
+                                Select a report type to upload your Excel file and get instant nutrition summaries,
+                                macro breakdowns, and exportable reports.
                             </p>
-                            <button className="btn" onClick={handleUploadClick}>
-                                Upload now
-                            </button>
-                            <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleFileChange}
-                            className="hidden" 
-                            accept=".xlsx"
-                            disabled={isLoading}
-                            />
+                            <div className="flex flex-wrap gap-4">
+                                <button className="btn" onClick={handleDailyUploadClick}>
+                                    Upload Daily Diet Report
+                                </button>
+                                <button className="btn" onClick={handleSpeciesUploadClick}>
+                                    Upload Species Site Diet Report
+                                </button>
+                                <input 
+                                    type="file" 
+                                    ref={dailyFileInputRef} 
+                                    onChange={handleFileChange}
+                                    className="hidden" 
+                                    accept=".xlsx, .xls"
+                                    disabled={isLoading}
+                                />
+                                <input 
+                                    type="file" 
+                                    ref={speciesFileInputRef} 
+                                    onChange={handleSpeciesSiteFileChange}
+                                    className="hidden" 
+                                    accept=".xlsx, .xls"
+                                    disabled={isLoading}
+                                />
+                            </div>
                         </div>
                     </div>
                     <Image 
