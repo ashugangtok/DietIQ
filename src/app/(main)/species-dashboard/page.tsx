@@ -29,10 +29,26 @@ export default function SpeciesDashboardPage() {
 
     const filterOptions = useMemo(() => {
         const sites = [...new Set(speciesSiteData.map(row => row.site_name).filter(Boolean))].sort();
-        const species = [...new Set(speciesSiteData.map(row => row.common_name).filter(Boolean))].sort();
-        const times = [...new Set(speciesSiteData.map(row => row.meal_start_time).filter(Boolean))].sort();
+
+        const speciesData = siteFilter ? speciesSiteData.filter(row => row.site_name === siteFilter) : speciesSiteData;
+        const species = [...new Set(speciesData.map(row => row.common_name).filter(Boolean))].sort();
+        
+        const timeData = speciesData.filter(row => !speciesFilter || row.common_name === speciesFilter);
+        const times = [...new Set(timeData.map(row => row.meal_start_time).filter(Boolean))].sort();
+
         return { sites, species, times };
-    }, [speciesSiteData]);
+    }, [speciesSiteData, siteFilter, speciesFilter]);
+
+    // Reset dependent filters when a parent filter changes
+    React.useEffect(() => {
+        setSpeciesFilter('');
+        setTimeFilter('');
+    }, [siteFilter]);
+
+    React.useEffect(() => {
+        setTimeFilter('');
+    }, [speciesFilter]);
+
 
     const filteredData = useMemo(() => {
         return speciesSiteData.filter(row => {
@@ -137,14 +153,14 @@ export default function SpeciesDashboardPage() {
                             {filterOptions.sites.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Select value={speciesFilter} onValueChange={(value) => setSpeciesFilter(value === 'all' ? '' : value)}>
+                    <Select value={speciesFilter} onValueChange={(value) => setSpeciesFilter(value === 'all' ? '' : value)} disabled={!siteFilter}>
                         <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Species" /></SelectTrigger>
                         <SelectContent>
                              <SelectItem value="all">All Species</SelectItem>
                             {filterOptions.species.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value === 'all' ? '' : value)}>
+                    <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value === 'all' ? '' : value)} disabled={!speciesFilter}>
                         <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Meal Time" /></SelectTrigger>
                         <SelectContent>
                              <SelectItem value="all">All Meal Times</SelectItem>
@@ -174,5 +190,3 @@ export default function SpeciesDashboardPage() {
         </div>
     )
 }
-
-    
