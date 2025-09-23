@@ -75,16 +75,10 @@ export function DetailedReport({ data }: DetailedReportProps) {
         grouped[site][animal].days[day].ingredients.push(ingredientEntry);
       }
       
-      const uom = row.base_uom_name?.toLowerCase() || '';
-      const qty = row.ingredient_qty || 0;
-
-      if (uom.includes('kilogram') || uom.includes('kg')) {
-        ingredientEntry.sumOfKilogram += qty;
-      } else if (uom.includes('piece') || uom.includes('pc')) {
-        ingredientEntry.sumOfPiece += qty;
-      } else if (uom.includes('litre') || uom.includes('l')) {
-        ingredientEntry.sumOfLitre += qty;
-      }
+      // Correctly access the Kilogram, Piece, and Litre fields.
+      ingredientEntry.sumOfKilogram += Number(row.Kilogram) || 0;
+      ingredientEntry.sumOfPiece += Number(row.Piece) || 0;
+      ingredientEntry.sumOfLitre += Number(row.Litre) || 0;
     });
 
     return grouped;
