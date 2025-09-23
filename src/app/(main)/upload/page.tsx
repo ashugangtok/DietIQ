@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useContext, useRef, useState, useEffect } from 'react';
@@ -88,7 +87,7 @@ export default function UploadPage() {
             for (let i = 0; i < rowsAsArrays.length; i++) {
                 const row = rowsAsArrays[i];
                 if (row && row.length > 0) {
-                    const normalizedRow = row.map(header => String(header).trim().toLowerCase());
+                    const normalizedRow = row.map(header => String(header).trim().toLowerCase().replace(/\s+/g, '_'));
                     const matchCount = requiredColumns.filter(col => normalizedRow.includes(col.toLowerCase())).length;
                     if (matchCount > requiredColumns.length / 2) {
                         headerRowIndex = i;
@@ -158,11 +157,26 @@ export default function UploadPage() {
                     const rowsAsArrays = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }) as (string | null)[][];
                     
                     let headerRowIndex = -1;
-                    for (let i = 0; i < rowsAsArrays.length; i++) {
-                        const row = rowsAsArrays[i];
+                    
+                    // Pre-process by merging first few rows to handle multi-line headers
+                    const maxMerge = 5;
+                    const mergedRows: string[][] = [];
+                    for(let i=0; i < Math.min(maxMerge, rowsAsArrays.length); i++) {
+                        const mergedRow = rowsAsArrays[0].map((val, colIdx) => {
+                            let cellContent = String(val || '').trim();
+                            for (let j=1; j <= i; j++) {
+                                cellContent += String(rowsAsArrays[j][colIdx] || '').trim();
+                            }
+                            return cellContent;
+                        });
+                        mergedRows.push(mergedRow);
+                    }
+
+                    for (let i = 0; i < mergedRows.length; i++) {
+                        const row = mergedRows[i];
                         if (!row || row.filter(Boolean).length < 3) continue;
                         
-                        const lowerCaseRow = row.map(header => String(header || '').trim().toLowerCase());
+                        const lowerCaseRow = row.map(header => String(header || '').trim().toLowerCase().replace(/\s+/g, ''));
                         const lowerCaseRequired = requiredColumns.map(c => c.toLowerCase());
 
                         const matchCount = lowerCaseRequired.filter(col => lowerCaseRow.includes(col)).length;
@@ -177,7 +191,7 @@ export default function UploadPage() {
                         throw new Error("A valid header row could not be found for the Species Site Diet Report. Please check the column names.");
                     }
 
-                    const headerRow = rowsAsArrays[headerRowIndex]!.map(h => String(h || '').trim());
+                    const finalHeaderRow = mergedRows[headerRowIndex];
                     const headerMapping: { [key: string]: keyof SheetDataRow } = {
                         'SiteName': 'site_name',
                         'ClassName': 'class_name',
@@ -197,7 +211,10 @@ export default function UploadPage() {
                         'GramAverage': 'ingredient_qty_gram'
                     };
                     
-                    const normalizedHeaders = headerRow.map(header => headerMapping[header] || header.toLowerCase());
+                    const normalizedHeaders = finalHeaderRow.map(header => {
+                        const trimmedHeader = String(header || '').trim().replace(/\s+/g, '');
+                        return headerMapping[trimmedHeader as keyof typeof headerMapping] || trimmedHeader.toLowerCase();
+                    });
                     
                     const dataRows = rowsAsArrays.slice(headerRowIndex + 1);
                     const worksheetWithNormalizedHeaders = XLSX.utils.aoa_to_sheet([normalizedHeaders, ...dataRows]);
@@ -336,4 +353,3 @@ export default function UploadPage() {
             </main>
         </div>
     );
-}
