@@ -54,27 +54,29 @@ const formatAmount = (quantity: number, quantityGram: number, uom: string) => {
 
 
 export default function TotalIngredientReqPage() {
-  const { data } = useContext(DataContext);
+  const { data, speciesSiteData, uploadType } = useContext(DataContext);
   const [siteFilter, setSiteFilter] = useState<string>("");
   const [ingredientFilter, setIngredientFilter] = useState<string>("");
 
+  const activeData = uploadType === 'species' ? speciesSiteData : data;
+
   const siteOptions = useMemo(
-    () => [...new Set(data.map((item) => item.site_name))].sort(),
-    [data]
+    () => [...new Set(activeData.map((item) => item.site_name))].sort(),
+    [activeData]
   );
   
   const ingredientOptions = useMemo(
-    () => [...new Set(data.map((item) => item.ingredient_name))].sort(),
-    [data]
+    () => [...new Set(activeData.map((item) => item.ingredient_name))].sort(),
+    [activeData]
   );
 
   const filteredData = useMemo(() => {
-    return data.filter((row) => {
+    return activeData.filter((row) => {
       const siteMatch = !siteFilter || row.site_name === siteFilter;
       const ingredientMatch = !ingredientFilter || row.ingredient_name === ingredientFilter;
       return siteMatch && ingredientMatch;
     });
-  }, [data, siteFilter, ingredientFilter]);
+  }, [activeData, siteFilter, ingredientFilter]);
 
   const aggregatedIngredients = useMemo(() => {
     if (filteredData.length === 0) return [];
