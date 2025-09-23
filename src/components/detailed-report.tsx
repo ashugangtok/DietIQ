@@ -41,12 +41,14 @@ export function DetailedReport({ data }: DetailedReportProps) {
   const [siteFilter, setSiteFilter] = useState('');
   const [commonNameFilter, setCommonNameFilter] = useState('');
   const [dayFilter, setDayFilter] = useState('');
+  const [ingredientFilter, setIngredientFilter] = useState('');
 
   const filterOptions = useMemo(() => {
     const sites = [...new Set(data.map(row => row.site_name).filter(Boolean))].sort();
     const commonNames = [...new Set(data.map(row => row.common_name).filter(Boolean))].sort();
     const days = [...new Set(data.map(row => row.feeding_date).filter(Boolean))].sort();
-    return { sites, commonNames, days };
+    const ingredients = [...new Set(data.map(row => row.ingredient_name).filter(Boolean))].sort();
+    return { sites, commonNames, days, ingredients };
   }, [data]);
 
   const filteredData = useMemo(() => {
@@ -54,9 +56,10 @@ export function DetailedReport({ data }: DetailedReportProps) {
       const siteMatch = !siteFilter || row.site_name === siteFilter;
       const commonNameMatch = !commonNameFilter || row.common_name === commonNameFilter;
       const dayMatch = !dayFilter || row.feeding_date === dayFilter;
-      return siteMatch && commonNameMatch && dayMatch;
+      const ingredientMatch = !ingredientFilter || row.ingredient_name === ingredientFilter;
+      return siteMatch && commonNameMatch && dayMatch && ingredientMatch;
     });
-  }, [data, siteFilter, commonNameFilter, dayFilter]);
+  }, [data, siteFilter, commonNameFilter, dayFilter, ingredientFilter]);
   
   const processedData = useMemo(() => {
     const grouped: GroupedData = {};
@@ -155,6 +158,13 @@ export function DetailedReport({ data }: DetailedReportProps) {
                 <SelectContent>
                     <SelectItem value="all">All Days</SelectItem>
                     {filterOptions.days.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Select value={ingredientFilter} onValueChange={(value) => setIngredientFilter(value === 'all' ? '' : value)}>
+                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Ingredient" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Ingredients</SelectItem>
+                    {filterOptions.ingredients.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                 </SelectContent>
             </Select>
         </div>
