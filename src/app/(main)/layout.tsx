@@ -159,14 +159,6 @@ export default function MainLayout({
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <Link href="/total-ingredient-req" passHref>
-                        <SidebarMenuButton tooltip="Total Ingredient Req." isActive={isActive('/total-ingredient-req')}>
-                            <Package />
-                            <span>Total Ingredient Req.</span>
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <Link href="/summary-report" passHref>
                         <SidebarMenuButton tooltip="Summary Report" isActive={isActive('/summary-report')}>
