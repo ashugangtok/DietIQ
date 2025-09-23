@@ -29,27 +29,41 @@ import { type SheetDataRow } from "@/types";
 
 interface AggregatedIngredient {
   name: string;
-  totalQty: number;
-  totalGram: number;
-  uom: string;
+  totalKg: number;
+  totalPcs: number;
+  totalLtr: number;
 }
 
-const formatAmount = (quantity: number, quantityGram: number, uom: string) => {
-    if (!uom) return "0";
-    const uomLower = uom.toLowerCase();
+const formatQuantity = (kg: number, pcs: number, ltr: number) => {
+    const parts: string[] = [];
     
-    if (uomLower === 'kilogram' || uomLower === 'kg') {
-        const totalGrams = quantityGram > 0 ? quantityGram : quantity * 1000;
-        if (totalGrams < 1000) {
-            return `${totalGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g`;
-        }
-        return `${(totalGrams / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+    const formatNumber = (num: number) => {
+      // Check if the number is an integer
+      if (num % 1 === 0) {
+        return num.toLocaleString(); // Format with no decimal places
+      }
+      // For decimals, format with up to 2 decimal places
+      return num.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
     }
-    
-    if (quantity === 1) {
-      return `${quantity.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${uom}`;
+
+    if (kg > 0) {
+      if (kg < 1) {
+        const grams = kg * 1000;
+        parts.push(`${formatNumber(grams)} g`);
+      } else {
+        parts.push(`${formatNumber(kg)} kg`);
+      }
     }
-    return `${quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${uom}`;
+    if (pcs > 0) {
+      parts.push(`${formatNumber(pcs)} pcs`);
+    }
+    if (ltr > 0) {
+      parts.push(`${formatNumber(ltr)} ltr`);
+    }
+    return parts.join(', ') || '-';
 };
 
 
@@ -81,26 +95,27 @@ export default function TotalIngredientReqPage() {
   const aggregatedIngredients = useMemo(() => {
     if (filteredData.length === 0) return [];
 
-    const ingredientMap = new Map<string, { qty: number; qty_gram: number; uom: string }>();
+    const ingredientMap = new Map<string, { kg: number; pcs: number; ltr: number }>();
 
     filteredData.forEach((row) => {
-      const { ingredient_name, ingredient_qty, ingredient_qty_gram, base_uom_name } = row;
+      const { ingredient_name, Kilogram, Piece, Litre } = row;
 
       if (!ingredientMap.has(ingredient_name)) {
-        ingredientMap.set(ingredient_name, { qty: 0, qty_gram: 0, uom: base_uom_name });
+        ingredientMap.set(ingredient_name, { kg: 0, pcs: 0, ltr: 0 });
       }
 
       const current = ingredientMap.get(ingredient_name)!;
-      current.qty += ingredient_qty || 0;
-      current.qty_gram += ingredient_qty_gram || 0;
+      current.kg += Number(Kilogram) || 0;
+      current.pcs += Number(Piece) || 0;
+      current.ltr += Number(Litre) || 0;
     });
 
     const result: AggregatedIngredient[] = Array.from(ingredientMap.entries()).map(
       ([name, totals]) => ({
         name,
-        totalQty: totals.qty,
-        totalGram: totals.qty_gram,
-        uom: totals.uom,
+        totalKg: totals.kg,
+        totalPcs: totals.pcs,
+        totalLtr: totals.ltr,
       })
     );
     
@@ -167,7 +182,7 @@ export default function TotalIngredientReqPage() {
                   <TableRow key={row.name}>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell className="text-right font-bold text-primary">
-                      {formatAmount(row.totalQty, row.totalGram, row.uom)}
+                      {formatQuantity(row.totalKg, row.totalPcs, row.totalLtr)}
                     </TableCell>
                   </TableRow>
                 ))
