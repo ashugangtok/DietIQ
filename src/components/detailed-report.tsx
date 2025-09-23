@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface DetailedReportProps {
   data: SheetDataRow[];
@@ -48,11 +49,30 @@ interface GroupedData {
 }
 
 export function DetailedReport({ data }: DetailedReportProps) {
+  const [siteFilter, setSiteFilter] = useState('');
+  const [commonNameFilter, setCommonNameFilter] = useState('');
+  const [dayFilter, setDayFilter] = useState('');
+
+  const filterOptions = useMemo(() => {
+    const sites = [...new Set(data.map(row => row.site_name).filter(Boolean))].sort();
+    const commonNames = [...new Set(data.map(row => row.common_name).filter(Boolean))].sort();
+    const days = [...new Set(data.map(row => row.feeding_date).filter(Boolean))].sort();
+    return { sites, commonNames, days };
+  }, [data]);
+  
+  const filteredData = useMemo(() => {
+    return data.filter(row => {
+        const siteMatch = !siteFilter || row.site_name === siteFilter;
+        const commonNameMatch = !commonNameFilter || row.common_name === commonNameFilter;
+        const dayMatch = !dayFilter || row.feeding_date === dayFilter;
+        return siteMatch && commonNameMatch && dayMatch;
+    });
+  }, [data, siteFilter, commonNameFilter, dayFilter]);
 
   const processedData = useMemo(() => {
     const grouped: GroupedData = {};
 
-    data.forEach(row => {
+    filteredData.forEach(row => {
       const site = row.site_name || 'N/A';
       const animal = row.common_name || 'N/A';
       const day = row.feeding_date || 'N/A';
@@ -81,7 +101,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
     });
 
     return grouped;
-  }, [data]);
+  }, [filteredData]);
 
   const formatQuantity = (ingredient: { sumOfKilogram: number; sumOfPiece: number; sumOfLitre: number }) => {
     const parts: string[] = [];
@@ -122,6 +142,29 @@ export function DetailedReport({ data }: DetailedReportProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+            <Select value={siteFilter} onValueChange={(value) => setSiteFilter(value === 'all' ? '' : value)}>
+                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Site" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Sites</SelectItem>
+                    {filterOptions.sites.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Select value={commonNameFilter} onValueChange={(value) => setCommonNameFilter(value === 'all' ? '' : value)}>
+                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Common Name" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Common Names</SelectItem>
+                    {filterOptions.commonNames.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Select value={dayFilter} onValueChange={(value) => setDayFilter(value === 'all' ? '' : value)}>
+                <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filter by Day" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Days</SelectItem>
+                    {filterOptions.days.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                </SelectContent>
+            </Select>
+        </div>
         <div className="relative overflow-x-auto rounded-md border">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -159,7 +202,7 @@ export function DetailedReport({ data }: DetailedReportProps) {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    No data available for this report.
+                    No data available for the selected filters.
                   </TableCell>
                 </TableRow>
               )}
