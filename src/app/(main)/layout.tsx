@@ -25,6 +25,7 @@ import {
   Lightbulb,
   ListTodo,
   LayoutGrid,
+  Package,
 } from 'lucide-react';
 
 import {
@@ -155,6 +156,14 @@ export default function MainLayout({
                         <SidebarMenuButton tooltip="Diet Plan" isActive={isActive('/diet-plan')}>
                             <ClipboardList />
                             <span>Diet Plan</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/total-ingredient-req" passHref>
+                        <SidebarMenuButton tooltip="Total Ingredient Req." isActive={isActive('/total-ingredient-req')}>
+                            <Package />
+                            <span>Total Ingredient Req.</span>
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
