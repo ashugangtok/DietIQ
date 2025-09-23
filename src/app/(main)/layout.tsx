@@ -225,6 +225,7 @@ export default function MainLayout({
               </>
             )}
             {uploadType === 'species' && (
+              <>
                 <SidebarMenuItem>
                     <Link href="/species-dashboard" passHref>
                         <SidebarMenuButton tooltip="Species Dashboard" isActive={isActive('/species-dashboard')}>
@@ -233,6 +234,15 @@ export default function MainLayout({
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/detailed-report" passHref>
+                        <SidebarMenuButton tooltip="Detailed Report" isActive={isActive('/detailed-report')}>
+                            <FileSpreadsheet />
+                            <span>Detailed Report</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+              </>
             )}
           </SidebarMenu>
         </SidebarContent>
