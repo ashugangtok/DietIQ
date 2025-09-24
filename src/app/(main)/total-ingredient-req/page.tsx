@@ -18,13 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { type SheetDataRow } from "@/types";
 
 interface AggregatedIngredient {
@@ -86,8 +80,8 @@ export default function TotalIngredientReqPage() {
 
   const filteredData = useMemo(() => {
     return activeData.filter((row) => {
-      const siteMatch = !siteFilter || row.site_name === siteFilter;
-      const ingredientMatch = !ingredientFilter || row.ingredient_name === ingredientFilter;
+      const siteMatch = !siteFilter || row.site_name.toLowerCase() === siteFilter.toLowerCase();
+      const ingredientMatch = !ingredientFilter || row.ingredient_name.toLowerCase() === ingredientFilter.toLowerCase();
       return siteMatch && ingredientMatch;
     });
   }, [activeData, siteFilter, ingredientFilter]);
@@ -135,38 +129,20 @@ export default function TotalIngredientReqPage() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-          <Select
+          <Combobox
+            options={siteOptions.map(s => ({ value: s, label: s }))}
             value={siteFilter}
-            onValueChange={(value) => setSiteFilter(value === "all" ? "" : value)}
-          >
-            <SelectTrigger className="w-full sm:w-[240px]">
-              <SelectValue placeholder="Filter by Site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
-              {siteOptions.map((option, index) => (
-                <SelectItem key={`${option}-${index}`} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
+            onChange={setSiteFilter}
+            placeholder="Filter by Site"
+            searchPlaceholder="Search sites..."
+          />
+          <Combobox
+            options={ingredientOptions.map(i => ({ value: i, label: i }))}
             value={ingredientFilter}
-            onValueChange={(value) => setIngredientFilter(value === "all" ? "" : value)}
-          >
-            <SelectTrigger className="w-full sm:w-[240px]">
-              <SelectValue placeholder="Filter by Ingredient" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Ingredients</SelectItem>
-              {ingredientOptions.map((option, index) => (
-                <SelectItem key={`${option}-${index}`} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={setIngredientFilter}
+            placeholder="Filter by Ingredient"
+            searchPlaceholder="Search ingredients..."
+          />
         </div>
         <div className="relative overflow-x-auto rounded-md border">
           <Table>
