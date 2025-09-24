@@ -2,7 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useContext } from "react";
+import { DataContext } from "@/context/data-context";
 import { type SheetDataRow } from "@/types";
 import {
   Table,
@@ -129,10 +130,6 @@ export function DetailedReport({ data }: DetailedReportProps) {
 
   const hasData = useMemo(() => Object.keys(processedData).length > 0 && filteredData.length > 0, [processedData, filteredData]);
 
-  const comboboxOptions = (items: string[]) => {
-    return [{ value: "all", label: "All" }, ...items.map(item => ({ value: item, label: item }))]
-  }
-
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -146,28 +143,28 @@ export function DetailedReport({ data }: DetailedReportProps) {
             <Combobox
                 options={filterOptions.sites.map(s => ({ value: s, label: s }))}
                 value={siteFilter}
-                onChange={setSiteFilter}
+                onChange={(value) => setSiteFilter(value.toLowerCase() === siteFilter.toLowerCase() ? "" : value)}
                 placeholder="Filter by Site"
                 searchPlaceholder="Search sites..."
             />
             <Combobox
                 options={filterOptions.commonNames.map(s => ({ value: s, label: s }))}
                 value={commonNameFilter}
-                onChange={setCommonNameFilter}
+                onChange={(value) => setCommonNameFilter(value.toLowerCase() === commonNameFilter.toLowerCase() ? "" : value)}
                 placeholder="Filter by Common Name"
                 searchPlaceholder="Search names..."
             />
             <Combobox
                 options={filterOptions.days.map(s => ({ value: s, label: s }))}
                 value={dayFilter}
-                onChange={setDayFilter}
+                onChange={(value) => setDayFilter(value.toLowerCase() === dayFilter.toLowerCase() ? "" : value)}
                 placeholder="Filter by Day"
                 searchPlaceholder="Search days..."
             />
             <Combobox
                 options={filterOptions.ingredients.map(s => ({ value: s, label: s }))}
                 value={ingredientFilter}
-                onChange={setIngredientFilter}
+                onChange={(value) => setIngredientFilter(value.toLowerCase() === ingredientFilter.toLowerCase() ? "" : value)}
                 placeholder="Filter by Ingredient"
                 searchPlaceholder="Search ingredients..."
             />
@@ -236,4 +233,9 @@ export function DetailedReport({ data }: DetailedReportProps) {
       </CardContent>
     </Card>
   );
+}
+
+export default function DetailedReportPage() {
+    const { speciesSiteData } = useContext(DataContext);
+    return <DetailedReport data={speciesSiteData} />;
 }
